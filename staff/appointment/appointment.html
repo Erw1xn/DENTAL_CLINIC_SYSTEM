@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DentaNueva - Appointments</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+    />
+    <link rel="stylesheet" href="../../navigation_bar/sidebar.css" />
+    <link rel="stylesheet" href="appointment.css" />
+  </head>
+  <body>
+    <div class="dashboard-wrapper">
+      <aside id="sidebar-container"></aside>
+      <main class="main-content">
+        <div class="topbar">
+          <div class="topbar-left">
+            <h1 class="page-title">Appointments</h1>
+          </div>
+          <div class="topbar-right-actions">
+            <div class="search-box-wrapper">
+              <i class="fa-solid fa-magnifying-glass search-icon"></i>
+              <input
+                id="searchInput"
+                class="patient-search-input"
+                placeholder="Search patient name..."
+              />
+            </div>
+            <button class="btn-new-appointment" onclick="openNewModal()">
+              <i class="fa-solid fa-plus"></i>
+              New Appointment
+            </button>
+          </div>
+        </div>
+
+        <div class="appointments-layout">
+          <div class="left-col-stack">
+            <section class="panel calendar-panel">
+              <div class="calendar-header">
+                <h4 id="calMonthLabel">—</h4>
+                <div class="calendar-nav-btns">
+                  <button onclick="shiftMonth(-1)">
+                    <i class="fa-solid fa-chevron-left"></i>
+                  </button>
+                  <button onclick="shiftMonth(1)">
+                    <i class="fa-solid fa-chevron-right"></i>
+                  </button>
+                </div>
+              </div>
+              <div class="calendar-grid-days" id="calGrid"></div>
+            </section>
+
+            <section class="panel dentists-panel">
+              <h3>
+                <i class="fa-solid fa-user-doctor panel-title-icon"></i>
+                Dentists on Duty
+              </h3>
+              <div class="dentists-list" id="dentistsDutyList"></div>
+            </section>
+          </div>
+
+          <section class="panel schedule-panel">
+            <div class="schedule-main-header">
+              <h3>Today's Schedule</h3>
+            </div>
+            <div class="time-slots-container" id="timeline"></div>
+          </section>
+
+          <div class="right-col-stack">
+            <section class="panel summary-panel">
+              <h3>Today's Summary</h3>
+              <div class="summary-stats-grid">
+                <div class="stat-card">
+                  <div class="stat-icon-square stat-icon-green">
+                    <i class="fa-regular fa-calendar-check"></i>
+                  </div>
+                  <span class="stat-value" id="statTotalAppts">0</span>
+                  <span class="stat-label">Total Bookings</span>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-icon-square stat-icon-amber">
+                    <i class="fa-solid fa-peso-sign"></i>
+                  </div>
+                  <span class="stat-value" id="statEstimatedRevenue">₱0</span>
+                  <span class="stat-label">Est. Revenue</span>
+                </div>
+              </div>
+            </section>
+
+            <section class="panel waiting-panel">
+              <div class="waiting-header">
+                <h3>Waiting Queue</h3>
+              </div>
+              <div class="waiting-queue-list" id="waitingQueueList"></div>
+            </section>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- Page specific modal for appointments -->
+    <div class="modal-overlay" id="overlay">
+      <div class="modal-container">
+        <div class="modal-header">
+          <h3 id="modalTitle">New Appointment</h3>
+          <button class="modal-close-icon" onclick="closeModal()">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Patient Name</label>
+            <input
+              type="text"
+              id="f_patient"
+              class="form-control"
+              placeholder="e.g. Erwin Jacaba"
+            />
+          </div>
+          <div class="form-row-inline">
+            <div class="form-group">
+              <label>Date</label>
+              <input type="date" id="f_date" class="form-control" />
+            </div>
+            <div class="form-group">
+              <label>Time</label>
+              <input type="time" id="f_time" class="form-control" />
+            </div>
+          </div>
+          <div class="form-row-service-duration">
+            <div class="form-group">
+              <label>Service Type</label>
+              <input
+                type="text"
+                id="f_type"
+                class="form-control"
+                list="serviceList"
+                oninput="onServiceTypeTyped()"
+                placeholder="e.g. Consultation"
+              />
+              <datalist id="serviceList">
+                <option value="Consultation"></option>
+                <option value="Dental Cleaning"></option>
+                <option value="Tooth Filling / Pasta"></option>
+                <option value="Tooth Extraction"></option>
+                <option value="Root Canal"></option>
+                <option value="Braces Adjustment"></option>
+              </datalist>
+            </div>
+            <div class="form-group">
+              <label>Duration (min)</label>
+              <input
+                type="number"
+                id="f_duration"
+                class="form-control"
+                value="30"
+              />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Dentist</label>
+            <select id="f_dentist" class="form-control">
+              <option value="santos">Dr. M. Santos</option>
+              <option value="cruz">Dr. L. Cruz</option>
+              <option value="ramos">Dr. J. Ramos</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Price (₱)</label>
+            <input
+              type="number"
+              id="f_price"
+              class="form-control"
+              placeholder="e.g. 500"
+            />
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button
+            id="deleteBtn"
+            class="btn-danger"
+            style="display: none"
+            onclick="deleteAppt()"
+          >
+            Delete
+          </button>
+          <button class="btn-save" onclick="saveAppt()">
+            Save Appointment
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script src="../../navigation_bar/sidebar.js"></script>
+    <script src="appointment.js"></script>
+  </body>
+</html>

@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DentaNueva - Dental Clinic</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <link rel="stylesheet" href="homepage.css" />
+  </head>
+  <body>
+    <!-- MOBILE OVERLAY BACKDROP -->
+    <div class="nav-overlay" id="navOverlay"></div>
+
+    <!-- TOP NAVIGATION BAR -->
+    <header class="home-navbar" id="homeNavbar">
+      <div class="nav-brand" id="navBrand">
+        <div class="brand-text-col">
+          <span class="brand-name">DentaNueva</span>
+          <small class="brand-sub">Dental Clinic</small>
+        </div>
+      </div>
+
+      <!-- Navigation Links and Sign In Button Wrapper -->
+      <div class="nav-menu-wrapper" id="navMenuWrapper">
+        <nav class="nav-links">
+          <a href="#home" class="nav-link active">Home</a>
+          <a href="#services" class="nav-link">Services</a>
+          <a href="#about" class="nav-link">About us</a>
+        </nav>
+        <div class="nav-action-btn-box">
+          <a href="../login/login.html" id="openLoginBtn" class="btn-signin"
+            >Log In</a
+          >
+        </div>
+      </div>
+
+      <!-- Mobile Hamburger Toggle Button -->
+      <button
+        class="nav-toggle-btn"
+        id="navToggleBtn"
+        aria-label="Toggle Navigation"
+      >
+        <i class="fa-solid fa-bars" id="navToggleIcon"></i>
+      </button>
+    </header>
+
+    <!-- PAGE CONTENT WRAPPER -->
+    <div class="page-blur-wrapper" id="pageBlurWrapper">
+      <!-- HERO SECTION -->
+      <section id="home" class="hero-section">
+        <div class="hero-text-content">
+          <h1 class="hero-title">
+            YOUR HEALTHY SMILE<br />
+            IS OUR PRIORITY!
+          </h1>
+          <p class="hero-desc">
+            We are committed to providing quality dental care in a comfortable
+            and friendly environment. Our goal is to help you achieve strong
+            teeth, healthy gums, and a confident smile.
+          </p>
+        </div>
+        <div class="hero-image-content">
+          <img
+            src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTBRmF_e76KNqnODbVf9tHn1GUS5q9qk-rxkqvz3ZzM9Q&s=10"
+            alt="Child at dental checkup"
+            class="hero-img"
+          />
+        </div>
+      </section>
+
+      <!-- SERVICES SECTION -->
+      <section id="services" class="services-section">
+        <div class="section-tag-top">OUR SERVICES</div>
+        <h2 class="section-main-title">COMPREHENSIVE DENTAL CARE</h2>
+        <p class="section-subtitle">
+          We offer a wide range of dental services to keep your smile healthy
+          and beautiful
+        </p>
+
+        <div class="services-grid">
+          <div class="service-card">
+            <div class="service-icon-wrapper">
+              <i class="fa-solid fa-tooth"></i>
+            </div>
+            <h3>General Dentistry</h3>
+            <p>
+              Regular checkups, cleaning, and fillings to maintain your oral
+              health.
+            </p>
+            <ul class="service-checklist">
+              <li><i class="fa-solid fa-check"></i> Dental Exam</li>
+              <li><i class="fa-solid fa-check"></i> Teeth Cleaning</li>
+              <li><i class="fa-solid fa-check"></i> Fillings</li>
+            </ul>
+          </div>
+
+          <div class="service-card">
+            <div class="service-icon-wrapper">
+              <i class="fa-solid fa-wand-magic-sparkles"></i>
+            </div>
+            <h3>Cosmetic Dentistry</h3>
+            <p>
+              Teeth whitening, veneers, and smile makeovers to enhance your
+              appearance.
+            </p>
+            <ul class="service-checklist">
+              <li><i class="fa-solid fa-check"></i> Teeth Whitening</li>
+              <li><i class="fa-solid fa-check"></i> Veneers</li>
+              <li><i class="fa-solid fa-check"></i> Bonding</li>
+            </ul>
+          </div>
+
+          <div class="service-card">
+            <div class="service-icon-wrapper">
+              <i class="fa-solid fa-teeth"></i>
+            </div>
+            <h3>Orthodontics</h3>
+            <p>Braces and aligners to straighten teeth and correct bites.</p>
+            <ul class="service-checklist">
+              <li><i class="fa-solid fa-check"></i> Traditional Braces</li>
+              <li><i class="fa-solid fa-check"></i> Invisalign</li>
+              <li><i class="fa-solid fa-check"></i> Retainers</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ABOUT US SECTION -->
+      <section id="about" class="about-section">
+        <div class="about-top-header">
+          <span class="about-tag">About us</span>
+          <h2>DentaNueva Dental Clinic</h2>
+        </div>
+
+        <div class="about-content-row">
+          <div class="about-text-block">
+            <p>
+              Founded on March 15, 2025, DentaNueva has been providing
+              exceptional dental care to our community. Our mission is to
+              deliver personalized, high-quality dental services in a
+              comfortable and welcoming environment.
+            </p>
+            <p>
+              Our team of experienced dentist and hygienists are committed to
+              staying at the forefront of dental technology and techniques to
+              ensure you receive the best possible care.
+            </p>
+            <ul class="about-features-list">
+              <li>
+                <span class="check-icon-box"
+                  ><i class="fa-solid fa-check"></i
+                ></span>
+                <div>
+                  <strong>Modern equipment:</strong><br />
+                  <span
+                    >We use the latest dental technology for precise and
+                    comfortable treatment.</span
+                  >
+                </div>
+              </li>
+              <li>
+                <span class="check-icon-box"
+                  ><i class="fa-solid fa-check"></i
+                ></span>
+                <div>
+                  <strong>Patient-Centered Care:</strong><br />
+                  <span
+                    >Your comfort and satisfaction is our top priority.</span
+                  >
+                </div>
+              </li>
+              <li>
+                <span class="check-icon-box"
+                  ><i class="fa-solid fa-check"></i
+                ></span>
+                <div>
+                  <strong>Emergency service:</strong><br />
+                  <span
+                    >We're here for you when you need urgent dental care.</span
+                  >
+                </div>
+              </li>
+            </ul>
+          </div>
+
+          <div class="about-image-block">
+            <div class="clinic-sign-card">
+              <img src="../img/dentanueva.png" alt="DentaNueva Clinic Sign" />
+            </div>
+            <div class="team-preview-box">
+              <h4>Meet Our Team</h4>
+              <div class="team-avatars-row">
+                <div class="team-member">
+                  <img
+                    src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ4npm9Su4VgnsQM78KYUvrBjPj0H2NGMpCQgwRIlMtAA&s=10"
+                    alt="Dr. Nathalia Villanueva"
+                  />
+                  <span>Dr. Nathalia Villanueva</span>
+                  <small>General Dentist</small>
+                </div>
+                <div class="team-member">
+                  <img
+                    src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80"
+                    alt="Nancy Fe"
+                  />
+                  <span>Nancy Fe</span>
+                  <small>Assistant</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- WHY CHOOSE OUR CLINIC -->
+      <section class="why-choose-section">
+        <h2>Why Choose Our Clinic?</h2>
+        <div class="why-grid">
+          <div class="why-card">
+            <div class="why-icon-circle green-theme">
+              <i class="fa-solid fa-user-doctor"></i>
+            </div>
+            <h3>Expert Dentist</h3>
+            <p>
+              Our team of certified professionals provides the highest quality
+              dental care with years of experience.
+            </p>
+          </div>
+          <div class="why-card">
+            <div class="why-icon-circle green-theme">
+              <i class="fa-regular fa-clock"></i>
+            </div>
+            <h3>Flexible Hours</h3>
+            <p>
+              We offer convenient appointment times including evenings and
+              weekends to fit your busy schedule.
+            </p>
+          </div>
+          <div class="why-card">
+            <div class="why-icon-circle green-theme">
+              <i class="fa-solid fa-shield-halved"></i>
+            </div>
+            <h3>Modern Equipment</h3>
+            <p>
+              Latest technology for precise diagnostic and comfortable treatment
+              with minimal discomfort.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- LOCATION & MAP SECTION -->
+      <section class="location-section" id="location">
+        <h2 class="section-title-left">LOCATION MAP</h2>
+        <div class="location-grid">
+          <div class="map-container">
+            <iframe
+              title="Clinic Map Location"
+              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3860.2075727768565!2d120.9842!3d14.6507!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMTTCsDM5JzAyLjUiTiAxMjDCsDU5JzAzLjIiRQ!5e0!3m2!1sen!2sph!4v1600000000000!5m2!1sen!2sph"
+              width="100%"
+              height="100%"
+              style="border: 0"
+              allowfullscreen=""
+              loading="lazy"
+            >
+            </iframe>
+          </div>
+          <div class="location-details">
+            <ul class="contact-info-list">
+              <li>
+                <i class="fa-solid fa-location-dot"></i>
+                <span
+                  >Blk36 Lot3, Ph3, F1 Langaray Ext, Dagat-Dagatan, Caloocan,
+                  Metro Manila</span
+                >
+              </li>
+              <li>
+                <i class="fa-solid fa-phone"></i>
+                <span>0960 604 9914</span>
+              </li>
+              <li>
+                <i class="fa-solid fa-envelope"></i>
+                <span>Nathalia.Villanueva@gmail.com</span>
+              </li>
+              <li>
+                <i class="fa-regular fa-clock"></i>
+                <span>Mon-Sun, 10am-6pm</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- FOOTER -->
+      <footer class="home-footer">
+        <div class="footer-grid">
+          <div class="footer-col">
+            <h4>Contact Us</h4>
+            <ul class="footer-links">
+              <li><i class="fa-brands fa-facebook"></i> @DentaNueva</li>
+              <li>
+                <i class="fa-solid fa-envelope"></i>
+                Nathalia.Villanueva@gmail.com
+              </li>
+              <li><i class="fa-solid fa-house"></i> DentaNueva</li>
+            </ul>
+          </div>
+          <div class="footer-col footer-col-right">
+            <h4>Quick Links</h4>
+            <ul class="footer-links">
+              <li><a href="#home">Home</a></li>
+              <li><a href="#services">Services</a></li>
+              <li><a href="#about">About us</a></li>
+            </ul>
+          </div>
+        </div>
+        <div class="footer-bottom">
+          <p>&copy; DentaNueva Dental Clinic, All right reserved</p>
+          <small>Providing Dental care since 2025</small>
+        </div>
+      </footer>
+    </div>
+
+    <!-- LOGIN MODAL POPUP CONTAINER -->
+    <div class="login-modal-overlay" id="loginModalOverlay">
+      <div class="login-modal-container">
+        <button class="modal-close-btn" id="modalCloseBtn">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+        <iframe
+          src="../login/login.html"
+          class="login-iframe"
+          id="loginIframe"
+          title="Sign In"
+        ></iframe>
+      </div>
+    </div>
+
+    <script src="homepage.js"></script>
+  </body>
+</html>
