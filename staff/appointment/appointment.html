@@ -28,18 +28,12 @@
 
   <body>
     <div class="dashboard-wrapper">
-      <!-- ======================================================
-         SIDEBAR
-    ======================================================= -->
+      <!-- SIDEBAR -->
       <aside id="sidebar-container"></aside>
 
-      <!-- ======================================================
-         MAIN CONTENT
-    ======================================================= -->
+      <!-- MAIN CONTENT -->
       <main class="main-content">
-        <!-- ====================================================
-           TOPBAR
-      ===================================================== -->
+        <!-- TOPBAR -->
         <div class="topbar">
           <div class="topbar-left">
             <h1 class="page-title">Appointments</h1>
@@ -69,17 +63,11 @@
           </div>
         </div>
 
-        <!-- ====================================================
-           APPOINTMENTS LAYOUT
-      ===================================================== -->
+        <!-- APPOINTMENTS LAYOUT -->
         <div class="appointments-layout">
-          <!-- ==================================================
-             LEFT COLUMN
-        =================================================== -->
+          <!-- LEFT COLUMN -->
           <div class="left-col-stack">
-            <!-- =================================================
-               CALENDAR
-          ================================================== -->
+            <!-- CALENDAR -->
             <section class="panel calendar-panel">
               <div class="calendar-header">
                 <h4 id="calMonthLabel">—</h4>
@@ -106,9 +94,7 @@
               <div class="calendar-grid-days" id="calGrid"></div>
             </section>
 
-            <!-- =================================================
-               DENTISTS ON DUTY
-          ================================================== -->
+            <!-- DENTISTS ON DUTY -->
             <section class="panel dentists-panel">
               <div class="dentists-panel-header">
                 <h3>Dentists on Duty</h3>
@@ -118,9 +104,7 @@
             </section>
           </div>
 
-          <!-- ==================================================
-             MAIN SCHEDULE
-        =================================================== -->
+          <!-- MAIN SCHEDULE -->
           <section class="panel schedule-panel">
             <div class="schedule-main-header">
               <h3 id="scheduleTitle">Today's Schedule</h3>
@@ -131,13 +115,9 @@
             <div class="time-slots-container" id="timeline"></div>
           </section>
 
-          <!-- ==================================================
-             RIGHT COLUMN
-        =================================================== -->
+          <!-- RIGHT COLUMN -->
           <div class="right-col-stack">
-            <!-- =================================================
-               WAITING QUEUE
-          ================================================== -->
+            <!-- WAITING QUEUE -->
             <section class="panel waiting-panel">
               <div class="waiting-header">
                 <h3>Waiting Queue</h3>
@@ -174,9 +154,7 @@
         </div>
 
         <div class="modal-body">
-          <!-- =================================================
-             PATIENT
-        ================================================== -->
+          <!-- PATIENT -->
           <div class="form-group">
             <label for="f_patient"> Patient Name </label>
 
@@ -189,9 +167,7 @@
             />
           </div>
 
-          <!-- =================================================
-             DATE + TIME
-        ================================================== -->
+          <!-- DATE + TIME -->
           <div class="form-row-inline">
             <div class="form-group">
               <label for="f_date"> Date </label>
@@ -206,9 +182,7 @@
             </div>
           </div>
 
-          <!-- =================================================
-             SERVICE TYPE
-        ================================================== -->
+          <!-- SERVICE TYPE -->
           <div class="form-group">
             <label for="f_type"> Service Type </label>
 
@@ -223,22 +197,15 @@
 
             <datalist id="serviceList">
               <option value="Consultation"></option>
-
               <option value="Dental Cleaning"></option>
-
               <option value="Tooth Filling / Pasta"></option>
-
               <option value="Tooth Extraction"></option>
-
               <option value="Root Canal"></option>
-
               <option value="Braces Adjustment"></option>
             </datalist>
           </div>
 
-          <!-- =================================================
-             DURATION
-        ================================================== -->
+          <!-- DURATION -->
           <div class="form-group">
             <label for="f_duration"> Duration </label>
 
@@ -262,9 +229,7 @@
             </small>
           </div>
 
-          <!-- =================================================
-             DENTIST
-        ================================================== -->
+          <!-- DENTIST -->
           <div class="form-group">
             <label for="f_dentist"> Dentist </label>
 
@@ -277,9 +242,7 @@
             </select>
           </div>
 
-          <!-- =================================================
-             PAST RECORD NOTICE
-        ================================================== -->
+          <!-- PAST RECORD NOTICE -->
           <div id="pastRecordNotice" class="past-record-notice">
             <i class="fa-solid fa-clock-rotate-left"></i>
 
@@ -293,9 +256,7 @@
             </div>
           </div>
 
-          <!-- =================================================
-             VIEW ONLY NOTICE
-        ================================================== -->
+          <!-- VIEW ONLY NOTICE -->
           <div id="viewOnlyNotice" class="view-only-notice">
             <i class="fa-solid fa-lock"></i>
 
@@ -309,9 +270,7 @@
             </div>
           </div>
 
-          <!-- =================================================
-             SCHEDULING CONFLICT MESSAGE
-        ================================================== -->
+          <!-- SCHEDULING CONFLICT -->
           <div id="scheduleConflictNotice" class="schedule-conflict-notice">
             <i class="fa-solid fa-circle-exclamation"></i>
 
@@ -326,9 +285,7 @@
           </div>
         </div>
 
-        <!-- ====================================================
-           MODAL ACTIONS
-      ===================================================== -->
+        <!-- MODAL ACTIONS -->
         <div class="modal-actions">
           <button
             id="deleteBtn"
@@ -402,18 +359,48 @@
     </div>
 
     <!-- ======================================================
-       TOAST
+       STATUS CONFIRMATION MODAL
   ======================================================= -->
 
+    <div class="status-confirm-overlay" id="statusConfirmOverlay">
+      <div class="status-confirm-box">
+        <div class="status-confirm-icon" id="statusConfirmIcon">
+          <i class="fa-solid fa-circle-check"></i>
+        </div>
+
+        <h3 id="statusConfirmTitle">Confirm Appointment</h3>
+
+        <p id="statusConfirmMessage">Are you sure you want to continue?</p>
+
+        <div class="status-confirm-actions">
+          <button
+            type="button"
+            class="status-cancel-btn"
+            onclick="closeStatusConfirmation()"
+          >
+            Cancel
+          </button>
+
+          <button
+            type="button"
+            class="status-confirm-btn"
+            id="statusConfirmButton"
+            onclick="confirmStatusAction()"
+          >
+            Confirm
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TOAST -->
     <div class="toast" id="toast"></div>
 
-    <!-- ======================================================
-       KEEP YOUR EXISTING SIDEBAR
-  ======================================================= -->
-
+    <!-- SIDEBAR -->
     <script src="../../navigation_bar/sidebar.js"></script>
 
     <!-- APPOINTMENT JS -->
     <script src="appointment.js"></script>
   </body>
 </html>
+```

@@ -4,7 +4,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 /* =========================================================
    STORAGE
-   ========================================================= */
+========================================================= */
 
 const APPOINTMENTS_STORAGE_KEY = "appointments";
 const PATIENTS_STORAGE_KEY = "patients";
@@ -12,10 +12,11 @@ const TRANSACTIONS_STORAGE_KEY = "transactions";
 
 /* =========================================================
    DASHBOARD INITIALIZATION
-   ========================================================= */
+========================================================= */
 
 function initializeDashboard() {
   updateDateTime();
+
   setInterval(updateDateTime, 1000);
 
   renderDashboard();
@@ -26,12 +27,10 @@ function initializeDashboard() {
   setupInventoryInteractions();
   setupDentistInteractions();
 
-  // Refresh dashboard when returning to the page
   window.addEventListener("focus", () => {
     renderDashboard();
   });
 
-  // Refresh when localStorage changes from another page/tab
   window.addEventListener("storage", (event) => {
     if (
       event.key === APPOINTMENTS_STORAGE_KEY ||
@@ -41,29 +40,24 @@ function initializeDashboard() {
       renderDashboard();
     }
   });
+
+  window.addEventListener("appointmentStatusChanged", () => {
+    renderDashboard();
+  });
+
+  window.addEventListener("appointmentsUpdated", () => {
+    renderDashboard();
+  });
 }
 
 /* =========================================================
    DASHBOARD DATA
-   ========================================================= */
+========================================================= */
 
 const dashboardData = {
   patients: [],
+
   appointments: [],
-
-  /*
-    Dentist information is also used to convert values such as:
-
-    santos
-    cruz
-    ramos
-
-    into:
-
-    Dr. Santos
-    Dr. Cruz
-    Dr. Ramos
-  */
 
   dentists: [
     {
@@ -73,6 +67,7 @@ const dashboardData = {
       specialization: "General Dentistry",
       status: "available",
     },
+
     {
       id: 2,
       key: "reyes",
@@ -80,6 +75,7 @@ const dashboardData = {
       specialization: "Orthodontics",
       status: "withpatient",
     },
+
     {
       id: 3,
       key: "garcia",
@@ -87,6 +83,7 @@ const dashboardData = {
       specialization: "General Dentistry",
       status: "offduty",
     },
+
     {
       id: 4,
       key: "cruz",
@@ -94,6 +91,7 @@ const dashboardData = {
       specialization: "General Dentistry",
       status: "available",
     },
+
     {
       id: 5,
       key: "ramos",
@@ -111,6 +109,7 @@ const dashboardData = {
       minimum: 20,
       status: "low",
     },
+
     {
       id: 2,
       name: "Face Masks",
@@ -118,6 +117,7 @@ const dashboardData = {
       minimum: 20,
       status: "critical",
     },
+
     {
       id: 3,
       name: "Composite Resin",
@@ -132,17 +132,19 @@ const dashboardData = {
 
 /* =========================================================
    LOAD LOCAL STORAGE DATA
-   ========================================================= */
+========================================================= */
 
 function loadDashboardData() {
   dashboardData.appointments = getStoredAppointments();
+
   dashboardData.patients = getStoredPatients();
+
   dashboardData.transactions = getStoredTransactions();
 }
 
 /* =========================================================
-   APPOINTMENTS FROM APPOINTMENT PAGE
-   ========================================================= */
+   APPOINTMENTS
+========================================================= */
 
 function getStoredAppointments() {
   try {
@@ -168,7 +170,7 @@ function getStoredAppointments() {
 
 /* =========================================================
    NORMALIZE APPOINTMENT
-   ========================================================= */
+========================================================= */
 
 function normalizeDashboardAppointment(appointment) {
   if (!appointment || typeof appointment !== "object") {
@@ -180,31 +182,15 @@ function normalizeDashboardAppointment(appointment) {
       service: "Appointment",
       date: "",
       time: "",
-      status: "pending",
+      status: "scheduled",
     };
   }
-
-  /*
-    Some Appointment page versions may store information
-    directly on the appointment object.
-
-    Others may store it inside:
-
-    appointment.details
-    appointment.appointmentDetails
-
-    This checks all common locations.
-  */
 
   const details =
     appointment.appointmentDetails ||
     appointment.details ||
     appointment.appointment_details ||
     {};
-
-  /* =======================================================
-     PATIENT NAME
-     ======================================================= */
 
   const patientName =
     appointment.patientName ||
@@ -219,31 +205,6 @@ function normalizeDashboardAppointment(appointment) {
     details.name ||
     details.fullName ||
     "Unknown Patient";
-
-  /* =======================================================
-     DENTIST
-     ======================================================= */
-
-  /*
-    IMPORTANT FIX:
-
-    If the Appointment page stores:
-
-      dentist: "santos"
-
-    Dashboard will now convert it to:
-
-      Dr. Santos
-
-    It also supports:
-
-      dentistId
-      doctorId
-      assignedDentist
-      assignedDoctor
-      dentistName
-      doctorName
-  */
 
   const rawDentist =
     appointment.dentistName ||
@@ -268,16 +229,6 @@ function normalizeDashboardAppointment(appointment) {
 
   const dentist = resolveDentistName(rawDentist);
 
-  /* =======================================================
-     SERVICE TYPE
-
-     FIX: The Appointment page (appointment.js) saves the
-     service under the "type" field (e.g. type: "Consultation"),
-     not "service" or "serviceType". That field was never
-     being checked, so this always fell through to the
-     "Appointment" default. Added appointment.type / details.type.
-     ======================================================= */
-
   const service =
     appointment.serviceType ||
     appointment.service ||
@@ -295,10 +246,6 @@ function normalizeDashboardAppointment(appointment) {
     details.treatment ||
     "Appointment";
 
-  /* =======================================================
-     DATE
-     ======================================================= */
-
   const date =
     appointment.appointmentDate ||
     appointment.appointment_date ||
@@ -307,17 +254,6 @@ function normalizeDashboardAppointment(appointment) {
     details.appointment_date ||
     details.date ||
     "";
-
-  /* =======================================================
-     TIME
-
-     FIX: The Appointment page (appointment.js) saves the
-     start time under the "start" field (e.g. start: "10:00"),
-     not "time" / "startTime" / "start_time". That field was
-     never being checked, so this always resolved to "" and
-     displayed as "--:--" on the dashboard. Added
-     appointment.start / details.start.
-     ======================================================= */
 
   const time =
     appointment.appointmentTime ||
@@ -334,11 +270,9 @@ function normalizeDashboardAppointment(appointment) {
     details.start ||
     "";
 
-  /* =======================================================
-     STATUS
-     ======================================================= */
+  const rawStatus = appointment.status || details.status || "scheduled";
 
-  const status = appointment.status || details.status || "confirmed";
+  const status = normalizeAppointmentStatus(rawStatus);
 
   return {
     ...appointment,
@@ -353,12 +287,8 @@ function normalizeDashboardAppointment(appointment) {
 
     patientName: String(patientName).trim(),
 
-    /*
-      Keep both values.
-      dentist = display name
-      dentistRaw = original Appointment page value
-    */
     dentist: String(dentist).trim(),
+
     dentistRaw: String(rawDentist).trim(),
 
     service: String(service).trim(),
@@ -367,13 +297,99 @@ function normalizeDashboardAppointment(appointment) {
 
     time: normalizeAppointmentTime(time),
 
-    status: String(status).toLowerCase().trim(),
+    status,
   };
 }
 
 /* =========================================================
-   RESOLVE DENTIST NAME
-   ========================================================= */
+   NORMALIZE STATUS
+========================================================= */
+
+function normalizeAppointmentStatus(status) {
+  const value = String(status || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[_\-]+/g, " ")
+    .replace(/\s+/g, " ");
+
+  /*
+    SCHEDULED
+  */
+
+  if (
+    value === "" ||
+    value === "scheduled" ||
+    value === "schedule" ||
+    value === "waiting" ||
+    value === "pending" ||
+    value === "confirmed"
+  ) {
+    return "scheduled";
+  }
+
+  /*
+    CHECKED IN
+  */
+
+  if (
+    value === "checkedin" ||
+    value === "checked in" ||
+    value === "check in" ||
+    value === "check-in"
+  ) {
+    return "checkedin";
+  }
+
+  /*
+    IN CONSULTATION
+  */
+
+  if (value === "in consultation" || value === "inconsultation") {
+    return "in consultation";
+  }
+
+  /*
+    COMPLETE
+  */
+
+  if (
+    value === "complete" ||
+    value === "ready complete" ||
+    value === "readycomplete"
+  ) {
+    return "complete";
+  }
+
+  /*
+    COMPLETED
+  */
+
+  if (value === "completed" || value === "done") {
+    return "completed";
+  }
+
+  /*
+    CANCELLED
+  */
+
+  if (value === "cancelled" || value === "canceled") {
+    return "cancelled";
+  }
+
+  /*
+    NO SHOW
+  */
+
+  if (value === "no show" || value === "noshow") {
+    return "no-show";
+  }
+
+  return "scheduled";
+}
+
+/* =========================================================
+   RESOLVE DENTIST
+========================================================= */
 
 function resolveDentistName(value) {
   if (!value) {
@@ -392,10 +408,6 @@ function resolveDentistName(value) {
     .replace(/^dr\s+/i, "")
     .replace(/\s+/g, "")
     .replace(/[-_]/g, "");
-
-  /*
-    Check Dashboard dentist list.
-  */
 
   const dentist = dashboardData.dentists.find((doctor) => {
     const doctorName = String(doctor.name || "")
@@ -425,13 +437,6 @@ function resolveDentistName(value) {
     return dentist.name;
   }
 
-  /*
-    Additional fallback mapping.
-
-    This specifically handles appointment values
-    such as "santos", "cruz", and "ramos".
-  */
-
   const dentistMap = {
     santos: "Dr. Santos",
     msantos: "Dr. Santos",
@@ -458,11 +463,6 @@ function resolveDentistName(value) {
     return dentistMap[normalized];
   }
 
-  /*
-    If the value already looks like a proper doctor name,
-    keep it instead of showing "Unassigned".
-  */
-
   if (
     /^dr\./i.test(original) ||
     /^dr\s/i.test(original) ||
@@ -470,17 +470,6 @@ function resolveDentistName(value) {
   ) {
     return original;
   }
-
-  /*
-    Last fallback:
-    Capitalize the dentist value.
-
-    Example:
-      santos -> Santos
-
-    But normally the mapping above will return:
-      Dr. Santos
-  */
 
   return capitalizeDentistName(original);
 }
@@ -490,7 +479,9 @@ function capitalizeDentistName(value) {
     .trim()
     .split(/\s+/)
     .map((part) => {
-      if (!part) return "";
+      if (!part) {
+        return "";
+      }
 
       return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
     })
@@ -498,8 +489,8 @@ function capitalizeDentistName(value) {
 }
 
 /* =========================================================
-   PATIENT STORAGE
-   ========================================================= */
+   PATIENTS
+========================================================= */
 
 function getStoredPatients() {
   try {
@@ -520,8 +511,8 @@ function getStoredPatients() {
 }
 
 /* =========================================================
-   TRANSACTION STORAGE
-   ========================================================= */
+   TRANSACTIONS
+========================================================= */
 
 function getStoredTransactions() {
   try {
@@ -543,37 +534,28 @@ function getStoredTransactions() {
 
 /* =========================================================
    RENDER DASHBOARD
-   ========================================================= */
+========================================================= */
 
 function renderDashboard() {
-  /*
-    Always reload the latest Appointment page data.
-
-    This is what connects:
-
-    Appointment Page
-           ↓
-       localStorage
-           ↓
-       Dashboard
-  */
-
   loadDashboardData();
 
   updateSummaryCards();
+
   renderUpcomingAppointments();
+
   renderDentistAvailability();
+
   renderInventoryAlerts();
 }
 
 /* =========================================================
    SUMMARY CARDS
-   ========================================================= */
+========================================================= */
 
 function updateSummaryCards() {
   const totalPatients = getTotalPatients();
+
   const todayAppointments = getTodayAppointments();
-  const confirmedTodayAppointments = getTodayConfirmedAppointments();
 
   const todayPayments = getTodayPaidTransactions();
 
@@ -581,11 +563,15 @@ function updateSummaryCards() {
 
   const monthlyRevenue = getMonthlyRevenue();
 
+  const activeTodayAppointments = todayAppointments.filter(
+    (appointment) => !isExcludedFromToday(appointment.status),
+  );
+
   setText("statTotalPatients", formatNumber(totalPatients));
 
   setText(
     "statTodayAppointments",
-    formatNumber(confirmedTodayAppointments.length),
+    formatNumber(activeTodayAppointments.length),
   );
 
   setText("statTodayRevenue", formatCurrency(todayRevenueTotal));
@@ -594,7 +580,7 @@ function updateSummaryCards() {
 
   updatePatientTrend();
 
-  updateAppointmentTrend(todayAppointments);
+  updateAppointmentTrend(activeTodayAppointments);
 
   updateTodayRevenueTrend(todayPayments);
 
@@ -604,37 +590,87 @@ function updateSummaryCards() {
 }
 
 /* =========================================================
-   CLINIC SUMMARY
-   ========================================================= */
+   TODAY'S CLINIC SUMMARY
+========================================================= */
 
 function updateClinicSummary(todayAppointments) {
-  const waitingCount = todayAppointments.filter((appointment) => {
-    const status = String(appointment.status).toLowerCase();
+  /*
+    SCHEDULED
 
-    return status === "pending" || status === "waiting";
-  }).length;
+    Only appointments that are
+    still waiting for check-in.
+  */
 
-  const checkedInCount = todayAppointments.filter((appointment) => {
-    const status = String(appointment.status).toLowerCase();
-
-    return (
-      status === "confirmed" ||
-      status === "checkedin" ||
-      status === "checked-in"
-    );
-  }).length;
-
-  const inConsultationCount = todayAppointments.filter((appointment) => {
-    const status = String(appointment.status).toLowerCase();
-
-    return status === "inconsultation" || status === "in consultation";
-  }).length;
-
-  const completedCount = todayAppointments.filter(
-    (appointment) => String(appointment.status).toLowerCase() === "completed",
+  const scheduledCount = todayAppointments.filter(
+    (appointment) => appointment.status === "scheduled",
   ).length;
 
-  setText("summaryWaiting", formatNumber(waitingCount));
+  /*
+    CHECKED IN
+
+    IMPORTANT FIX:
+
+    The Appointment page does NOT
+    store a separate "checkedin"
+    state because Check In goes
+    directly to In Consultation.
+
+    Therefore an appointment with
+    status "in consultation" means:
+
+      Checked In = 1
+      In Consultation = 1
+
+    Legacy "checkedin" records are
+    also still supported.
+  */
+
+  const checkedInCount = todayAppointments.filter(
+    (appointment) =>
+      appointment.status === "checkedin" ||
+      appointment.status === "in consultation",
+  ).length;
+
+  /*
+    IN CONSULTATION
+
+    Active consultation.
+  */
+
+  const inConsultationCount = todayAppointments.filter(
+    (appointment) => appointment.status === "in consultation",
+  ).length;
+
+  /*
+    COMPLETE
+
+    Complete is intentionally NOT
+    included in Today's Clinic
+    Summary.
+
+    It is only displayed in
+    Today's Appointments as "Complete".
+
+    It becomes Completed only after
+    staff confirmation.
+  */
+
+  /*
+    COMPLETED
+
+    Only final "completed" status
+    is counted.
+  */
+
+  const completedCount = todayAppointments.filter(
+    (appointment) => appointment.status === "completed",
+  ).length;
+
+  /*
+    UPDATE UI
+  */
+
+  setText("summaryScheduled", formatNumber(scheduledCount));
 
   setText("summaryCheckedIn", formatNumber(checkedInCount));
 
@@ -645,7 +681,7 @@ function updateClinicSummary(todayAppointments) {
 
 /* =========================================================
    PATIENTS
-   ========================================================= */
+========================================================= */
 
 function getTotalPatients() {
   return dashboardData.patients.length;
@@ -654,7 +690,9 @@ function getTotalPatients() {
 function updatePatientTrend() {
   const element = document.getElementById("statPatientsTrend");
 
-  if (!element) return;
+  if (!element) {
+    return;
+  }
 
   element.className = "stat-trend up";
 
@@ -663,7 +701,7 @@ function updatePatientTrend() {
 
 /* =========================================================
    TODAY'S APPOINTMENTS
-   ========================================================= */
+========================================================= */
 
 function getTodayAppointments() {
   const today = getTodayDate();
@@ -673,74 +711,41 @@ function getTodayAppointments() {
   );
 }
 
-function getTodayConfirmedAppointments() {
-  const today = getTodayDate();
+/* =========================================================
+   EXCLUDED STATUS
+========================================================= */
 
-  return dashboardData.appointments.filter((appointment) => {
-    const status = String(appointment.status).toLowerCase();
+function isExcludedFromToday(status) {
+  const normalized = normalizeAppointmentStatus(status);
 
-    return (
-      normalizeAppointmentDate(appointment.date) === today &&
-      status !== "cancelled" &&
-      status !== "canceled" &&
-      status !== "no-show" &&
-      status !== "noshow"
-    );
-  });
+  return normalized === "cancelled" || normalized === "no-show";
 }
 
 /* =========================================================
    UPCOMING APPOINTMENTS
-   ========================================================= */
-
-/*
-  IMPORTANT:
-
-  The Dashboard does NOT use any fixed/sample appointment.
-
-  It gets the appointment directly from:
-
-      localStorage["appointments"]
-
-  It only displays appointments scheduled for TODAY.
-
-  Display format:
-
-      Juan Dela Cruz
-      Today • 09:00 AM
-      Dental Cleaning • Dr. Santos
-
-  Data comes from Appointment Details:
-
-      Patient Name
-      Date
-      Time
-      Service Type
-      Assigned Dentist
-*/
+========================================================= */
 
 function renderUpcomingAppointments() {
   const container = document.getElementById("appointmentsList");
 
-  if (!container) return;
+  if (!container) {
+    return;
+  }
 
   const today = getTodayDate();
 
   const appointments = dashboardData.appointments
+
     .filter((appointment) => {
       const appointmentDate = normalizeAppointmentDate(appointment.date);
 
-      const status = String(appointment.status).toLowerCase();
-
       return (
-        appointmentDate === today &&
-        status !== "cancelled" &&
-        status !== "canceled" &&
-        status !== "no-show" &&
-        status !== "noshow"
+        appointmentDate === today && !isExcludedFromToday(appointment.status)
       );
     })
+
     .sort((a, b) => compareAppointments(a, b))
+
     .slice(0, 5);
 
   if (appointments.length === 0) {
@@ -759,28 +764,14 @@ function renderUpcomingAppointments() {
 
 /* =========================================================
    APPOINTMENT HTML
-   ========================================================= */
+========================================================= */
 
 function createAppointmentHTML(appointment) {
   const initials = getInitials(appointment.patientName);
 
   const statusClass = getAppointmentBadgeClass(appointment.status);
 
-  const statusText = capitalizeFirstLetter(appointment.status);
-
-  /*
-    IMPORTANT DISPLAY:
-
-    Patient Name
-    Today • Time
-    Service Type • Dentist
-
-    Example:
-
-    Juan Dela Cruz
-    Today • 09:00 AM
-    Dental Cleaning • Dr. Santos
-  */
+  const statusText = getAppointmentStatusLabel(appointment.status);
 
   const displayDate = formatAppointmentDate(appointment.date);
 
@@ -843,8 +834,40 @@ function createAppointmentHTML(appointment) {
 }
 
 /* =========================================================
-   FORMAT DISPLAY TIME
-   ========================================================= */
+   STATUS LABEL
+========================================================= */
+
+function getAppointmentStatusLabel(status) {
+  switch (normalizeAppointmentStatus(status)) {
+    case "scheduled":
+      return "Scheduled";
+
+    case "checkedin":
+      return "Checked In";
+
+    case "in consultation":
+      return "In Consultation";
+
+    case "complete":
+      return "Complete";
+
+    case "completed":
+      return "Completed";
+
+    case "cancelled":
+      return "Cancelled";
+
+    case "no-show":
+      return "No Show";
+
+    default:
+      return "Scheduled";
+  }
+}
+
+/* =========================================================
+   DISPLAY TIME
+========================================================= */
 
 function formatDisplayTime(value) {
   if (!value) {
@@ -853,17 +876,10 @@ function formatDisplayTime(value) {
 
   const text = String(value).trim();
 
-  /*
-    Already formatted:
-
-      09:00 AM
-      2:30 PM
-  */
-
   const twelveHourMatch = text.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
 
   if (twelveHourMatch) {
-    let hour = parseInt(twelveHourMatch[1], 10);
+    const hour = parseInt(twelveHourMatch[1], 10);
 
     const minute = twelveHourMatch[2];
 
@@ -871,18 +887,6 @@ function formatDisplayTime(value) {
 
     return `${String(hour).padStart(2, "0")}:${minute} ${period}`;
   }
-
-  /*
-    24-hour format:
-
-      09:00
-      14:30
-
-    Convert to:
-
-      09:00 AM
-      02:30 PM
-  */
 
   const twentyFourHourMatch = text.match(/^(\d{1,2}):(\d{2})$/);
 
@@ -907,12 +911,14 @@ function formatDisplayTime(value) {
 
 /* =========================================================
    DENTIST AVAILABILITY
-   ========================================================= */
+========================================================= */
 
 function renderDentistAvailability() {
   const container = document.getElementById("dentistList");
 
-  if (!container) return;
+  if (!container) {
+    return;
+  }
 
   if (dashboardData.dentists.length === 0) {
     container.innerHTML = createEmptyState(
@@ -957,9 +963,14 @@ function createDentistHTML(dentist) {
 
       </div>
 
-      <span class="badge ${statusInfo.className}">
+      <span
+        class="dentist-status ${statusInfo.className}"
+      >
+
         <span class="status-dot"></span>
+
         ${statusInfo.label}
+
       </span>
 
     </div>
@@ -998,20 +1009,24 @@ function getDentistStatus(status) {
 
 /* =========================================================
    INVENTORY
-   ========================================================= */
+========================================================= */
 
 function renderInventoryAlerts() {
   const container = document.getElementById("inventoryAlerts");
 
-  if (!container) return;
+  if (!container) {
+    return;
+  }
 
   const alerts = dashboardData.inventory
+
     .filter(
       (item) =>
         item.status === "low" ||
         item.status === "critical" ||
         item.status === "out",
     )
+
     .sort(
       (a, b) => getInventoryPriority(b.status) - getInventoryPriority(a.status),
     );
@@ -1042,20 +1057,13 @@ function createInventoryHTML(item) {
       tabindex="0"
     >
 
-      <div
-        style="
-          display:flex;
-          align-items:center;
-          gap:12px;
-          min-width:0;
-        "
-      >
+      <div class="inv-left">
 
         <div class="inv-icon">
           <i class="fa-solid ${status.icon}"></i>
         </div>
 
-        <div>
+        <div class="inv-info">
 
           <div class="inv-name">
             ${escapeHTML(item.name)}
@@ -1128,7 +1136,7 @@ function getInventoryPriority(status) {
 
 /* =========================================================
    REVENUE
-   ========================================================= */
+========================================================= */
 
 function getTodayPaidTransactions() {
   const today = getTodayDate();
@@ -1144,11 +1152,13 @@ function getTodayRevenue() {
   const today = getTodayDate();
 
   return dashboardData.transactions
+
     .filter(
       (transaction) =>
         normalizeAppointmentDate(transaction.date) === today &&
         String(transaction.status).toLowerCase() === "paid",
     )
+
     .reduce((total, transaction) => total + Number(transaction.amount || 0), 0);
 }
 
@@ -1156,18 +1166,22 @@ function getMonthlyRevenue() {
   const currentMonth = getCurrentMonth();
 
   return dashboardData.transactions
+
     .filter(
       (transaction) =>
         String(transaction.date).startsWith(currentMonth) &&
         String(transaction.status).toLowerCase() === "paid",
     )
+
     .reduce((total, transaction) => total + Number(transaction.amount || 0), 0);
 }
 
-function updateTodayRevenueTrend(todayPayments) {
+function updateTodayRevenueTrend() {
   const element = document.getElementById("statTodayRevenueTrend");
 
-  if (!element) return;
+  if (!element) {
+    return;
+  }
 
   element.className = "stat-trend neutral";
 
@@ -1177,7 +1191,9 @@ function updateTodayRevenueTrend(todayPayments) {
 function updateMonthlyRevenueTrend() {
   const element = document.getElementById("statMonthlyRevenueTrend");
 
-  if (!element) return;
+  if (!element) {
+    return;
+  }
 
   const monthName = new Date().toLocaleDateString("en-US", {
     month: "long",
@@ -1187,27 +1203,37 @@ function updateMonthlyRevenueTrend() {
 
   element.innerHTML = `
     <i class="fa-solid fa-calendar"></i>
-    ${monthName} revenue
+    ${escapeHTML(monthName)} revenue
   `;
 }
 
 /* =========================================================
    APPOINTMENT TREND
-   ========================================================= */
+========================================================= */
 
 function updateAppointmentTrend(todayAppointments) {
   const element = document.getElementById("statAppointmentsTrend");
 
-  if (!element) return;
+  if (!element) {
+    return;
+  }
 
-  const pendingCount = todayAppointments.filter(
-    (appointment) => String(appointment.status).toLowerCase() === "pending",
-  ).length;
-
-  if (pendingCount > 0) {
+  if (todayAppointments.length === 0) {
     element.className = "stat-trend neutral";
 
-    element.textContent = `${pendingCount} pending`;
+    element.textContent = "No Appointments Today";
+
+    return;
+  }
+
+  const scheduledCount = todayAppointments.filter(
+    (appointment) => appointment.status === "scheduled",
+  ).length;
+
+  if (scheduledCount > 0) {
+    element.className = "stat-trend neutral";
+
+    element.textContent = `${scheduledCount} scheduled`;
   } else {
     element.className = "stat-trend up";
 
@@ -1217,7 +1243,7 @@ function updateAppointmentTrend(todayAppointments) {
 
 /* =========================================================
    DATE / TIME
-   ========================================================= */
+========================================================= */
 
 function updateDateTime() {
   const now = new Date();
@@ -1246,12 +1272,14 @@ function updateDateTime() {
 
 /* =========================================================
    REFRESH
-   ========================================================= */
+========================================================= */
 
 function setupRefreshButton() {
   const refreshButton = document.querySelector(".btn-refresh-pill");
 
-  if (!refreshButton) return;
+  if (!refreshButton) {
+    return;
+  }
 
   refreshButton.addEventListener("click", async () => {
     if (refreshButton.classList.contains("spinning")) {
@@ -1294,7 +1322,7 @@ async function refreshDashboardData() {
 
 /* =========================================================
    QUICK ACTIONS
-   ========================================================= */
+========================================================= */
 
 function setupQuickActions() {
   const quickActionButtons = document.querySelectorAll(".qa-btn, .qa-btn-pill");
@@ -1311,20 +1339,24 @@ function setupQuickActions() {
 }
 
 function navigateTo(target) {
-  if (!target) return;
+  if (!target) {
+    return;
+  }
 
   window.location.href = target;
 }
 
 /* =========================================================
    APPOINTMENT CLICK
-   ========================================================= */
+========================================================= */
 
 function setupAppointmentInteractions() {
   document.addEventListener("click", (event) => {
     const item = event.target.closest(".appt-item");
 
-    if (!item) return;
+    if (!item) {
+      return;
+    }
 
     const appointmentId = item.dataset.appointmentId;
 
@@ -1338,7 +1370,9 @@ function setupAppointmentInteractions() {
 
     const item = event.target.closest(".appt-item");
 
-    if (!item) return;
+    if (!item) {
+      return;
+    }
 
     event.preventDefault();
 
@@ -1353,7 +1387,9 @@ function openAppointment(appointmentId) {
     (item) => String(item.id) === String(appointmentId),
   );
 
-  if (!appointment) return;
+  if (!appointment) {
+    return;
+  }
 
   const appointmentPage = "../appointment/appointment.html";
 
@@ -1366,29 +1402,15 @@ function openAppointment(appointmentId) {
 
 /* =========================================================
    INVENTORY CLICK
-   ========================================================= */
+========================================================= */
 
 function setupInventoryInteractions() {
   document.addEventListener("click", (event) => {
     const item = event.target.closest(".inv-item");
 
-    if (!item) return;
-
-    const inventoryId = Number(item.dataset.inventoryId);
-
-    openInventoryItem(inventoryId);
-  });
-
-  document.addEventListener("keydown", (event) => {
-    if (event.key !== "Enter" && event.key !== " ") {
+    if (!item) {
       return;
     }
-
-    const item = event.target.closest(".inv-item");
-
-    if (!item) return;
-
-    event.preventDefault();
 
     const inventoryId = Number(item.dataset.inventoryId);
 
@@ -1401,7 +1423,9 @@ function openInventoryItem(inventoryId) {
     (item) => item.id === inventoryId,
   );
 
-  if (!inventoryItem) return;
+  if (!inventoryItem) {
+    return;
+  }
 
   const inventoryPage = "../inventory/inventory.html";
 
@@ -1411,14 +1435,16 @@ function openInventoryItem(inventoryId) {
 }
 
 /* =========================================================
-   DENTIST INTERACTION
-   ========================================================= */
+   DENTIST
+========================================================= */
 
 function setupDentistInteractions() {
   document.addEventListener("click", (event) => {
     const item = event.target.closest(".dentist-item");
 
-    if (!item) return;
+    if (!item) {
+      return;
+    }
 
     const dentistId = Number(item.dataset.dentistId);
 
@@ -1426,24 +1452,35 @@ function setupDentistInteractions() {
       (doctor) => doctor.id === dentistId,
     );
 
-    if (!dentist) return;
+    if (!dentist) {
+      return;
+    }
 
     console.log("Selected dentist:", dentist);
   });
 }
 
 /* =========================================================
-   HELPERS
-   ========================================================= */
+   EMPTY STATE
+========================================================= */
 
 function createEmptyState(icon, message) {
   return `
     <div class="empty-state">
-      <i class="fa-solid ${icon}"></i>
-      <p>${escapeHTML(message)}</p>
+
+      <i class="fa-solid ${escapeHTML(icon)}"></i>
+
+      <p>
+        ${escapeHTML(message)}
+      </p>
+
     </div>
   `;
 }
+
+/* =========================================================
+   NOTIFICATION
+========================================================= */
 
 function showDashboardNotification(message, type = "success") {
   const existing = document.querySelector(".dashboard-notification");
@@ -1460,7 +1497,10 @@ function showDashboardNotification(message, type = "success") {
 
   notification.innerHTML = `
     <i class="fa-solid ${icon}"></i>
-    <span>${escapeHTML(message)}</span>
+
+    <span>
+      ${escapeHTML(message)}
+    </span>
   `;
 
   document.body.appendChild(notification);
@@ -1477,6 +1517,10 @@ function showDashboardNotification(message, type = "success") {
     }, 250);
   }, 2500);
 }
+
+/* =========================================================
+   HELPERS
+========================================================= */
 
 function setText(id, value) {
   const element = document.getElementById(id);
@@ -1500,7 +1544,7 @@ function formatCurrency(amount) {
 
 /* =========================================================
    DATE HELPERS
-   ========================================================= */
+========================================================= */
 
 function getTodayDate() {
   return formatDateForComparison(new Date());
@@ -1535,29 +1579,19 @@ function formatDateForComparison(date) {
 }
 
 /* =========================================================
-   NORMALIZE APPOINTMENT DATE
-   ========================================================= */
+   NORMALIZE DATE
+========================================================= */
 
 function normalizeAppointmentDate(value) {
-  if (!value) return "";
+  if (!value) {
+    return "";
+  }
 
   if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
     return value;
   }
 
-  /*
-    Handle Date strings such as:
-
-      August 11, 2026
-      2026-08-11T00:00:00
-  */
-
   const text = String(value).trim();
-
-  /*
-    Prevent timezone conversion
-    for YYYY-MM-DD values.
-  */
 
   const directMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
 
@@ -1576,17 +1610,19 @@ function normalizeAppointmentDate(value) {
 
 /* =========================================================
    NORMALIZE TIME
-   ========================================================= */
+========================================================= */
 
 function normalizeAppointmentTime(value) {
-  if (!value) return "";
+  if (!value) {
+    return "";
+  }
 
   return String(value).trim();
 }
 
 /* =========================================================
    FORMAT APPOINTMENT DATE
-   ========================================================= */
+========================================================= */
 
 function formatAppointmentDate(dateString) {
   if (!dateString) {
@@ -1621,8 +1657,8 @@ function formatAppointmentDate(dateString) {
 }
 
 /* =========================================================
-   SORT APPOINTMENTS
-   ========================================================= */
+   SORT
+========================================================= */
 
 function compareAppointments(a, b) {
   const dateA = getAppointmentTimestamp(a);
@@ -1644,7 +1680,7 @@ function getAppointmentTimestamp(appointment) {
 
 /* =========================================================
    CONVERT TIME
-   ========================================================= */
+========================================================= */
 
 function convertTimeTo24Hour(time) {
   if (!time) {
@@ -1653,25 +1689,9 @@ function convertTimeTo24Hour(time) {
 
   const text = String(time).trim();
 
-  /*
-    Handles:
-
-      9:00 AM
-      09:00 AM
-      2:30 PM
-      02:30 PM
-  */
-
   const match = text.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
 
   if (!match) {
-    /*
-      Also handle 24-hour values:
-
-        09:00
-        14:30
-    */
-
     if (/^\d{1,2}:\d{2}$/.test(text)) {
       return text;
     }
@@ -1698,10 +1718,12 @@ function convertTimeTo24Hour(time) {
 
 /* =========================================================
    INITIALS
-   ========================================================= */
+========================================================= */
 
 function getInitials(name) {
-  if (!name) return "?";
+  if (!name) {
+    return "?";
+  }
 
   const parts = String(name).trim().split(/\s+/).filter(Boolean);
 
@@ -1713,33 +1735,31 @@ function getInitials(name) {
 }
 
 /* =========================================================
-   STATUS
-   ========================================================= */
-
-function capitalizeFirstLetter(text) {
-  if (!text) return "";
-
-  return text.charAt(0).toUpperCase() + text.slice(1);
-}
+   APPOINTMENT BADGE
+========================================================= */
 
 function getAppointmentBadgeClass(status) {
-  switch (String(status).toLowerCase()) {
-    case "confirmed":
-      return "badge-confirmed";
-
-    case "pending":
+  switch (normalizeAppointmentStatus(status)) {
+    case "scheduled":
       return "badge-pending";
+
+    case "checkedin":
+      return "badge-checkedin";
+
+    case "in consultation":
+      return "badge-consultation";
+
+    case "complete":
+      return "badge-completed";
 
     case "completed":
       return "badge-completed";
 
     case "cancelled":
-    case "canceled":
       return "badge-cancelled";
 
-    case "checkedin":
-    case "checked-in":
-      return "badge-checkedin";
+    case "no-show":
+      return "badge-no-show";
 
     default:
       return "badge-pending";
@@ -1748,7 +1768,7 @@ function getAppointmentBadgeClass(status) {
 
 /* =========================================================
    SECURITY
-   ========================================================= */
+========================================================= */
 
 function escapeHTML(value) {
   if (value === null || value === undefined) {
@@ -1765,18 +1785,20 @@ function escapeHTML(value) {
 
 /* =========================================================
    GLOBAL DASHBOARD API
-   ========================================================= */
+========================================================= */
 
 window.DentalClinicDashboard = {
   data: dashboardData,
 
   refresh: () => {
     loadDashboardData();
+
     renderDashboard();
   },
 
   update: () => {
     loadDashboardData();
+
     renderDashboard();
   },
 
@@ -1787,4 +1809,6 @@ window.DentalClinicDashboard = {
   getMonthlyRevenue,
 
   getTotalPatients,
+
+  updateClinicSummary,
 };
