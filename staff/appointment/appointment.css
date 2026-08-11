@@ -39,11 +39,15 @@ body {
 .topbar {
   background-color: #ffffff;
   min-height: 64px;
+
   display: flex;
   align-items: center;
   justify-content: space-between;
+
   padding: 14px 24px;
+
   border-bottom: 1px solid #e2e8f0;
+
   width: 100%;
 }
 
@@ -65,6 +69,10 @@ body {
   gap: 12px;
 }
 
+/* =========================================================
+   SEARCH
+========================================================= */
+
 .search-box-wrapper {
   position: relative;
   display: flex;
@@ -76,16 +84,21 @@ body {
   left: 12px;
   font-size: 0.8rem;
   color: #94a3b8;
+  pointer-events: none;
 }
 
 .patient-search-input {
   background-color: #ffffff;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
-  padding: 6px 12px 6px 34px;
+
+  padding: 8px 12px 8px 34px;
+
   font-size: 0.8rem;
   outline: none;
+
   width: 220px;
+
   transition: border-color 0.2s;
 }
 
@@ -93,19 +106,31 @@ body {
   border-color: #176b38;
 }
 
+/* =========================================================
+   NEW APPOINTMENT BUTTON
+========================================================= */
+
 .btn-new-appointment {
   background: #176b38;
   color: #ffffff;
   border: none;
+
   padding: 10px 18px;
+
   font-size: 0.85rem;
   font-weight: 600;
+
   border-radius: 8px;
+
   cursor: pointer;
+
   display: flex;
   align-items: center;
+
   gap: 8px;
+
   box-shadow: 0 2px 4px rgba(23, 107, 56, 0.2);
+
   transition:
     background-color 0.2s ease,
     transform 0.15s ease;
@@ -138,9 +163,16 @@ body {
 
 .appointments-layout {
   padding: 16px 24px 24px;
+
   display: grid;
-  grid-template-columns: 280px 1fr 280px;
+
+  grid-template-columns:
+    280px
+    minmax(0, 1fr)
+    280px;
+
   gap: 20px;
+
   align-items: start;
 }
 
@@ -151,21 +183,22 @@ body {
   gap: 20px;
 }
 
+/* =========================================================
+   PANEL
+========================================================= */
+
 .panel {
   background-color: #ffffff;
+
   border: 1px solid #eef2f6;
+
   border-radius: 16px;
+
   padding: 16px;
 
   box-shadow:
     0 1px 2px rgba(15, 23, 42, 0.04),
     0 6px 16px rgba(15, 23, 42, 0.03);
-}
-
-.panel-title-icon {
-  font-size: 0.7rem;
-  color: #176b38;
-  margin-right: 4px;
 }
 
 /* =========================================================
@@ -176,6 +209,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+
   margin-bottom: 12px;
 }
 
@@ -192,13 +226,20 @@ body {
 
 .calendar-nav-btns button {
   background: transparent;
+
   border: 1px solid #cbd5e1;
+
   border-radius: 6px;
-  width: 22px;
-  height: 22px;
+
+  width: 26px;
+  height: 26px;
+
   cursor: pointer;
+
   font-size: 0.7rem;
+
   color: #475569;
+
   transition: 0.2s ease;
 }
 
@@ -209,8 +250,11 @@ body {
 
 .calendar-grid-days {
   display: grid;
+
   grid-template-columns: repeat(7, 1fr);
+
   gap: 2px;
+
   text-align: center;
 }
 
@@ -218,18 +262,29 @@ body {
   font-size: 0.68rem;
   font-weight: 600;
   color: #94a3b8;
+
   margin-bottom: 6px;
 }
 
 .day {
+  position: relative;
+
   font-size: 0.75rem;
+
   padding: 6px 0;
+
   border-radius: 6px;
+
   cursor: pointer;
+
   color: #334155;
+
   font-weight: 500;
+
   background: transparent;
+
   border: none;
+
   transition: 0.2s ease;
 }
 
@@ -251,13 +306,22 @@ body {
   border: 1px solid #176b38;
 }
 
+.day.past:not(.selected) {
+  color: #94a3b8;
+}
+
 .day.has-appt::after {
   content: "";
+
   display: block;
+
   width: 4px;
   height: 4px;
+
   background: #176b38;
+
   border-radius: 50%;
+
   margin: 2px auto 0;
 }
 
@@ -266,29 +330,61 @@ body {
 }
 
 /* =========================================================
-   SCHEDULE / TIMELINE
+   SCHEDULE
 ========================================================= */
 
 .schedule-panel {
-  max-height: 620px;
+  height: 657px;
+
   display: flex;
   flex-direction: column;
+
+  min-width: 0;
+}
+
+.schedule-main-header {
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: baseline;
+
+  gap: 8px;
+
+  flex-wrap: wrap;
 }
 
 .schedule-main-header h3 {
   font-size: 0.95rem;
+
   font-weight: 700;
+
   color: #1e293b;
+
   letter-spacing: 0.2px;
+
+  margin-bottom: 14px;
+}
+
+.schedule-date-label {
+  font-size: 0.68rem;
+  color: #94a3b8;
+
   margin-bottom: 14px;
 }
 
 .time-slots-container {
   display: flex;
+
   flex-direction: column;
+
   gap: 10px;
-  max-height: 540px;
+
+  flex: 1;
+
+  min-height: 0;
+
   overflow-y: auto;
+
   padding-right: 6px;
 }
 
@@ -306,36 +402,65 @@ body {
   border-radius: 4px;
 }
 
+/* =========================================================
+   TIMELINE ROW
+========================================================= */
+
 .tl-row {
   display: grid;
-  grid-template-columns: 65px 1fr;
+
+  grid-template-columns:
+    65px
+    minmax(0, 1fr);
+
   align-items: flex-start;
+
   border-bottom: 1px dashed #f1f5f9;
+
   padding-bottom: 8px;
 }
 
 .tl-time {
   font-size: 0.72rem;
+
   font-weight: 600;
+
   color: #94a3b8;
+
   padding-top: 4px;
 }
 
 .tl-slot {
   display: flex;
+
   flex-direction: column;
+
   gap: 6px;
+
+  min-width: 0;
 }
+
+/* =========================================================
+   EMPTY SLOT
+========================================================= */
 
 .empty-slot {
   font-size: 0.72rem;
+
   color: #cbd5e1;
+
   font-style: italic;
+
   padding: 6px 0;
+
   cursor: pointer;
+
   display: flex;
+
   align-items: center;
+
   gap: 6px;
+
   transition: color 0.2s ease;
 }
 
@@ -347,27 +472,63 @@ body {
   font-weight: bold;
 }
 
+/* =========================================================
+   OCCUPIED SLOT
+========================================================= */
+
 .occupied-slot {
   font-size: 0.7rem;
+
   color: #94a3b8;
+
   background-color: #f8fafc;
+
   border: 1px dashed #e2e8f0;
+
   border-radius: 6px;
-  padding: 4px 10px;
+
+  padding: 5px 10px;
+
   font-style: italic;
+
   display: flex;
+
   align-items: center;
+
   gap: 6px;
+
+  cursor: pointer;
+
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease;
 }
+
+.occupied-slot:hover {
+  background-color: #f1f5f9;
+
+  border-color: #cbd5e1;
+}
+
+/* =========================================================
+   APPOINTMENT CARD
+========================================================= */
 
 .appt-card {
   display: flex;
+
   align-items: center;
+
   justify-content: space-between;
+
   padding: 8px 12px;
+
   border-radius: 10px;
+
   border-left: 4px solid #176b38;
+
   background-color: #f2fbf4;
+
   cursor: pointer;
 
   transition:
@@ -377,15 +538,20 @@ body {
 
 .appt-card:hover {
   transform: scale(1.01);
+
   box-shadow: 0 4px 10px rgba(15, 23, 42, 0.06);
 }
 
 .tooth-badge {
   width: 32px;
   height: 32px;
+
   border-radius: 10px;
+
   flex-shrink: 0;
+
   display: flex;
+
   align-items: center;
   justify-content: center;
 }
@@ -397,142 +563,328 @@ body {
 
 .appt-info {
   flex: 1;
+
   margin-left: 10px;
+
+  min-width: 0;
 }
 
 .pname {
   display: flex;
+
   align-items: center;
+
   gap: 6px;
+
   font-size: 0.8rem;
+
   font-weight: 700;
+
   color: #1e293b;
+
+  white-space: nowrap;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
 }
 
 .ptype {
   font-size: 0.7rem;
+
   color: #64748b;
+
+  white-space: nowrap;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
 }
 
 .appt-time-range {
   font-size: 0.7rem;
+
   font-weight: 600;
+
   color: #475569;
-  margin-right: 12px;
+
+  margin-left: 12px;
+
+  white-space: nowrap;
 }
 
 /* =========================================================
-   SUMMARY & WAITING
+   VIEW ONLY BADGE
 ========================================================= */
 
-.summary-panel h3,
-.waiting-panel h3 {
-  font-size: 0.78rem;
+.view-only-badge {
+  display: inline-flex;
+
+  align-items: center;
+
+  gap: 4px;
+
+  margin-left: 6px;
+
+  font-size: 0.58rem;
+
+  font-weight: 500;
+
+  color: #64748b;
+
+  background: #f1f5f9;
+
+  border-radius: 5px;
+
+  padding: 2px 5px;
+}
+
+/* =========================================================
+   DENTISTS ON DUTY
+========================================================= */
+
+.dentists-panel {
+  padding: 16px;
+}
+
+.dentists-panel-header {
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  margin-bottom: 14px;
+}
+
+.dentists-panel-header h3 {
+  font-size: 0.82rem;
+
   font-weight: 700;
+
   color: #1e293b;
-  letter-spacing: 0.3px;
+
+  letter-spacing: 0.2px;
 }
 
-.summary-stats-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-top: 12px;
-}
-
-.stat-card {
-  background: #f8fafc;
-  border: 1px solid #eef2f6;
-  border-radius: 12px;
-  padding: 12px;
-
+.dentists-list {
   display: flex;
+
   flex-direction: column;
+
+  gap: 0;
+}
+
+.doc-duty-card {
+  display: flex;
+
   align-items: flex-start;
-  gap: 6px;
 
-  transition: box-shadow 0.15s;
+  gap: 11px;
+
+  padding: 11px 0;
+
+  border-bottom: 1px solid #eef2f6;
 }
 
-.stat-card:hover {
-  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.05);
+.doc-duty-card:first-child {
+  padding-top: 2px;
 }
 
-.stat-icon-square {
-  width: 32px;
-  height: 32px;
-  border-radius: 9px;
+.doc-duty-card:last-child {
+  border-bottom: none;
+
+  padding-bottom: 2px;
+}
+
+.doc-avatar-dot {
+  width: 34px;
+  height: 34px;
+
+  min-width: 34px;
+
+  border-radius: 50%;
 
   display: flex;
+
   align-items: center;
   justify-content: center;
 
-  font-size: 0.8rem;
-  margin-bottom: 2px;
+  font-size: 0.68rem;
+
+  font-weight: 700;
+
+  flex-shrink: 0;
 }
 
-.stat-icon-green {
-  background-color: #f2fbf4;
+.doc-duty-info {
+  flex: 1;
+
+  min-width: 0;
+
+  padding-top: 1px;
+}
+
+.doc-duty-info strong {
+  display: block;
+
+  font-size: 0.78rem;
+
+  font-weight: 700;
+
+  color: #1e293b;
+
+  line-height: 1.25;
+}
+
+.doc-duty-info .spec-label {
+  display: block;
+
+  font-size: 0.65rem;
+
+  color: #64748b;
+
+  margin-top: 2px;
+
+  margin-bottom: 5px;
+
+  line-height: 1.3;
+}
+
+.status-badge-available,
+.status-badge-busy {
+  display: block;
+
+  font-size: 0.65rem;
+
+  font-weight: 500;
+
+  background: transparent !important;
+
+  border: none !important;
+
+  padding: 0 !important;
+
+  margin-top: 2px;
+
+  line-height: 1.4;
+}
+
+.status-badge-available,
+.status-badge-busy {
   color: #176b38;
 }
 
-.stat-icon-amber {
-  background-color: #fff7ed;
-  color: #ea580c;
+/* =========================================================
+   WAITING QUEUE
+========================================================= */
+
+.waiting-panel {
+  min-height: 285px;
 }
 
-.stat-value {
-  display: block;
-  font-size: 1.15rem;
-  font-weight: 800;
-  color: #0f172a;
-  line-height: 1.2;
+.waiting-panel h3 {
+  font-size: 0.78rem;
+
+  font-weight: 700;
+
+  color: #1e293b;
+
+  letter-spacing: 0.3px;
 }
 
-.stat-label {
-  display: block;
-  font-size: 0.68rem;
-  color: #64748b;
-  font-weight: 500;
+.waiting-header {
+  display: flex;
+
+  justify-content: space-between;
+
+  align-items: center;
+
+  margin-bottom: 12px;
 }
 
 .waiting-queue-list {
   display: flex;
+
   flex-direction: column;
+
   gap: 8px;
+
   margin-top: 12px;
+
   max-height: 200px;
+
   overflow-y: auto;
+
   padding-right: 4px;
 }
 
+.waiting-queue-list::-webkit-scrollbar {
+  width: 5px;
+}
+
+.waiting-queue-list::-webkit-scrollbar-track {
+  background: #f8fafc;
+
+  border-radius: 4px;
+}
+
+.waiting-queue-list::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+
+  border-radius: 4px;
+}
+
+/* =========================================================
+   QUEUE ITEM
+========================================================= */
+
 .queue-item {
   display: flex;
+
   justify-content: space-between;
+
   align-items: center;
+
   gap: 10px;
 
   padding: 8px 10px;
 
   background: #f8fafc;
+
   border: 1px solid #f1f5f9;
+
   border-radius: 10px;
 
   font-size: 0.75rem;
+
+  transition:
+    background 0.2s ease,
+    transform 0.15s ease;
+}
+
+.queue-item:hover {
+  background: #f1f5f9;
+
+  transform: translateY(-1px);
 }
 
 .queue-avatar {
   width: 26px;
   height: 26px;
+
   border-radius: 50%;
 
   background-color: #e8f5ec;
+
   color: #176b38;
 
   font-size: 0.65rem;
+
   font-weight: 700;
 
   display: flex;
+
   align-items: center;
   justify-content: center;
 
@@ -541,10 +893,13 @@ body {
 
 .queue-main {
   display: flex;
+
   align-items: center;
+
   gap: 8px;
 
   flex: 1;
+
   min-width: 0;
 }
 
@@ -554,10 +909,13 @@ body {
 
 .queue-name {
   font-weight: 600;
+
   color: #1e293b;
 
   white-space: nowrap;
+
   overflow: hidden;
+
   text-overflow: ellipsis;
 
   display: block;
@@ -565,124 +923,49 @@ body {
 
 .queue-time {
   color: #94a3b8;
+
   font-size: 0.68rem;
 }
 
 .queue-type {
   color: #64748b;
+
   flex-shrink: 0;
+
   font-size: 0.7rem;
+
+  max-width: 105px;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+
+  white-space: nowrap;
 }
 
 /* =========================================================
-   DENTISTS ON DUTY
+   EMPTY QUEUE
 ========================================================= */
 
-.dentists-panel h3 {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: #1e293b;
-  letter-spacing: 0.3px;
-}
-
-.waiting-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.dentists-list {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.doc-duty-card {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-
-  padding-bottom: 10px;
-  border-bottom: 1px solid #f1f5f9;
-}
-
-.doc-duty-card:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.doc-avatar-dot {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
+.empty-queue {
   font-size: 0.7rem;
-  font-weight: 700;
 
-  flex-shrink: 0;
-}
+  color: #94a3b8;
 
-.doc-duty-info {
-  flex: 1;
-}
+  font-style: italic;
 
-.doc-duty-info strong {
-  display: block;
-  font-size: 0.78rem;
-  color: #1e293b;
-  line-height: 1.2;
-}
+  text-align: center;
 
-.doc-duty-info .spec-label {
-  display: block;
-  font-size: 0.65rem;
-  color: #64748b;
-  margin-bottom: 3px;
-}
-
-.status-badge-available {
-  display: inline-block;
-
-  font-size: 0.65rem;
-  font-weight: 500;
-
-  color: #176b38;
-
-  background: transparent !important;
-  border: none !important;
-
-  padding: 0 !important;
-  margin-top: 2px;
-}
-
-.status-badge-busy {
-  display: block;
-
-  font-size: 0.65rem;
-  font-weight: 500;
-
-  color: #104e28;
-
-  background: transparent !important;
-  border: none !important;
-
-  padding: 0 !important;
-  margin-top: 2px;
-
-  line-height: 1.3;
+  padding: 28px 10px;
 }
 
 /* =========================================================
-   APPOINTMENT MODAL
+   MODAL
 ========================================================= */
 
 .modal-overlay {
   position: fixed;
+
   inset: 0;
 
   width: 100%;
@@ -691,12 +974,14 @@ body {
   background-color: rgba(15, 23, 42, 0.45);
 
   display: flex;
+
   align-items: center;
   justify-content: center;
 
   z-index: 1000;
 
   opacity: 0;
+
   visibility: hidden;
 
   transition:
@@ -706,6 +991,7 @@ body {
 
 .modal-overlay.show {
   opacity: 1;
+
   visibility: visible;
 }
 
@@ -713,10 +999,14 @@ body {
   background-color: #ffffff;
 
   width: 90%;
+
   max-width: 420px;
 
+  max-height: 90vh;
+
+  overflow-y: auto;
+
   border-radius: 12px;
-  overflow: hidden;
 
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
 
@@ -731,7 +1021,9 @@ body {
 
 .modal-header {
   display: flex;
+
   justify-content: space-between;
+
   align-items: center;
 
   padding: 16px 20px;
@@ -741,19 +1033,29 @@ body {
 
 .modal-header h3 {
   font-size: 0.9rem;
-  font-weight: 700;
-  color: #1e293b;
 
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  font-weight: 700;
+
+  color: #1e293b;
+}
+
+.modal-subtitle {
+  display: block;
+
+  font-size: 0.65rem;
+
+  color: #94a3b8;
+
+  margin-top: 2px;
 }
 
 .modal-close-icon {
   background: transparent;
+
   border: none;
 
   font-size: 1rem;
+
   color: #64748b;
 
   cursor: pointer;
@@ -773,13 +1075,9 @@ body {
 
 .form-row-inline {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
 
-.form-row-service-duration {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: 1fr 1fr;
+
   gap: 10px;
 }
 
@@ -787,7 +1085,9 @@ body {
   display: block;
 
   font-size: 0.72rem;
+
   font-weight: 600;
+
   color: #475569;
 
   margin-bottom: 4px;
@@ -799,6 +1099,7 @@ body {
   padding: 7px 10px;
 
   border: 1px solid #cbd5e1;
+
   border-radius: 8px;
 
   font-size: 0.8rem;
@@ -807,17 +1108,242 @@ body {
 
   background: #ffffff;
 
-  transition: border-color 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .form-control:focus {
   border-color: #176b38;
+
   box-shadow: 0 0 0 2px rgba(23, 107, 56, 0.08);
 }
 
+.form-control:disabled {
+  background: #f8fafc;
+
+  color: #64748b;
+
+  cursor: not-allowed;
+}
+
+/* =========================================================
+   DURATION
+========================================================= */
+
+.duration-input-wrapper {
+  position: relative;
+
+  display: flex;
+
+  align-items: center;
+}
+
+.duration-input-wrapper .form-control {
+  padding-right: 70px;
+}
+
+.duration-unit {
+  position: absolute;
+
+  right: 11px;
+
+  font-size: 0.68rem;
+
+  color: #94a3b8;
+
+  pointer-events: none;
+}
+
+.duration-help {
+  display: block;
+
+  margin-top: 4px;
+
+  color: #94a3b8;
+
+  font-size: 0.59rem;
+
+  line-height: 1.4;
+}
+
+/* =========================================================
+   PAST RECORD NOTICE
+========================================================= */
+
+.past-record-notice {
+  display: none;
+
+  align-items: flex-start;
+
+  gap: 9px;
+
+  margin-top: 8px;
+
+  padding: 10px 11px;
+
+  border-radius: 9px;
+
+  background: #f8fafc;
+
+  border: 1px solid #e2e8f0;
+}
+
+.past-record-notice.show {
+  display: flex;
+}
+
+.past-record-notice > i {
+  color: #94a3b8;
+
+  font-size: 0.85rem;
+
+  margin-top: 2px;
+}
+
+.past-record-notice strong {
+  display: block;
+
+  color: #475569;
+
+  font-size: 0.7rem;
+
+  font-weight: 600;
+}
+
+.past-record-notice span {
+  display: block;
+
+  color: #94a3b8;
+
+  font-size: 0.62rem;
+
+  line-height: 1.4;
+
+  margin-top: 2px;
+}
+
+/* =========================================================
+   VIEW ONLY NOTICE
+========================================================= */
+
+.view-only-notice {
+  display: none;
+
+  align-items: flex-start;
+
+  gap: 9px;
+
+  margin-top: 8px;
+
+  padding: 10px 11px;
+
+  border-radius: 9px;
+
+  background: #f8fafc;
+
+  border: 1px solid #e2e8f0;
+}
+
+.view-only-notice.show {
+  display: flex;
+}
+
+.view-only-notice > i {
+  color: #64748b;
+
+  font-size: 0.82rem;
+
+  margin-top: 2px;
+}
+
+.view-only-notice strong {
+  display: block;
+
+  color: #475569;
+
+  font-size: 0.7rem;
+
+  font-weight: 600;
+}
+
+.view-only-notice span {
+  display: block;
+
+  color: #94a3b8;
+
+  font-size: 0.62rem;
+
+  line-height: 1.4;
+
+  margin-top: 2px;
+}
+
+/* =========================================================
+   SCHEDULE CONFLICT NOTICE
+========================================================= */
+
+.schedule-conflict-notice {
+  display: none;
+
+  align-items: flex-start;
+
+  gap: 9px;
+
+  margin-top: 8px;
+
+  padding: 10px 11px;
+
+  border-radius: 9px;
+
+  background: #fff7ed;
+
+  border: 1px solid #fed7aa;
+}
+
+.schedule-conflict-notice.show {
+  display: flex;
+}
+
+.schedule-conflict-notice > i {
+  color: #f97316;
+
+  font-size: 0.85rem;
+
+  margin-top: 2px;
+}
+
+.schedule-conflict-notice strong {
+  display: block;
+
+  color: #9a3412;
+
+  font-size: 0.7rem;
+
+  font-weight: 600;
+}
+
+.schedule-conflict-notice span {
+  display: block;
+
+  color: #c2410c;
+
+  font-size: 0.62rem;
+
+  line-height: 1.4;
+
+  margin-top: 2px;
+}
+
+/* =========================================================
+   MODAL ACTIONS
+========================================================= */
+
 .modal-actions {
   display: flex;
+
   justify-content: space-between;
+
   align-items: center;
 
   gap: 8px;
@@ -825,28 +1351,69 @@ body {
   padding: 0 20px 20px;
 }
 
+.modal-right-actions {
+  display: flex;
+
+  align-items: center;
+
+  gap: 8px;
+
+  margin-left: auto;
+}
+
 .btn-danger {
   background: #fee2e2;
+
   color: #991b1b;
 
   border: none;
 
-  padding: 8px 16px;
+  padding: 8px 14px;
 
   border-radius: 8px;
 
   font-size: 0.78rem;
+
   font-weight: 600;
 
   cursor: pointer;
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 6px;
 }
 
 .btn-danger:hover {
   background: #fecaca;
 }
 
+.btn-cancel {
+  background: #f1f5f9;
+
+  color: #475569;
+
+  border: none;
+
+  padding: 8px 15px;
+
+  border-radius: 8px;
+
+  font-size: 0.78rem;
+
+  font-weight: 500;
+
+  cursor: pointer;
+}
+
+.btn-cancel:hover {
+  background: #e2e8f0;
+}
+
 .btn-save {
   background-color: #176b38;
+
   color: #ffffff;
 
   border: none;
@@ -856,11 +1423,10 @@ body {
   border-radius: 8px;
 
   font-size: 0.8rem;
+
   font-weight: 600;
 
   cursor: pointer;
-
-  margin-left: auto;
 }
 
 .btn-save:hover {
@@ -868,78 +1434,276 @@ body {
 }
 
 /* =========================================================
-   LOGOUT MODAL
-   IMPORTANT:
-   The logout modal (HTML + styling) is owned entirely by
-   sidebar.html / sidebar.css / sidebar.js.
+   DELETE WARNING MODAL
+========================================================= */
 
-   Do NOT redeclare .logout-modal-backdrop, .logout-modal-card,
-   .logout-modal-icon, .logout-modal-actions, .btn-modal-cancel,
-   or .btn-modal-confirm in this file (or in any other page's
-   CSS). Doing so overrides sidebar.css's shared design on
-   whichever properties aren't marked !important there, which is
-   exactly why this page's modal used to look different (smaller
-   card, smaller buttons) from the Dashboard page's modal.
+.delete-confirm-overlay {
+  position: fixed;
 
-   sidebar.css is the single source of truth for the logout
-   modal so every page that includes it looks identical.
+  inset: 0;
+
+  background: rgba(15, 23, 42, 0.5);
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  z-index: 2000;
+
+  opacity: 0;
+
+  visibility: hidden;
+
+  transition:
+    opacity 0.2s ease,
+    visibility 0.2s ease;
+}
+
+.delete-confirm-overlay.show {
+  opacity: 1;
+
+  visibility: visible;
+}
+
+.delete-confirm-box {
+  width: 90%;
+
+  max-width: 360px;
+
+  background: #ffffff;
+
+  border-radius: 14px;
+
+  padding: 24px;
+
+  text-align: center;
+
+  box-shadow: 0 15px 40px rgba(15, 23, 42, 0.2);
+
+  transform: translateY(10px);
+
+  transition: transform 0.2s ease;
+}
+
+.delete-confirm-overlay.show .delete-confirm-box {
+  transform: translateY(0);
+}
+
+.delete-warning-icon {
+  width: 46px;
+  height: 46px;
+
+  border-radius: 50%;
+
+  margin: 0 auto 12px;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  background: #fff7ed;
+
+  color: #f97316;
+
+  font-size: 1.1rem;
+}
+
+.delete-confirm-box h3 {
+  color: #1e293b;
+
+  font-size: 0.95rem;
+
+  font-weight: 700;
+
+  margin-bottom: 7px;
+}
+
+.delete-confirm-box p {
+  color: #64748b;
+
+  font-size: 0.72rem;
+
+  line-height: 1.55;
+
+  margin-bottom: 20px;
+}
+
+.delete-confirm-actions {
+  display: flex;
+
+  justify-content: center;
+
+  gap: 8px;
+}
+
+.delete-cancel-btn {
+  border: none;
+
+  background: #f1f5f9;
+
+  color: #475569;
+
+  padding: 9px 16px;
+
+  border-radius: 8px;
+
+  font-size: 0.75rem;
+
+  font-weight: 500;
+
+  cursor: pointer;
+}
+
+.delete-cancel-btn:hover {
+  background: #e2e8f0;
+}
+
+.delete-confirm-btn {
+  border: none;
+
+  background: #dc2626;
+
+  color: #ffffff;
+
+  padding: 9px 16px;
+
+  border-radius: 8px;
+
+  font-size: 0.75rem;
+
+  font-weight: 600;
+
+  cursor: pointer;
+}
+
+.delete-confirm-btn:hover {
+  background: #b91c1c;
+}
+
+/* =========================================================
+   TOAST
 ========================================================= */
 
 .toast {
   position: fixed;
+
   bottom: 24px;
+
   left: 50%;
+
   transform: translateX(-50%) translateY(20px);
+
   background: #1e293b;
+
   color: #ffffff;
 
   padding: 10px 18px;
+
   border-radius: 8px;
+
   font-size: 0.78rem;
+
   font-weight: 600;
+
   opacity: 0;
+
   pointer-events: none;
+
   transition: all 0.25s ease;
 
   z-index: 110000;
 }
+
 .toast.show {
   opacity: 1;
+
   transform: translateX(-50%) translateY(0);
 }
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media (max-width: 1200px) {
+  .appointments-layout {
+    grid-template-columns:
+      260px
+      minmax(0, 1fr)
+      260px;
+
+    gap: 14px;
+  }
+}
+
 @media (max-width: 1100px) {
   .appointments-layout {
     grid-template-columns: 1fr;
   }
+
   .left-col-stack,
   .right-col-stack {
     width: 100%;
   }
+
+  .schedule-panel {
+    height: 620px;
+  }
 }
+
 @media (max-width: 640px) {
   .appointments-layout {
     grid-template-columns: 1fr;
+
+    padding: 12px;
   }
+
   .topbar {
     flex-direction: column;
+
     align-items: stretch;
+
     gap: 12px;
   }
+
   .topbar-right-actions {
     width: 100%;
+
     justify-content: flex-end;
   }
+
   .search-box-wrapper {
     flex: 1;
   }
+
   .patient-search-input {
     width: 100%;
   }
+
   .btn-new-appointment {
     flex-shrink: 0;
   }
-  .form-row-inline,
-  .form-row-service-duration {
+
+  .form-row-inline {
     grid-template-columns: 1fr;
+  }
+
+  .appt-time-range {
+    display: none;
+  }
+
+  .modal-actions {
+    flex-wrap: wrap;
+  }
+
+  .modal-right-actions {
+    width: 100%;
+  }
+
+  .btn-save,
+  .btn-cancel {
+    flex: 1;
   }
 }

@@ -1,28 +1,19 @@
-const dentists = {
-  santos: {
-    name: "Dr. M. Santos",
-    spec: "Orthodontics",
-    color: "#166F63",
-  },
-
-  cruz: {
-    name: "Dr. L. Cruz",
-    spec: "General Dentistry",
-    color: "#E8A93B",
-  },
-
-  ramos: {
-    name: "Dr. J. Ramos",
-    spec: "Oral Surgery",
-    color: "#FF6B57",
-  },
-};
+const APPOINTMENTS_STORAGE_KEY = "appointments";
+const LEGACY_STORAGE_KEY = "dentanueva_appointments";
 
 /* =========================================================
-   SERVICE DURATIONS
+   CLINIC SETTINGS
 ========================================================= */
+const START_HOUR = 10;
+const END_HOUR = 20;
+const SLOT_MIN = 30;
 
-const serviceDurations = {
+/*
+  Service duration suggestions.
+  These are default values only.
+  Staff can still change the duration before saving.
+*/
+const SERVICE_DURATIONS = {
   Consultation: 30,
   "Dental Cleaning": 45,
   "Tooth Filling / Pasta": 45,
@@ -32,1138 +23,1168 @@ const serviceDurations = {
 };
 
 /* =========================================================
+   DENTISTS
+========================================================= */
+const dentists = {
+  santos: {
+    name: "Dr. M. Santos",
+    specialty: "Orthodontics",
+    color: "#166F63",
+  },
+  cruz: {
+    name: "Dr. L. Cruz",
+    specialty: "General Dentistry",
+    color: "#E8A93B",
+  },
+  ramos: {
+    name: "Dr. J. Ramos",
+    specialty: "Oral Surgery",
+    color: "#FF6B57",
+  },
+};
+
+/* =========================================================
    STATE
 ========================================================= */
-
-let dentistFilter = new Set(Object.keys(dentists));
-
-let searchQuery = "";
-
+let appointments = [];
+let currentCalendarDate = new Date();
+let selectedDate = new Date();
 let editingId = null;
+let deleteTargetId = null;
+let modalMode = "new";
 
 /* =========================================================
-   DATE HELPERS
+   DOM READY
 ========================================================= */
+document.addEventListener("DOMContentLoaded", () => {
+  loadAppointments();
+  initializeDate();
+  setupEvents();
+  renderAll();
 
-function pad(n) {
-  return n.toString().padStart(2, "0");
-}
-
-function toDateStr(y, m, d) {
-  return `${y}-${pad(m + 1)}-${pad(d)}`;
-}
-
-function initials(name) {
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .map((w) => w[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-}
-
-/*
-   Demo/current date.
-   Keep this if you are using your current demo data.
-*/
-let realToday = new Date(2026, 7, 5, 21, 39);
-
-let selectedDate = toDateStr(
-  realToday.getFullYear(),
-  realToday.getMonth(),
-  realToday.getDate(),
-);
-
-let viewYear = realToday.getFullYear();
-
-let viewMonth = realToday.getMonth();
+  /*
+    NEW:
+    If the page was opened from the Dashboard's
+    "Upcoming Appointments" list (via ?appointmentId=...),
+    jump straight to that appointment's details.
+  */
+  openAppointmentFromURL();
+});
 
 /* =========================================================
-   TIMELINE SETTINGS
+   INITIAL DATE
 ========================================================= */
-
-const START_HOUR = 10;
-const END_HOUR = 20;
-const SLOT_MIN = 30;
+function initializeDate() {
+  const today = new Date();
+  selectedDate = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate(),
+  );
+  currentCalendarDate = new Date(selectedDate);
+}
 
 /* =========================================================
-   LOCAL STORAGE
+   OPEN APPOINTMENT FROM URL (NEW)
+   ---------------------------------------------------------
+   Reads "appointmentId" from the query string
+   (e.g. appointment.html?appointmentId=appt_123).
+
+   If found:
+     - Moves the calendar/selected date to that
+       appointment's date so it's visible on the timeline.
+     - Opens the View modal for that exact appointment,
+       same as clicking it manually on this page.
 ========================================================= */
+function openAppointmentFromURL() {
+  const params = new URLSearchParams(window.location.search);
+  const appointmentId = params.get("appointmentId");
 
-const APPOINTMENTS_STORAGE_KEY = "appointments";
+  if (!appointmentId) return;
 
-const APPOINTMENT_NAV_TARGET_KEY = "appointment_page_target";
+  const appointment = appointments.find(
+    (item) => String(item.id) === String(appointmentId),
+  );
+
+  if (!appointment) return;
+
+  selectedDate = keyToDate(appointment.date);
+  currentCalendarDate = new Date(selectedDate);
+
+  renderAll();
+
+  openViewModal(appointment.id);
+}
+
+/* =========================================================
+   EVENTS
+========================================================= */
+function setupEvents() {
+  const searchInput = document.getElementById("searchInput");
+  if (searchInput) {
+    searchInput.addEventListener("input", () => {
+      renderTimeline();
+      renderWaitingQueue();
+    });
+  }
+
+  const serviceInput = document.getElementById("f_type");
+  if (serviceInput) {
+    serviceInput.addEventListener("input", handleServiceChange);
+    serviceInput.addEventListener("change", handleServiceChange);
+  }
+
+  const dateInput = document.getElementById("f_date");
+  if (dateInput) {
+    dateInput.addEventListener("change", handleModalDateChange);
+  }
+
+  const timeInput = document.getElementById("f_time");
+  if (timeInput) {
+    timeInput.addEventListener("change", checkCurrentFormConflict);
+  }
+
+  const dentistInput = document.getElementById("f_dentist");
+  if (dentistInput) {
+    dentistInput.addEventListener("change", checkCurrentFormConflict);
+  }
+
+  const durationInput = document.getElementById("f_duration");
+  if (durationInput) {
+    durationInput.addEventListener("input", checkCurrentFormConflict);
+  }
+}
+
+/* =========================================================
+   STORAGE
+========================================================= */
+function loadAppointments() {
+  let stored = localStorage.getItem(APPOINTMENTS_STORAGE_KEY);
+
+  /*
+    If the main storage does not exist,
+    check the legacy storage.
+  */
+  if (!stored) {
+    stored = localStorage.getItem(LEGACY_STORAGE_KEY);
+  }
+
+  if (!stored) {
+    appointments = [];
+    return;
+  }
+
+  try {
+    const parsed = JSON.parse(stored);
+    if (Array.isArray(parsed)) {
+      appointments = parsed.map(normalizeAppointment);
+    } else {
+      appointments = [];
+    }
+  } catch (error) {
+    console.error("Unable to load appointments:", error);
+    appointments = [];
+  }
+}
+
+/* =========================================================
+   SAVE STORAGE
+========================================================= */
+function saveAppointmentsToStorage() {
+  localStorage.setItem(APPOINTMENTS_STORAGE_KEY, JSON.stringify(appointments));
+}
 
 /* =========================================================
    NORMALIZE APPOINTMENT
 ========================================================= */
-
-function normalizeAppointment(a) {
-  return {
-    id: a.id ?? String(Date.now()),
-
-    patientName: a.patientName || a.patient || "",
-
-    patient: a.patientName || a.patient || "",
-
-    date: a.date || "",
-
-    time: a.time || a.start || "",
-
-    start: a.start || a.time || "",
-
-    duration:
-      a.duration || a.duration === 0
-        ? a.duration
-        : serviceDurations[a.type] || 30,
-
-    dentist: a.dentist || a.dentistId || "",
-
-    dentistId: a.dentistId || a.dentist || "",
-
-    dentistName: a.dentistName || dentists[a.dentist]?.name || "",
-
-    type: a.type || a.service || "Consultation",
-
-    service: a.service || a.type || "Consultation",
-
-    price: a.price != null ? Number(a.price) : Number(a.amount) || 0,
-
-    amount: a.amount != null ? Number(a.amount) : Number(a.price) || 0,
-
-    status: a.status || "Confirmed",
+function normalizeAppointment(appt) {
+  const normalized = {
+    id:
+      appt.id || `appt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    patient: appt.patient || "Unknown Patient",
+    date: appt.date || "",
+    start: appt.start || appt.time || "10:00",
+    type: appt.type || appt.service || "Consultation",
+    dentist: appt.dentist || "santos",
+    duration: Number(appt.duration || SERVICE_DURATIONS[appt.type] || 30),
   };
+
+  if (!dentists[normalized.dentist]) {
+    normalized.dentist = "santos";
+  }
+
+  if (!Number.isFinite(normalized.duration) || normalized.duration <= 0) {
+    normalized.duration = 30;
+  }
+
+  return normalized;
 }
 
 /* =========================================================
-   GET APPOINTMENTS
+   DATE HELPERS
 ========================================================= */
-
-function getStoredAppointments() {
-  const raw = localStorage.getItem(APPOINTMENTS_STORAGE_KEY);
-
-  if (raw) {
-    try {
-      const parsed = JSON.parse(raw).map(normalizeAppointment);
-
-      if (parsed.length > 0) {
-        return parsed;
-      }
-    } catch (err) {
-      console.error("Failed to parse appointments storage", err);
-
-      return [];
-    }
-  }
-
-  /* Legacy migration */
-
-  const legacy = localStorage.getItem("dentanueva_appointments");
-
-  if (legacy) {
-    try {
-      const migrated = JSON.parse(legacy).map(normalizeAppointment);
-
-      localStorage.setItem(APPOINTMENTS_STORAGE_KEY, JSON.stringify(migrated));
-
-      localStorage.removeItem("dentanueva_appointments");
-
-      return migrated;
-    } catch (err) {
-      console.error("Failed to migrate legacy appointment storage", err);
-    }
-  }
-
-  return [];
+function dateToKey(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
-/* =========================================================
-   SAVE APPOINTMENTS
-========================================================= */
-
-function saveAppointmentsToStorage(appts) {
-  const normalized = appts.map(normalizeAppointment);
-
-  localStorage.setItem(APPOINTMENTS_STORAGE_KEY, JSON.stringify(normalized));
-
-  /*
-     Tell other pages/components that appointment
-     data has changed.
-  */
-  window.dispatchEvent(new Event("storage"));
+function keyToDate(key) {
+  const parts = key.split("-");
+  return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
 }
 
-/* =========================================================
-   TOAST
-========================================================= */
-
-function toast(msg) {
-  const t = document.getElementById("toast");
-
-  if (!t) {
-    return;
-  }
-
-  t.textContent = msg;
-
-  t.classList.add("show");
-
-  clearTimeout(t._h);
-
-  t._h = setTimeout(() => {
-    t.classList.remove("show");
-  }, 2200);
+function isToday(dateOrKey) {
+  const today = new Date();
+  const todayKey = dateToKey(today);
+  const key = typeof dateOrKey === "string" ? dateOrKey : dateToKey(dateOrKey);
+  return key === todayKey;
 }
 
-/* =========================================================
-   CALENDAR
-========================================================= */
+function isPastDate(dateOrKey) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
-const MONTH_NAMES = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
+  const date =
+    typeof dateOrKey === "string" ? keyToDate(dateOrKey) : new Date(dateOrKey);
+  date.setHours(0, 0, 0, 0);
 
-const DOW = ["S", "M", "T", "W", "T", "F", "S"];
-
-function apptsOnDate(dateStr) {
-  const appointments = getStoredAppointments();
-
-  return appointments.filter((a) => a.date === dateStr);
-}
-
-function renderCalendar() {
-  const monthLabel = document.getElementById("calMonthLabel");
-
-  if (monthLabel) {
-    monthLabel.textContent = `${MONTH_NAMES[viewMonth]} ${viewYear}`;
-  }
-
-  const grid = document.getElementById("calGrid");
-
-  if (!grid) {
-    return;
-  }
-
-  grid.innerHTML = "";
-
-  DOW.forEach((d) => {
-    const el = document.createElement("div");
-
-    el.className = "dow";
-
-    el.textContent = d;
-
-    grid.appendChild(el);
-  });
-
-  const firstDay = new Date(viewYear, viewMonth, 1).getDay();
-
-  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
-
-  const daysInPrevMonth = new Date(viewYear, viewMonth, 0).getDate();
-
-  for (let i = firstDay - 1; i >= 0; i--) {
-    grid.appendChild(makeDayBtn(daysInPrevMonth - i, true, null));
-  }
-
-  for (let d = 1; d <= daysInMonth; d++) {
-    const dateStr = toDateStr(viewYear, viewMonth, d);
-
-    grid.appendChild(makeDayBtn(d, false, dateStr));
-  }
-
-  const total = grid.children.length - 7;
-
-  const remainder = (7 - (total % 7)) % 7;
-
-  for (let d = 1; d <= remainder; d++) {
-    grid.appendChild(makeDayBtn(d, true, null));
-  }
-}
-
-function makeDayBtn(num, muted, dateStr) {
-  const btn = document.createElement("button");
-
-  btn.className = "day" + (muted ? " muted" : "");
-
-  btn.textContent = num;
-
-  if (!muted && dateStr) {
-    const todayStr = toDateStr(
-      realToday.getFullYear(),
-      realToday.getMonth(),
-      realToday.getDate(),
-    );
-
-    const isToday = dateStr === todayStr;
-
-    const isSel = dateStr === selectedDate;
-
-    if (isToday) {
-      btn.classList.add("today");
-    }
-
-    if (isSel) {
-      btn.classList.add("selected");
-    }
-
-    if (apptsOnDate(dateStr).length > 0) {
-      btn.classList.add("has-appt");
-    }
-
-    btn.onclick = () => {
-      selectedDate = dateStr;
-
-      renderAll();
-    };
-  }
-
-  return btn;
-}
-
-function shiftMonth(dir) {
-  viewMonth += dir;
-
-  if (viewMonth < 0) {
-    viewMonth = 11;
-
-    viewYear--;
-  }
-
-  if (viewMonth > 11) {
-    viewMonth = 0;
-
-    viewYear++;
-  }
-
-  renderCalendar();
+  return date < today;
 }
 
 /* =========================================================
    TIME HELPERS
 ========================================================= */
-
-function fmtTime(hhmm) {
-  const [h, m] = hhmm.split(":").map(Number);
-
-  const period = h >= 12 ? "PM" : "AM";
-
-  let hh = h % 12;
-
-  if (hh === 0) {
-    hh = 12;
-  }
-
-  return `${hh}:${pad(m)} ${period}`;
+function timeToMinutes(time) {
+  if (!time) return 0;
+  const parts = time.split(":");
+  const hours = Number(parts[0]);
+  const minutes = Number(parts[1]);
+  return hours * 60 + minutes;
 }
 
-function addMinutes(hhmm, mins) {
-  const [h, m] = hhmm.split(":").map(Number);
-
-  const total = h * 60 + m + mins;
-
-  return `${pad(Math.floor(total / 60) % 24)}:${pad(total % 60)}`;
-}
-
-function timeToMins(hhmm) {
-  const [h, m] = hhmm.split(":").map(Number);
-
-  return h * 60 + m;
-}
-
-/* =========================================================
-   TOOTH SVG
-========================================================= */
-
-function toothSvg(color) {
-  return `
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="${color}"
-      stroke-width="2"
-    >
-      <path
-        d="M12 3c-2.2 0-3.6 1.3-4.8 1.3C5.9 4.3 4 5.6 4 8.4c0 2.9.9 6.4 1.9 8.9.7 1.9 1.4 3.2 2.6 3.2 1.3 0 1.4-1.8 1.7-3.4.3-1.5.6-2.7 1.8-2.7s1.5 1.2 1.8 2.7c.3 1.6.4 3.4 1.7 3.4 1.2 0 1.9-1.3 2.6-3.2 1-2.5 1.9-6 1.9-8.9 0-2.8-1.9-4.1-3.2-4.1C15.6 4.3 14.2 3 12 3z"
-      />
-    </svg>
-  `;
-}
-
-/* =========================================================
-   FILTERED APPOINTMENTS
-========================================================= */
-
-function filteredAppts() {
-  return apptsOnDate(selectedDate)
-    .filter((a) => {
-      if (!dentistFilter.has(a.dentist)) {
-        return false;
-      }
-
-      if (
-        searchQuery &&
-        !a.patient.toLowerCase().includes(searchQuery.toLowerCase())
-      ) {
-        return false;
-      }
-
-      return true;
-    })
-
-    .sort((a, b) => a.start.localeCompare(b.start));
-}
-
-/* =========================================================
-   TIMELINE
-========================================================= */
-
-function renderTimeline() {
-  const list = filteredAppts();
-
-  const byStart = {};
-
-  const coveredSlots = new Set();
-
-  list.forEach((a) => {
-    (byStart[a.start] = byStart[a.start] || []).push(a);
-
-    const dur = Number(a.duration) || serviceDurations[a.type] || 30;
-
-    const startMins = timeToMins(a.start);
-
-    const endMins = startMins + dur;
-
-    for (let m = startMins + SLOT_MIN; m < endMins; m += SLOT_MIN) {
-      const hh = pad(Math.floor(m / 60));
-
-      const mm = pad(m % 60);
-
-      coveredSlots.add(`${hh}:${mm}`);
-    }
-  });
-
-  const tl = document.getElementById("timeline");
-
-  if (!tl) {
-    return;
-  }
-
-  tl.innerHTML = "";
-
-  for (let h = START_HOUR; h < END_HOUR; h++) {
-    for (let m = 0; m < 60; m += SLOT_MIN) {
-      const slot = `${pad(h)}:${pad(m)}`;
-
-      const row = document.createElement("div");
-
-      row.className = "tl-row";
-
-      const timeCell = document.createElement("div");
-
-      timeCell.className = "tl-time";
-
-      timeCell.textContent = fmtTime(slot);
-
-      const slotCell = document.createElement("div");
-
-      slotCell.className = "tl-slot";
-
-      const items = byStart[slot];
-
-      if (items && items.length) {
-        items.forEach((a) => {
-          const card = document.createElement("div");
-
-          card.className = "appt-card";
-
-          card.onclick = () => openEditModal(a.id);
-
-          const dur = Number(a.duration) || serviceDurations[a.type] || 30;
-
-          const dColor = dentists[a.dentist]?.color || "#10b981";
-
-          const dentistName =
-            dentists[a.dentist]?.name || a.dentistName || "Dentist";
-
-          card.innerHTML = `
-            <div
-              class="tooth-badge"
-              style="background-color:${dColor}1a;"
-            >
-              ${toothSvg(dColor)}
-            </div>
-
-            <div class="appt-info">
-
-              <div class="pname">
-                ${a.patient}
-              </div>
-
-              <div class="ptype">
-                ${a.type}
-                (${dur}m)
-                ·
-                ${dentistName}
-              </div>
-
-            </div>
-
-            <div class="appt-time-range">
-              ${fmtTime(a.start)}
-              –
-              ${fmtTime(addMinutes(a.start, dur))}
-            </div>
-          `;
-
-          slotCell.appendChild(card);
-        });
-      } else if (coveredSlots.has(slot)) {
-        const occupied = document.createElement("div");
-
-        occupied.className = "occupied-slot";
-
-        occupied.innerHTML = `
-          <i
-            class="fa-solid fa-ban"
-            style="font-size:0.65rem;"
-          ></i>
-
-          Slot occupied by ongoing procedure
-        `;
-
-        slotCell.appendChild(occupied);
-      } else {
-        const empty = document.createElement("div");
-
-        empty.className = "empty-slot";
-
-        empty.innerHTML = `
-          <span class="plus">+</span>
-          Open — click to book
-        `;
-
-        empty.onclick = () => openNewModal(slot);
-
-        slotCell.appendChild(empty);
-      }
-
-      row.appendChild(timeCell);
-
-      row.appendChild(slotCell);
-
-      tl.appendChild(row);
-    }
-  }
-}
-
-/* =========================================================
-   DENTISTS ON DUTY
-========================================================= */
-
-function renderRealtimeDentistsDuty() {
-  const dayList = apptsOnDate(selectedDate);
-
-  const container = document.getElementById("dentistsDutyList");
-
-  if (!container) {
-    return;
-  }
-
-  container.innerHTML = "";
-
-  const todayStr = toDateStr(
-    realToday.getFullYear(),
-    realToday.getMonth(),
-    realToday.getDate(),
+function minutesToTime(totalMinutes) {
+  totalMinutes = Math.max(0, Math.round(totalMinutes));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return (
+    String(hours).padStart(2, "0") + ":" + String(minutes).padStart(2, "0")
   );
+}
 
-  const currentHHMM =
-    pad(realToday.getHours()) + ":" + pad(realToday.getMinutes());
+function fmtTime(time) {
+  const minutes = timeToMinutes(time);
+  let hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  const suffix = hours >= 12 ? "PM" : "AM";
 
-  Object.entries(dentists).forEach(([key, d]) => {
-    const docAppts = dayList
+  if (hours === 0) {
+    hours = 12;
+  } else if (hours > 12) {
+    hours -= 12;
+  }
 
-      .filter((a) => a.dentist === key)
+  return `${hours}:${String(mins).padStart(2, "0")} ${suffix}`;
+}
 
-      .sort((a, b) => a.start.localeCompare(b.start));
-
-    let statusHtml = `
-        <span
-          class="status-badge-available"
-          style="color:#10b981;"
-        >
-          Available
-        </span>
-      `;
-
-    if (docAppts.length > 0) {
-      let activeOrNext = null;
-
-      for (const appt of docAppts) {
-        const dur = Number(appt.duration) || serviceDurations[appt.type] || 30;
-
-        const endTime = addMinutes(appt.start, dur);
-
-        if (
-          selectedDate === todayStr &&
-          currentHHMM >= appt.start &&
-          currentHHMM < endTime
-        ) {
-          activeOrNext = {
-            type: "busy",
-            appt,
-          };
-
-          break;
-        }
-
-        if (
-          selectedDate > todayStr ||
-          (selectedDate === todayStr && currentHHMM < appt.start)
-        ) {
-          activeOrNext = {
-            type: "next",
-            appt,
-          };
-
-          break;
-        }
-      }
-
-      if (!activeOrNext && docAppts.length > 0) {
-        activeOrNext = {
-          type: "next",
-          appt: docAppts[docAppts.length - 1],
-        };
-      }
-
-      if (activeOrNext) {
-        if (activeOrNext.type === "busy") {
-          statusHtml = `
-              <span
-                class="status-badge-busy"
-                style="color:#ef4444;"
-              >
-                Busy ·
-                ${activeOrNext.appt.type}
-                (${activeOrNext.appt.patient})
-                ·
-                ${fmtTime(activeOrNext.appt.start)}
-              </span>
-            `;
-        } else {
-          statusHtml = `
-              <span
-                class="status-badge-busy"
-                style="color:#059669;"
-              >
-                Schedule:
-                ${activeOrNext.appt.type}
-                (${activeOrNext.appt.patient})
-                ·
-                ${fmtTime(activeOrNext.appt.start)}
-              </span>
-            `;
-        }
-      }
-    }
-
-    const item = document.createElement("div");
-
-    item.className = "doc-duty-card";
-
-    const lastName = d.name.split(" ").pop();
-
-    item.innerHTML = `
-        <div
-          class="doc-avatar-dot"
-          style="
-            background-color:${d.color}20;
-            color:${d.color};
-          "
-        >
-          ${lastName[0]}
-        </div>
-
-        <div class="doc-duty-info">
-
-          <strong>
-            ${d.name}
-          </strong>
-
-          <span class="spec-label">
-            ${d.spec}
-          </span>
-
-          ${statusHtml}
-
-        </div>
-      `;
-
-    container.appendChild(item);
+function formatDateLong(dateKey) {
+  const date = keyToDate(dateKey);
+  return date.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
   });
 }
 
 /* =========================================================
-   RIGHT PANEL
+   APPOINTMENT END TIME
 ========================================================= */
+function getAppointmentEnd(appt) {
+  const start = timeToMinutes(appt.start);
+  const duration = Number(appt.duration) || 30;
+  return start + duration;
+}
 
-function renderRightSummaryPanel() {
-  const dayList = apptsOnDate(selectedDate);
+function getAppointmentEndTime(appt) {
+  return minutesToTime(getAppointmentEnd(appt));
+}
 
-  const totalAppts = document.getElementById("statTotalAppts");
+/* =========================================================
+   TRUE OVERLAP DETECTION
+========================================================= */
+function appointmentsOverlap(
+  newStart,
+  newDuration,
+  existingStart,
+  existingDuration,
+) {
+  const newStartMinutes = timeToMinutes(newStart);
+  const newEndMinutes = newStartMinutes + Number(newDuration);
+  const existingStartMinutes = timeToMinutes(existingStart);
+  const existingEndMinutes = existingStartMinutes + Number(existingDuration);
 
-  if (totalAppts) {
-    totalAppts.textContent = dayList.length;
-  }
-
-  const totalRevenue = dayList.reduce(
-    (sum, a) => sum + (Number(a.price) || 0),
-    0,
+  return (
+    newStartMinutes < existingEndMinutes && newEndMinutes > existingStartMinutes
   );
-
-  const revenueElement = document.getElementById("statEstimatedRevenue");
-
-  if (revenueElement) {
-    revenueElement.textContent = `₱${totalRevenue.toLocaleString()}`;
-  }
-
-  const queueContainer = document.getElementById("waitingQueueList");
-
-  if (!queueContainer) {
-    return;
-  }
-
-  queueContainer.innerHTML = "";
-
-  if (dayList.length === 0) {
-    queueContainer.innerHTML = `
-      <div
-        style="
-          font-size:0.7rem;
-          color:#94a3b8;
-          font-style:italic;
-          text-align:center;
-          padding:10px 0;
-        "
-      >
-        No patients queued today
-      </div>
-    `;
-
-    return;
-  }
-
-  dayList
-    .slice()
-    .sort((a, b) => a.start.localeCompare(b.start))
-    .forEach((a) => {
-      const qItem = document.createElement("div");
-
-      qItem.className = "queue-item";
-
-      qItem.innerHTML = `
-        <div class="queue-main">
-
-          <span class="queue-avatar">
-            ${initials(a.patient)}
-          </span>
-
-          <div class="queue-text">
-
-            <span class="queue-name">
-              ${a.patient}
-            </span>
-
-            <span class="queue-time">
-              ${fmtTime(a.start)}
-            </span>
-
-          </div>
-
-        </div>
-
-        <span class="queue-type">
-          ${a.type}
-        </span>
-      `;
-
-      queueContainer.appendChild(qItem);
-    });
 }
 
 /* =========================================================
-   RENDER EVERYTHING
+   FIND DENTIST CONFLICT
 ========================================================= */
-
-function renderAll() {
-  renderCalendar();
-
-  renderTimeline();
-
-  renderRealtimeDentistsDuty();
-
-  renderRightSummaryPanel();
+function findDentistConflict(date, start, duration, dentist, ignoreId = null) {
+  return (
+    appointments.find((appt) => {
+      if (appt.id === ignoreId) return false;
+      if (appt.date !== date) return false;
+      if (appt.dentist !== dentist) return false;
+      return appointmentsOverlap(start, duration, appt.start, appt.duration);
+    }) || null
+  );
 }
 
 /* =========================================================
-   SEARCH
+   SERVICE CHANGE
 ========================================================= */
-
-function initializeSearch() {
-  const searchInput = document.getElementById("searchInput");
-
-  if (!searchInput) {
-    return;
-  }
-
-  searchInput.addEventListener("input", (e) => {
-    searchQuery = e.target.value;
-
-    renderTimeline();
-  });
-}
-
-/* =========================================================
-   SERVICE TYPE
-========================================================= */
-
-function onServiceTypeTyped() {
-  const typeInput = document.getElementById("f_type");
-
+function handleServiceChange() {
+  const service = document.getElementById("f_type").value.trim();
   const durationInput = document.getElementById("f_duration");
 
-  if (!typeInput || !durationInput) {
-    return;
+  if (SERVICE_DURATIONS[service] && durationInput) {
+    durationInput.value = SERVICE_DURATIONS[service];
   }
 
-  const val = typeInput.value;
-
-  if (serviceDurations[val] !== undefined) {
-    durationInput.value = serviceDurations[val];
-  }
+  checkCurrentFormConflict();
 }
 
 /* =========================================================
-   NEW APPOINTMENT
+   MODAL DATE CHANGE
 ========================================================= */
+function handleModalDateChange() {
+  const date = document.getElementById("f_date").value;
+  const pastNotice = document.getElementById("pastRecordNotice");
 
-function openNewModal(prefillTime) {
+  if (modalMode === "new" && isPastDate(date)) {
+    pastNotice.classList.add("show");
+  } else {
+    pastNotice.classList.remove("show");
+  }
+
+  checkCurrentFormConflict();
+}
+
+/* =========================================================
+   OPEN NEW APPOINTMENT
+========================================================= */
+function openNewModal(date = null, time = null) {
+  modalMode = "new";
   editingId = null;
 
-  document.getElementById("modalTitle").textContent = "New Appointment";
+  const overlay = document.getElementById("overlay");
+  const modalTitle = document.getElementById("modalTitle");
+  const modalSubtitle = document.getElementById("modalSubtitle");
+  const saveBtn = document.getElementById("saveBtn");
+  const deleteBtn = document.getElementById("deleteBtn");
+  const viewNotice = document.getElementById("viewOnlyNotice");
+  const pastNotice = document.getElementById("pastRecordNotice");
+  const conflictNotice = document.getElementById("scheduleConflictNotice");
+
+  modalTitle.textContent = "New Appointment";
+  modalSubtitle.textContent = "Create a new appointment";
+  saveBtn.style.display = "inline-block";
+  saveBtn.disabled = false;
+  deleteBtn.style.display = "none";
+  viewNotice.classList.remove("show");
+  conflictNotice.classList.remove("show");
+
+  const selectedKey = date || dateToKey(selectedDate);
 
   document.getElementById("f_patient").value = "";
-
-  document.getElementById("f_date").value = selectedDate;
-
-  document.getElementById("f_time").value = prefillTime || "10:00";
-
-  document.getElementById("f_type").value = "Consultation";
-
-  document.getElementById("f_duration").value = "30";
-
+  document.getElementById("f_date").value = selectedKey;
+  document.getElementById("f_time").value = time || "10:00";
+  document.getElementById("f_type").value = "";
+  document.getElementById("f_duration").value = "";
   document.getElementById("f_dentist").value = "santos";
 
-  const priceInput = document.getElementById("f_price");
-
-  if (priceInput) {
-    priceInput.value = "";
+  if (isPastDate(selectedKey)) {
+    pastNotice.classList.add("show");
+    saveBtn.disabled = true;
+  } else {
+    pastNotice.classList.remove("show");
+    saveBtn.disabled = false;
   }
 
-  document.getElementById("deleteBtn").style.display = "none";
-
-  document.getElementById("overlay").classList.add("show");
-
-  document.getElementById("f_patient").focus();
+  overlay.classList.add("show");
 }
 
 /* =========================================================
-   EDIT APPOINTMENT
+   OPEN VIEW APPOINTMENT
 ========================================================= */
+function openViewModal(id) {
+  const appt = appointments.find((item) => item.id === id);
+  if (!appt) return;
 
-function openEditModal(id) {
-  const appointments = getStoredAppointments();
+  modalMode = "view";
+  editingId = id;
 
-  const a = appointments.find((x) => String(x.id) === String(id));
-
-  if (!a) {
-    return;
-  }
-
-  editingId = String(id);
-
-  document.getElementById("modalTitle").textContent =
-    "View / Edit Appointment Record";
-
-  document.getElementById("f_patient").value = a.patient;
-
-  document.getElementById("f_date").value = a.date;
-
-  document.getElementById("f_time").value = a.start;
-
-  document.getElementById("f_type").value = a.type || "Consultation";
-
-  document.getElementById("f_duration").value =
-    a.duration || serviceDurations[a.type] || 30;
-
-  document.getElementById("f_dentist").value = a.dentist;
-
-  const priceInput = document.getElementById("f_price");
-
-  if (priceInput) {
-    priceInput.value = a.price !== undefined && a.price !== null ? a.price : "";
-  }
-
-  document.getElementById("deleteBtn").style.display = "inline-block";
-
-  document.getElementById("overlay").classList.add("show");
-}
-
-/* =========================================================
-   CLOSE APPOINTMENT MODAL
-========================================================= */
-
-function closeModal() {
   const overlay = document.getElementById("overlay");
+  const modalTitle = document.getElementById("modalTitle");
+  const modalSubtitle = document.getElementById("modalSubtitle");
+  const saveBtn = document.getElementById("saveBtn");
+  const deleteBtn = document.getElementById("deleteBtn");
+  const viewNotice = document.getElementById("viewOnlyNotice");
+  const pastNotice = document.getElementById("pastRecordNotice");
+  const conflictNotice = document.getElementById("scheduleConflictNotice");
 
-  if (overlay) {
-    overlay.classList.remove("show");
+  modalTitle.textContent = "Appointment Details";
+  modalSubtitle.textContent = `${formatDateLong(appt.date)} · ${fmtTime(appt.start)}–${fmtTime(getAppointmentEndTime(appt))}`;
+
+  document.getElementById("f_patient").value = appt.patient;
+  document.getElementById("f_date").value = appt.date;
+  document.getElementById("f_time").value = appt.start;
+  document.getElementById("f_type").value = appt.type;
+  document.getElementById("f_duration").value = appt.duration;
+  document.getElementById("f_dentist").value = appt.dentist;
+
+  setFormReadOnly(true);
+
+  saveBtn.style.display = "none";
+  deleteBtn.style.display = "flex";
+  viewNotice.classList.add("show");
+  conflictNotice.classList.remove("show");
+
+  if (isPastDate(appt.date)) {
+    pastNotice.classList.add("show");
+  } else {
+    pastNotice.classList.remove("show");
   }
 
-  editingId = null;
+  overlay.classList.add("show");
 }
 
 /* =========================================================
-   DASHBOARD TARGET APPOINTMENT
+   FORM READ ONLY
 ========================================================= */
+function setFormReadOnly(readOnly) {
+  const ids = [
+    "f_patient",
+    "f_date",
+    "f_time",
+    "f_type",
+    "f_duration",
+    "f_dentist",
+  ];
 
-function loadDashboardTargetAppointment() {
-  const target = localStorage.getItem(APPOINTMENT_NAV_TARGET_KEY);
+  ids.forEach((id) => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.disabled = readOnly;
+    }
+  });
+}
 
-  if (!target) {
+/* =========================================================
+   RESET FORM
+========================================================= */
+function resetFormEditable() {
+  setFormReadOnly(false);
+}
+
+/* =========================================================
+   CLOSE MODAL
+========================================================= */
+function closeModal() {
+  document.getElementById("overlay").classList.remove("show");
+  editingId = null;
+  modalMode = "new";
+  resetFormEditable();
+}
+
+/* =========================================================
+   CHECK CURRENT FORM CONFLICT
+========================================================= */
+function checkCurrentFormConflict() {
+  if (modalMode !== "new") return;
+
+  const date = document.getElementById("f_date").value;
+  const start = document.getElementById("f_time").value;
+  const dentist = document.getElementById("f_dentist").value;
+  const duration = Number(document.getElementById("f_duration").value);
+
+  const notice = document.getElementById("scheduleConflictNotice");
+  const text = document.getElementById("scheduleConflictText");
+  const saveBtn = document.getElementById("saveBtn");
+
+  notice.classList.remove("show");
+
+  if (!date || !start || !dentist || !duration) {
+    saveBtn.disabled = isPastDate(date);
     return;
   }
 
-  localStorage.removeItem(APPOINTMENT_NAV_TARGET_KEY);
-
-  const appointments = getStoredAppointments();
-
-  const match = appointments.find((x) => String(x.id) === String(target));
-
-  if (match) {
-    openEditModal(target);
+  if (isPastDate(date)) {
+    saveBtn.disabled = true;
+    return;
   }
+
+  const conflict = findDentistConflict(date, start, duration, dentist);
+
+  if (conflict) {
+    const dentistName = dentists[conflict.dentist]?.name || conflict.dentist;
+    const end = getAppointmentEndTime(conflict);
+
+    text.textContent = `${dentistName} already has an appointment from ${fmtTime(conflict.start)} to ${fmtTime(end)}.`;
+    notice.classList.add("show");
+    saveBtn.disabled = true;
+    return;
+  }
+
+  saveBtn.disabled = false;
 }
 
 /* =========================================================
    SAVE APPOINTMENT
 ========================================================= */
-
 function saveAppt() {
+  if (modalMode !== "new") return;
+
   const patient = document.getElementById("f_patient").value.trim();
-
   const date = document.getElementById("f_date").value;
-
   const start = document.getElementById("f_time").value;
-
-  const type = document.getElementById("f_type").value.trim() || "Consultation";
-
-  const duration = parseInt(document.getElementById("f_duration").value) || 30;
-
+  const type = document.getElementById("f_type").value.trim();
+  const duration = Number(document.getElementById("f_duration").value);
   const dentist = document.getElementById("f_dentist").value;
 
-  const priceField = document.getElementById("f_price");
-
-  const price =
-    priceField && priceField.value !== "" ? parseFloat(priceField.value) : 0;
-
-  const dentistName = dentists[dentist]?.name || "";
-
   if (!patient) {
-    toast("Please enter a patient name");
-
+    showToast("Please enter the patient's name.");
+    return;
+  }
+  if (!date) {
+    showToast("Please select a date.");
+    return;
+  }
+  if (!start) {
+    showToast("Please select an appointment time.");
+    return;
+  }
+  if (!type) {
+    showToast("Please select or enter a service type.");
+    return;
+  }
+  if (!duration || duration < 5) {
+    showToast("Please enter a valid duration.");
+    return;
+  }
+  if (!dentists[dentist]) {
+    showToast("Please select a valid dentist.");
     return;
   }
 
-  if (!date || !start) {
-    toast("Please pick a date and time");
-
+  if (isPastDate(date)) {
+    showToast(
+      "Past dates are historical records only. New appointments cannot be booked.",
+    );
     return;
   }
 
-  let appointments = getStoredAppointments();
+  const startMinutes = timeToMinutes(start);
+  const clinicStart = START_HOUR * 60;
+  const clinicEnd = END_HOUR * 60;
+  const appointmentEnd = startMinutes + duration;
 
-  const payload = {
-    patientName: patient,
+  if (startMinutes < clinicStart || appointmentEnd > clinicEnd) {
+    showToast(
+      `Appointment must be within clinic hours (${fmtTime("10:00")}–${fmtTime("20:00")}).`,
+    );
+    return;
+  }
 
-    patient: patient,
+  const conflict = findDentistConflict(date, start, duration, dentist);
 
-    date: date,
+  if (conflict) {
+    const conflictEnd = getAppointmentEndTime(conflict);
+    const dentistName = dentists[conflict.dentist].name;
 
-    start: start,
+    document.getElementById("scheduleConflictText").textContent =
+      `${dentistName} is already occupied from ${fmtTime(conflict.start)} to ${fmtTime(conflictEnd)}.`;
+    document.getElementById("scheduleConflictNotice").classList.add("show");
 
-    time: start,
+    showToast("Cannot save. The dentist is already occupied during this time.");
+    return;
+  }
 
-    duration: duration,
-
-    dentist: dentist,
-
-    dentistId: dentist,
-
-    dentistName: dentistName,
-
-    type: type,
-
-    service: type,
-
-    price: price,
-
-    amount: price,
-
-    status: "Confirmed",
+  const newAppointment = {
+    id: `appt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    patient,
+    date,
+    start,
+    type,
+    dentist,
+    duration,
   };
 
-  if (editingId !== null && editingId !== undefined && editingId !== "") {
-    const index = appointments.findIndex(
-      (x) => String(x.id) === String(editingId),
-    );
+  appointments.push(newAppointment);
+  saveAppointmentsToStorage();
+  closeModal();
 
-    if (index !== -1) {
-      appointments[index] = {
-        ...appointments[index],
-        ...payload,
-        id: appointments[index].id,
-      };
+  selectedDate = keyToDate(date);
+  currentCalendarDate = new Date(selectedDate);
 
-      toast("Appointment record updated successfully");
-    } else {
-      appointments.push({
-        ...payload,
-        id: String(editingId),
-      });
+  renderAll();
 
-      toast("Appointment record saved successfully");
-    }
-  } else {
-    const currentMax = appointments
+  showToast(
+    `Appointment saved: ${patient} · ${fmtTime(start)}–${fmtTime(getAppointmentEndTime(newAppointment))}`,
+  );
+}
 
-      .map((x) => Number(x.id) || 0)
+/* =========================================================
+   DELETE APPOINTMENT
+========================================================= */
+function deleteAppt() {
+  if (!editingId) return;
 
-      .reduce((max, value) => Math.max(max, value), 0);
+  const appt = appointments.find((item) => item.id === editingId);
+  if (!appt) return;
 
-    const newId = currentMax + 1;
+  deleteTargetId = appt.id;
 
-    appointments.push({
-      ...payload,
-      id: String(newId),
+  document.getElementById("deleteConfirmMessage").textContent =
+    `Are you sure you want to delete ${appt.patient}'s appointment on ${formatDateLong(appt.date)} at ${fmtTime(appt.start)}? This action cannot be undone.`;
+
+  document.getElementById("deleteConfirmOverlay").classList.add("show");
+}
+
+/* =========================================================
+   CLOSE DELETE CONFIRMATION
+========================================================= */
+function closeDeleteConfirmation() {
+  deleteTargetId = null;
+  document.getElementById("deleteConfirmOverlay").classList.remove("show");
+}
+
+/* =========================================================
+   CONFIRM DELETE
+========================================================= */
+function confirmDeleteAppt() {
+  if (!deleteTargetId) return;
+
+  const target = appointments.find((item) => item.id === deleteTargetId);
+  appointments = appointments.filter((item) => item.id !== deleteTargetId);
+
+  saveAppointmentsToStorage();
+  closeDeleteConfirmation();
+  closeModal();
+  renderAll();
+
+  if (target) {
+    showToast(`${target.patient}'s appointment was deleted.`);
+  }
+}
+
+/* =========================================================
+   RENDER EVERYTHING
+========================================================= */
+function renderAll() {
+  renderCalendar();
+  renderTimeline();
+  renderWaitingQueue();
+  renderRealtimeDentistsDuty();
+}
+
+/* =========================================================
+   CALENDAR
+========================================================= */
+function renderCalendar() {
+  const grid = document.getElementById("calGrid");
+  const label = document.getElementById("calMonthLabel");
+  if (!grid || !label) return;
+
+  grid.innerHTML = "";
+
+  const year = currentCalendarDate.getFullYear();
+  const month = currentCalendarDate.getMonth();
+
+  label.textContent = currentCalendarDate.toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric",
+  });
+
+  const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  weekdays.forEach((day) => {
+    const element = document.createElement("div");
+    element.className = "dow";
+    element.textContent = day;
+    grid.appendChild(element);
+  });
+
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  for (let i = firstDay - 1; i >= 0; i--) {
+    const date = new Date(year, month, -i);
+    grid.appendChild(makeDayBtn(date, true));
+  }
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const date = new Date(year, month, day);
+    grid.appendChild(makeDayBtn(date, false));
+  }
+
+  const totalCells = firstDay + daysInMonth;
+  const remaining = 42 - totalCells;
+
+  for (let day = 1; day <= remaining; day++) {
+    const date = new Date(year, month + 1, day);
+    grid.appendChild(makeDayBtn(date, true));
+  }
+}
+
+/* =========================================================
+   MAKE CALENDAR DAY
+========================================================= */
+function makeDayBtn(date, muted) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "day";
+
+  const key = dateToKey(date);
+
+  if (muted) button.classList.add("muted");
+  if (dateToKey(selectedDate) === key) button.classList.add("selected");
+  if (isToday(date)) button.classList.add("today");
+
+  const hasAppointment = appointments.some((appt) => appt.date === key);
+  if (hasAppointment) button.classList.add("has-appt");
+
+  button.textContent = date.getDate();
+
+  button.addEventListener("click", () => {
+    selectedDate = new Date(date);
+    renderAll();
+  });
+
+  return button;
+}
+
+/* =========================================================
+   SHIFT MONTH
+========================================================= */
+function shiftMonth(offset) {
+  currentCalendarDate = new Date(
+    currentCalendarDate.getFullYear(),
+    currentCalendarDate.getMonth() + offset,
+    1,
+  );
+  renderCalendar();
+}
+
+/* =========================================================
+   FILTER APPOINTMENTS
+========================================================= */
+function filteredAppts() {
+  const dateKey = dateToKey(selectedDate);
+  const search = (document.getElementById("searchInput")?.value || "")
+    .trim()
+    .toLowerCase();
+
+  return appointments
+    .filter((appt) => appt.date === dateKey)
+    .filter((appt) => {
+      if (!search) return true;
+      return (
+        appt.patient.toLowerCase().includes(search) ||
+        appt.type.toLowerCase().includes(search) ||
+        dentists[appt.dentist]?.name.toLowerCase().includes(search)
+      );
+    })
+    .sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+}
+
+/* =========================================================
+   RENDER TIMELINE
+========================================================= */
+function renderTimeline() {
+  const timeline = document.getElementById("timeline");
+  const title = document.getElementById("scheduleTitle");
+  const dateLabel = document.getElementById("scheduleDateLabel");
+
+  if (!timeline) return;
+
+  timeline.innerHTML = "";
+
+  const selectedKey = dateToKey(selectedDate);
+  const selectedIsToday = isToday(selectedKey);
+  const selectedIsPast = isPastDate(selectedKey);
+
+  if (title) {
+    title.textContent = selectedIsToday
+      ? "Today's Schedule"
+      : selectedIsPast
+        ? "Appointment History"
+        : "Upcoming Schedule";
+  }
+
+  if (dateLabel) {
+    dateLabel.textContent = formatDateLong(selectedKey);
+  }
+
+  const dayAppointments = filteredAppts();
+
+  for (
+    let minutes = START_HOUR * 60;
+    minutes < END_HOUR * 60;
+    minutes += SLOT_MIN
+  ) {
+    const row = document.createElement("div");
+    row.className = "tl-row";
+
+    const time = minutesToTime(minutes);
+
+    const timeElement = document.createElement("div");
+    timeElement.className = "tl-time";
+    timeElement.textContent = fmtTime(time);
+
+    const slot = document.createElement("div");
+    slot.className = "tl-slot";
+
+    const activeAppointments = dayAppointments.filter((appt) => {
+      const start = timeToMinutes(appt.start);
+      const end = getAppointmentEnd(appt);
+      return minutes >= start && minutes < end;
     });
 
-    toast("Appointment booked successfully");
+    if (activeAppointments.length > 0) {
+      activeAppointments.forEach((appt) => {
+        const appointmentStart = timeToMinutes(appt.start);
+
+        if (appointmentStart === minutes) {
+          slot.appendChild(createAppointmentCard(appt));
+        } else {
+          const occupied = document.createElement("div");
+          occupied.className = "occupied-slot";
+          occupied.innerHTML = `
+            <i class="fa-solid fa-lock"></i>
+            Occupied · ${fmtTime(appt.start)}–${fmtTime(getAppointmentEndTime(appt))}
+          `;
+          occupied.addEventListener("click", () => openViewModal(appt.id));
+          slot.appendChild(occupied);
+        }
+      });
+    } else {
+      const empty = document.createElement("div");
+      empty.className = "empty-slot";
+
+      if (selectedIsPast) {
+        empty.innerHTML = `
+          <i class="fa-solid fa-clock-rotate-left"></i>
+          No appointment recorded
+        `;
+        empty.style.cursor = "default";
+      } else {
+        empty.innerHTML = `
+          <span class="plus">+</span>
+          Open
+        `;
+        empty.addEventListener("click", () => {
+          openNewModal(selectedKey, time);
+        });
+      }
+
+      slot.appendChild(empty);
+    }
+
+    row.appendChild(timeElement);
+    row.appendChild(slot);
+    timeline.appendChild(row);
   }
-
-  saveAppointmentsToStorage(appointments);
-
-  /*
-     Keep legacy storage synchronized
-     for compatibility with your existing system.
-  */
-  localStorage.setItem(
-    "dentanueva_appointments",
-    JSON.stringify(appointments.map(normalizeAppointment)),
-  );
-
-  selectedDate = date;
-
-  viewYear = parseInt(date.slice(0, 4), 10);
-
-  viewMonth = parseInt(date.slice(5, 7), 10) - 1;
-
-  closeModal();
-
-  renderAll();
 }
-function deleteAppt() {
-  if (editingId === null || editingId === undefined || editingId === "") {
-    toast("No appointment selected for deletion");
 
+/* =========================================================
+   CREATE APPOINTMENT CARD
+========================================================= */
+function createAppointmentCard(appt) {
+  const card = document.createElement("div");
+  card.className = "appt-card";
+
+  const dentist = dentists[appt.dentist] || dentists.santos;
+  card.style.borderLeftColor = dentist.color;
+
+  const endTime = getAppointmentEndTime(appt);
+
+  card.innerHTML = `
+    <div
+      class="tooth-badge"
+      style="
+        background:${hexToRgba(dentist.color, 0.12)};
+        color:${dentist.color};
+      "
+    >
+      <i class="fa-solid fa-tooth"></i>
+    </div>
+ 
+    <div class="appt-info">
+      <div class="pname">
+        ${escapeHtml(appt.patient)}
+        <span class="view-only-badge">
+          <i class="fa-solid fa-eye"></i>
+          View
+        </span>
+      </div>
+ 
+      <div class="ptype">
+        ${escapeHtml(appt.type)}
+        ·
+        ${escapeHtml(dentist.name)}
+      </div>
+    </div>
+ 
+    <div class="appt-time-range">
+      ${fmtTime(appt.start)}
+      –
+      ${fmtTime(endTime)}
+    </div>
+  `;
+
+  card.addEventListener("click", () => {
+    openViewModal(appt.id);
+  });
+
+  return card;
+}
+
+/* =========================================================
+   WAITING QUEUE
+========================================================= */
+function renderWaitingQueue() {
+  const list = document.getElementById("waitingQueueList");
+  if (!list) return;
+
+  list.innerHTML = "";
+
+  const selectedKey = dateToKey(selectedDate);
+  const queue = filteredAppts();
+
+  if (!queue.length) {
+    const empty = document.createElement("div");
+    empty.className = "empty-queue";
+
+    if (isPastDate(selectedKey)) {
+      empty.textContent = "No appointment records for this date.";
+    } else {
+      empty.textContent = "No appointments today.";
+    }
+
+    list.appendChild(empty);
     return;
   }
 
-  let appointments = getStoredAppointments();
+  queue.forEach((appt) => {
+    const item = document.createElement("div");
+    item.className = "queue-item";
 
-  const targetId = Number(editingId);
+    const initials = getInitials(appt.patient);
+    const end = getAppointmentEndTime(appt);
 
-  const a = appointments.find((x) => Number(x.id) === targetId);
+    item.innerHTML = `
+      <div class="queue-main">
+        <div class="queue-avatar">
+          ${initials}
+        </div>
+ 
+        <div class="queue-text">
+          <span class="queue-name">
+            ${escapeHtml(appt.patient)}
+          </span>
+ 
+          <span class="queue-time">
+            ${fmtTime(appt.start)}
+            –
+            ${fmtTime(end)}
+          </span>
+        </div>
+      </div>
+ 
+      <div class="queue-type">
+        ${escapeHtml(appt.type)}
+      </div>
+    `;
 
-  appointments = appointments.filter((x) => Number(x.id) !== targetId);
-
-  saveAppointmentsToStorage(appointments);
-
-  closeModal();
-
-  renderAll();
-
-  toast(`Deleted record for ${a ? a.patient : "Patient"}`);
+    item.addEventListener("click", () => openViewModal(appt.id));
+    list.appendChild(item);
+  });
 }
-function initializeAppointmentModal() {
+
+/* =========================================================
+   DENTISTS ON DUTY
+========================================================= */
+function renderRealtimeDentistsDuty() {
+  const list = document.getElementById("dentistsDutyList");
+  if (!list) return;
+
+  list.innerHTML = "";
+
+  const selectedKey = dateToKey(selectedDate);
+
+  Object.entries(dentists).forEach(([id, dentist]) => {
+    const doctorAppointments = appointments
+      .filter((appt) => appt.date === selectedKey && appt.dentist === id)
+      .sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+
+    const nowMinutes = new Date().getHours() * 60 + new Date().getMinutes();
+
+    let status = "Available";
+    let statusClass = "status-badge-available";
+
+    if (isToday(selectedKey)) {
+      const currentAppointment = doctorAppointments.find((appt) => {
+        const start = timeToMinutes(appt.start);
+        const end = getAppointmentEnd(appt);
+        return nowMinutes >= start && nowMinutes < end;
+      });
+
+      if (currentAppointment) {
+        status = `Busy · ${currentAppointment.patient}`;
+        statusClass = "status-badge-busy";
+      } else if (doctorAppointments.length) {
+        const nextAppt = doctorAppointments.find(
+          (appt) => timeToMinutes(appt.start) >= nowMinutes,
+        );
+
+        if (nextAppt) {
+          status = `Available · Next ${fmtTime(nextAppt.start)}`;
+        } else {
+          const lastAppt = doctorAppointments[doctorAppointments.length - 1];
+          status = `${fmtTime(lastAppt.start)} · ${lastAppt.patient} · ${lastAppt.type}`;
+        }
+      }
+    } else if (!isPastDate(selectedKey) && doctorAppointments.length) {
+      status = `${doctorAppointments.length} appointment${doctorAppointments.length > 1 ? "s" : ""} scheduled`;
+    }
+
+    if (isPastDate(selectedKey)) {
+      if (doctorAppointments.length) {
+        status = `${doctorAppointments.length} recorded appointment${doctorAppointments.length > 1 ? "s" : ""}`;
+      } else {
+        status = "No recorded appointments";
+      }
+    }
+
+    const card = document.createElement("div");
+    card.className = "doc-duty-card";
+
+    const initials = getInitials(dentist.name.replace("Dr. ", ""));
+
+    card.innerHTML = `
+      <div
+        class="doc-avatar-dot"
+        style="
+          background:${hexToRgba(dentist.color, 0.12)};
+          color:${dentist.color};
+        "
+      >
+        ${initials}
+      </div>
+ 
+      <div class="doc-duty-info">
+        <strong>
+          ${escapeHtml(dentist.name)}
+        </strong>
+ 
+        <span class="spec-label">
+          ${escapeHtml(dentist.specialty)}
+        </span>
+ 
+        <span class="${statusClass}">
+          ${escapeHtml(status)}
+        </span>
+      </div>
+    `;
+
+    list.appendChild(card);
+  });
+}
+
+/* =========================================================
+   GET INITIALS
+========================================================= */
+function getInitials(name) {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word.charAt(0).toUpperCase())
+    .join("");
+}
+
+/* =========================================================
+   HEX TO RGBA
+========================================================= */
+function hexToRgba(hex, alpha) {
+  const value = hex.replace("#", "");
+  const r = parseInt(value.substring(0, 2), 16);
+  const g = parseInt(value.substring(2, 4), 16);
+  const b = parseInt(value.substring(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+/* =========================================================
+   ESCAPE HTML
+========================================================= */
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/* =========================================================
+   TOAST
+========================================================= */
+let toastTimer = null;
+
+function showToast(message) {
+  const toast = document.getElementById("toast");
+  if (!toast) return;
+
+  toast.textContent = message;
+  toast.classList.add("show");
+
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    toast.classList.remove("show");
+  }, 3000);
+}
+
+/* =========================================================
+   CLOSE MODALS WHEN CLICKING OUTSIDE
+========================================================= */
+document.addEventListener("click", (event) => {
   const overlay = document.getElementById("overlay");
+  const deleteOverlay = document.getElementById("deleteConfirmOverlay");
 
-  if (!overlay) {
+  if (event.target === overlay) {
+    closeModal();
+  }
+
+  if (event.target === deleteOverlay) {
+    closeDeleteConfirmation();
+  }
+});
+
+/* =========================================================
+   ESCAPE KEY
+========================================================= */
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+
+  const deleteOverlay = document.getElementById("deleteConfirmOverlay");
+
+  if (deleteOverlay.classList.contains("show")) {
+    closeDeleteConfirmation();
     return;
   }
 
-  overlay.addEventListener("click", (e) => {
-    if (e.target.id === "overlay") {
-      closeModal();
-    }
-  });
-}
-function initializeKeyboardEvents() {
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") {
-      closeModal();
-    }
-  });
-}
-function initializeStorageSync() {
-  window.addEventListener("storage", (event) => {
-    if (event.key === APPOINTMENTS_STORAGE_KEY) {
-      renderAll();
-    }
-  });
-}
-document.addEventListener("DOMContentLoaded", () => {
-  const mainContent = document.querySelector(".main-content");
-
-  if (mainContent) {
-    mainContent.style.animation = "none";
-    mainContent.offsetHeight;
-
-    mainContent.style.animation = "pageTransition 0.4s ease-in-out forwards";
-  }
-  initializeSearch();
-
-  initializeAppointmentModal();
-
-  initializeKeyboardEvents();
-
-  initializeStorageSync();
-
-  renderAll();
-
-  loadDashboardTargetAppointment();
+  closeModal();
 });
