@@ -33,37 +33,53 @@
 
       <!-- MAIN CONTENT -->
       <main class="main-content">
-        <!-- TOPBAR -->
-        <div class="topbar">
-          <div class="topbar-left">
-            <h1 class="page-title">Appointments</h1>
-          </div>
+        <!-- ======================================================
+             APPOINTMENT PAGE HEADER
+        ======================================================= -->
 
-          <div class="topbar-right-actions">
-            <div class="search-box-wrapper">
-              <i class="fa-solid fa-magnifying-glass search-icon"></i>
+        <header class="page-header">
+          <div class="page-header-content">
+            <div class="page-header-text">
+              <span class="page-eyebrow"> APPOINTMENTS </span>
 
-              <input
-                id="searchInput"
-                class="patient-search-input"
-                type="text"
-                placeholder="Search patient name..."
-                autocomplete="off"
-              />
+              <h1 class="page-heading">Today's Appointments</h1>
+
+              <p class="page-description">
+                Manage and organize the clinic's appointments today.
+              </p>
             </div>
 
-            <button
-              class="btn-new-appointment"
-              type="button"
-              onclick="openNewModal()"
-            >
-              <i class="fa-solid fa-plus"></i>
-              New Appointment
-            </button>
-          </div>
-        </div>
+            <div class="page-header-actions">
+              <!-- SEARCH -->
+              <div class="search-box-wrapper">
+                <i class="fa-solid fa-magnifying-glass search-icon"></i>
 
-        <!-- APPOINTMENTS LAYOUT -->
+                <input
+                  id="searchInput"
+                  class="patient-search-input"
+                  type="text"
+                  placeholder="Search patient name..."
+                  autocomplete="off"
+                />
+              </div>
+
+              <!-- NEW APPOINTMENT -->
+              <button
+                class="btn-new-appointment"
+                type="button"
+                onclick="openNewModal()"
+              >
+                <i class="fa-solid fa-plus"></i>
+                <span>New Appointment</span>
+              </button>
+            </div>
+          </div>
+        </header>
+
+        <!-- ======================================================
+             APPOINTMENTS LAYOUT
+        ======================================================= -->
+
         <div class="appointments-layout">
           <!-- LEFT COLUMN -->
           <div class="left-col-stack">
@@ -104,7 +120,10 @@
             </section>
           </div>
 
-          <!-- MAIN SCHEDULE -->
+          <!-- ====================================================
+               MAIN SCHEDULE
+          ===================================================== -->
+
           <section class="panel schedule-panel">
             <div class="schedule-main-header">
               <h3 id="scheduleTitle">Today's Schedule</h3>
@@ -115,7 +134,10 @@
             <div class="time-slots-container" id="timeline"></div>
           </section>
 
-          <!-- RIGHT COLUMN -->
+          <!-- ====================================================
+               RIGHT COLUMN
+          ===================================================== -->
+
           <div class="right-col-stack">
             <!-- WAITING QUEUE -->
             <section class="panel waiting-panel">
@@ -131,8 +153,8 @@
     </div>
 
     <!-- ======================================================
-       APPOINTMENT MODAL
-  ======================================================= -->
+         APPOINTMENT MODAL
+    ======================================================= -->
 
     <div class="modal-overlay" id="overlay">
       <div class="modal-container">
@@ -322,8 +344,8 @@
     </div>
 
     <!-- ======================================================
-       DELETE CONFIRMATION MODAL
-  ======================================================= -->
+         DELETE CONFIRMATION MODAL
+    ======================================================= -->
 
     <div class="delete-confirm-overlay" id="deleteConfirmOverlay">
       <div class="delete-confirm-box">
@@ -359,8 +381,8 @@
     </div>
 
     <!-- ======================================================
-       STATUS CONFIRMATION MODAL
-  ======================================================= -->
+         STATUS CONFIRMATION MODAL
+    ======================================================= -->
 
     <div class="status-confirm-overlay" id="statusConfirmOverlay">
       <div class="status-confirm-box">
@@ -403,4 +425,3 @@
     <script src="appointment.js"></script>
   </body>
 </html>
-```

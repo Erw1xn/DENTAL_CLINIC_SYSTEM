@@ -9,6 +9,9 @@ const START_HOUR = 10;
 const END_HOUR = 20;
 const SLOT_MIN = 30;
 
+const NO_SHOW_GRACE_PERIOD_MIN = 15;
+const NO_SHOW_TESTING_MODE = true;
+
 /* =========================================================
    SERVICE DURATIONS
 ========================================================= */
@@ -55,6 +58,7 @@ const APPOINTMENT_STATUS = {
   IN_CONSULTATION: "in_consultation",
   READY_COMPLETE: "ready_complete",
   COMPLETED: "completed",
+  NO_SHOW: "no_show",
 };
 
 /*
@@ -66,20 +70,47 @@ const APPOINTMENT_STATUS = {
       ↓
   In Consultation
       ↓
+  Confirmation
+      ↓
   Complete
       ↓
   Confirmation
       ↓
   Completed
 
+  NO SHOW BRANCH
+
+  Scheduled
+      ↓
+  15 min grace period passes
+      ↓
+  "Mark No Show" button appears next to "Check In"
+      ↓
+  Staff confirms
+      ↓
+  No Show
+
   IMPORTANT:
 
-  Once appointment becomes COMPLETED,
-  it will automatically disappear from
-  the Waiting Queue.
+  Once an appointment is marked as NO SHOW:
 
-  The appointment itself is NOT deleted.
-  It remains in the schedule/history.
+  - Check In button disappears
+  - Mark No Show button disappears
+  - Only the No Show badge remains
+  - Appointment is removed from Waiting Queue
+  - Appointment remains in the schedule/history
+
+  IMPORTANT:
+
+  There is NO automatic status change.
+
+  Time is only used to decide whether the
+  "Mark No Show" button should be displayed.
+
+  Staff must explicitly confirm "Mark No Show".
+
+  In Consultation will remain In Consultation
+  until the staff manually finishes the consultation.
 */
 
 /* =========================================================
@@ -107,23 +138,27 @@ document.addEventListener("DOMContentLoaded", () => {
   initializeDate();
   setupEvents();
 
-  updateAutomaticAppointmentStatuses();
+  /*
+    We intentionally DO NOT automatically change
+    Scheduled to No Show, or In Consultation to
+    Ready to Complete, based on time.
+  */
 
   renderAll();
 
   /*
-    Keep appointment status updated while page is open.
-  */
-  setInterval(() => {
-    const changed = updateAutomaticAppointmentStatuses();
+    Refresh the page every second so the system can
+    re-evaluate when the "Mark No Show" button should
+    become visible.
 
-    if (changed) {
-      renderAll();
-    } else {
-      renderTimeline();
-      renderWaitingQueue();
-      renderRealtimeDentistsDuty();
-    }
+    IMPORTANT:
+    This DOES NOT automatically change appointment status.
+  */
+
+  setInterval(() => {
+    renderTimeline();
+    renderWaitingQueue();
+    renderRealtimeDentistsDuty();
   }, 1000);
 
   openAppointmentFromURL();
@@ -273,7 +308,12 @@ function normalizeAppointment(appt) {
 
     dentist: appt.dentist || "santos",
 
-    duration: Number(appt.duration || SERVICE_DURATIONS[appt.type] || 30),
+    duration: Number(
+      appt.duration ||
+        SERVICE_DURATIONS[appt.type] ||
+        SERVICE_DURATIONS[appt.service] ||
+        30,
+    ),
 
     status: appt.status || APPOINTMENT_STATUS.SCHEDULED,
   };
@@ -324,6 +364,8 @@ function isToday(dateOrKey) {
 }
 
 function isPastDate(dateOrKey) {
+  if (!dateOrKey) return false;
+
   const today = new Date();
 
   today.setHours(0, 0, 0, 0);
@@ -405,6 +447,76 @@ function getAppointmentEndTime(appt) {
 }
 
 /* =========================================================
+   NO SHOW ELIGIBILITY
+========================================================= */
+
+/*
+  This only decides whether the "Mark No Show"
+  button should be visible.
+
+  It DOES NOT change the appointment status.
+
+  The appointment remains Scheduled until staff
+  explicitly confirms Mark No Show.
+*/
+
+function isNoShowEligible(appt) {
+  /*
+    Mark No Show is ONLY available for Scheduled
+    appointments.
+
+    Once the appointment is already No Show,
+    this returns false.
+
+    Therefore the Mark No Show button will
+    disappear after confirmation.
+  */
+
+  if (appt.status !== APPOINTMENT_STATUS.SCHEDULED) {
+    return false;
+  }
+
+  /*
+    TESTING MODE
+
+    When true, Mark No Show appears immediately
+    for Scheduled appointments.
+
+    Set to false for the actual 15-minute rule.
+  */
+
+  if (NO_SHOW_TESTING_MODE) {
+    return true;
+  }
+
+  /*
+    Past day:
+    The 15-minute grace period has already passed.
+  */
+
+  if (isPastDate(appt.date)) {
+    return true;
+  }
+
+  /*
+    Only today's appointments can become eligible
+    in real time.
+  */
+
+  if (!isToday(appt.date)) {
+    return false;
+  }
+
+  const now = new Date();
+
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+  const startMinutes = timeToMinutes(appt.start);
+
+  return nowMinutes >= startMinutes + NO_SHOW_GRACE_PERIOD_MIN;
+}
+
+/* =========================================================
    OVERLAP DETECTION
 ========================================================= */
 
@@ -446,6 +558,18 @@ function findDentistConflict(date, start, duration, dentist, ignoreId = null) {
         return false;
       }
 
+      /*
+        Completed and No Show appointments no longer
+        occupy the dentist's time.
+      */
+
+      if (
+        appt.status === APPOINTMENT_STATUS.COMPLETED ||
+        appt.status === APPOINTMENT_STATUS.NO_SHOW
+      ) {
+        return false;
+      }
+
       return appointmentsOverlap(start, duration, appt.start, appt.duration);
     }) || null
   );
@@ -455,38 +579,28 @@ function findDentistConflict(date, start, duration, dentist, ignoreId = null) {
    AUTOMATIC APPOINTMENT STATUS
 ========================================================= */
 
+/*
+  IMPORTANT:
+
+  No appointment status is automatically changed
+  based on time.
+
+  Scheduled remains Scheduled.
+
+  In Consultation remains In Consultation.
+
+  Ready to Complete remains Ready to Complete.
+
+  Completed remains Completed.
+
+  No Show remains No Show.
+
+  The only time-based behavior is the visibility
+  of the Mark No Show button.
+*/
+
 function updateAutomaticAppointmentStatuses() {
-  const now = new Date();
-
-  const todayKey = dateToKey(now);
-
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
-
-  let changed = false;
-
-  appointments.forEach((appt) => {
-    if (appt.date !== todayKey) {
-      return;
-    }
-
-    if (appt.status !== APPOINTMENT_STATUS.IN_CONSULTATION) {
-      return;
-    }
-
-    const appointmentEnd = getAppointmentEnd(appt);
-
-    if (currentMinutes >= appointmentEnd) {
-      appt.status = APPOINTMENT_STATUS.READY_COMPLETE;
-
-      changed = true;
-    }
-  });
-
-  if (changed) {
-    saveAppointmentsToStorage();
-  }
-
-  return changed;
+  return false;
 }
 
 /* =========================================================
@@ -502,10 +616,13 @@ function getStatusLabel(status) {
       return "In Consultation";
 
     case APPOINTMENT_STATUS.READY_COMPLETE:
-      return "Ready to Complete";
+      return "Complete";
 
     case APPOINTMENT_STATUS.COMPLETED:
       return "Completed";
+
+    case APPOINTMENT_STATUS.NO_SHOW:
+      return "No Show";
 
     default:
       return "Scheduled";
@@ -537,7 +654,7 @@ function handleModalDateChange() {
 
   const pastNotice = document.getElementById("pastRecordNotice");
 
-  if (modalMode === "new" && isPastDate(date)) {
+  if (modalMode === "new" && date && isPastDate(date)) {
     pastNotice.classList.add("show");
   } else {
     pastNotice.classList.remove("show");
@@ -738,7 +855,8 @@ function checkCurrentFormConflict() {
   notice.classList.remove("show");
 
   if (!date || !start || !dentist || !duration) {
-    saveBtn.disabled = isPastDate(date);
+    saveBtn.disabled = date ? isPastDate(date) : false;
+
     return;
   }
 
@@ -947,23 +1065,31 @@ function confirmDeleteAppt() {
 ========================================================= */
 
 /*
-  NO CONFIRMATION HERE.
-
-  Scheduled
+  SCHEDULED
       ↓
-  Check In
+  CHECK IN
       ↓
-  In Consultation
+  IN CONSULTATION
 
   IMPORTANT:
-  Check In goes directly to In Consultation.
-  There is NO Start Consultation step.
+
+  Check In is ONLY available while status is Scheduled.
+
+  Once staff marks an appointment as No Show,
+  Check In is no longer available.
 */
 
 function checkInAppointment(id) {
   const appt = appointments.find((item) => item.id === id);
 
   if (!appt) return;
+
+  /*
+    IMPORTANT:
+    Only Scheduled appointments can be checked in.
+
+    No Show appointments can NO LONGER be checked in.
+  */
 
   if (appt.status !== APPOINTMENT_STATUS.SCHEDULED) {
     return;
@@ -1001,8 +1127,9 @@ function openStatusConfirmation(id, actionType) {
   const icon = document.getElementById("statusConfirmIcon");
 
   /*
-    MANUAL FINISH CONSULTATION
+    FINISH CONSULTATION
   */
+
   if (actionType === "finishConsultation") {
     title.textContent = "Finish Consultation?";
 
@@ -1011,11 +1138,14 @@ function openStatusConfirmation(id, actionType) {
     button.textContent = "Yes, Finish";
 
     icon.innerHTML = '<i class="fa-solid fa-stethoscope"></i>';
+
+    icon.classList.remove("status-confirm-icon-warning");
   }
 
   /*
     FINAL COMPLETE
   */
+
   if (actionType === "completeAppointment") {
     title.textContent = "Complete Appointment?";
 
@@ -1024,6 +1154,26 @@ function openStatusConfirmation(id, actionType) {
     button.textContent = "Yes, Complete";
 
     icon.innerHTML = '<i class="fa-solid fa-circle-check"></i>';
+
+    icon.classList.remove("status-confirm-icon-warning");
+  }
+
+  /*
+    MARK NO SHOW
+  */
+
+  if (actionType === "markNoShow") {
+    title.textContent = "Mark as No Show?";
+
+    message.textContent = `${appt.patient}'s ${fmtTime(
+      appt.start,
+    )} appointment has not been checked in. Once marked as No Show, the Check In button will no longer be available.`;
+
+    button.textContent = "Yes, Mark No Show";
+
+    icon.innerHTML = '<i class="fa-solid fa-user-xmark"></i>';
+
+    icon.classList.add("status-confirm-icon-warning");
   }
 
   overlay.classList.add("show");
@@ -1036,6 +1186,10 @@ function openStatusConfirmation(id, actionType) {
 function closeStatusConfirmation() {
   statusActionTargetId = null;
   statusActionType = null;
+
+  const icon = document.getElementById("statusConfirmIcon");
+
+  icon.classList.remove("status-confirm-icon-warning");
 
   document.getElementById("statusConfirmOverlay").classList.remove("show");
 }
@@ -1063,7 +1217,7 @@ function confirmStatusAction() {
          ↓
     confirmation
          ↓
-    Ready to Complete
+    Complete
   */
 
   if (statusActionType === "finishConsultation") {
@@ -1090,14 +1244,11 @@ function confirmStatusAction() {
   /*
     COMPLETE APPOINTMENT
 
-    Ready to Complete
+    Complete
          ↓
     confirmation
          ↓
     Completed
-
-    IMPORTANT:
-    Once completed, remove it from Waiting Queue.
   */
 
   if (statusActionType === "completeAppointment") {
@@ -1120,6 +1271,44 @@ function confirmStatusAction() {
 
     return;
   }
+
+  /*
+    MARK NO SHOW
+
+    Scheduled
+         ↓
+    confirmation
+         ↓
+    No Show
+
+    IMPORTANT:
+
+    Once this happens:
+    - Check In button disappears
+    - Mark No Show button disappears
+    - No Show badge remains
+    - Removed from Waiting Queue
+    - Remains in schedule/history
+  */
+
+  if (statusActionType === "markNoShow") {
+    if (appt.status !== APPOINTMENT_STATUS.SCHEDULED) {
+      closeStatusConfirmation();
+      return;
+    }
+
+    appt.status = APPOINTMENT_STATUS.NO_SHOW;
+
+    saveAppointmentsToStorage();
+
+    closeStatusConfirmation();
+
+    renderAll();
+
+    showToast(`${appt.patient} has been marked as No Show.`);
+
+    return;
+  }
 }
 
 /* =========================================================
@@ -1133,35 +1322,57 @@ function createAppointmentStatusButton(appt) {
 
   /*
     SCHEDULED
-    ↓
-    CHECK IN
+
+    Check In is available.
+
+    Mark No Show appears when eligible.
   */
 
   if (appt.status === APPOINTMENT_STATUS.SCHEDULED) {
-    const button = document.createElement("button");
+    const checkInBtn = document.createElement("button");
 
-    button.type = "button";
+    checkInBtn.type = "button";
 
-    button.className = "appt-status-btn status-checkin";
+    checkInBtn.className = "appt-status-btn status-checkin";
 
-    button.innerHTML = '<i class="fa-solid fa-user-check"></i> Check In';
+    checkInBtn.innerHTML = '<i class="fa-solid fa-user-check"></i> Check In';
 
-    button.addEventListener("click", (event) => {
+    checkInBtn.addEventListener("click", (event) => {
       event.stopPropagation();
 
       checkInAppointment(appt.id);
     });
 
-    wrapper.appendChild(button);
+    wrapper.appendChild(checkInBtn);
+
+    /*
+      Mark No Show appears only while status is Scheduled.
+    */
+
+    if (isNoShowEligible(appt)) {
+      const noShowBtn = document.createElement("button");
+
+      noShowBtn.type = "button";
+
+      noShowBtn.className = "appt-status-btn status-noshow";
+
+      noShowBtn.innerHTML =
+        '<i class="fa-solid fa-user-xmark"></i> Mark No Show';
+
+      noShowBtn.addEventListener("click", (event) => {
+        event.stopPropagation();
+
+        openStatusConfirmation(appt.id, "markNoShow");
+      });
+
+      wrapper.appendChild(noShowBtn);
+    }
 
     return wrapper;
   }
 
   /*
     IN CONSULTATION
-
-    Staff can manually finish consultation.
-    Confirmation is required.
   */
 
   if (appt.status === APPOINTMENT_STATUS.IN_CONSULTATION) {
@@ -1186,12 +1397,6 @@ function createAppointmentStatusButton(appt) {
 
   /*
     READY TO COMPLETE
-
-    This can happen:
-    1. Manually after consultation
-    2. Automatically when end time is reached
-
-    Staff must confirm before final completion.
   */
 
   if (appt.status === APPOINTMENT_STATUS.READY_COMPLETE) {
@@ -1230,6 +1435,30 @@ function createAppointmentStatusButton(appt) {
     return wrapper;
   }
 
+  /*
+    NO SHOW
+
+    IMPORTANT FIX:
+
+    When status is NO_SHOW:
+
+    - DO NOT create Check In button
+    - DO NOT create Mark No Show button
+    - ONLY show the No Show badge
+  */
+
+  if (appt.status === APPOINTMENT_STATUS.NO_SHOW) {
+    const badge = document.createElement("span");
+
+    badge.className = "appt-status-badge no-show";
+
+    badge.innerHTML = '<i class="fa-solid fa-user-xmark"></i> No Show';
+
+    wrapper.appendChild(badge);
+
+    return wrapper;
+  }
+
   return wrapper;
 }
 
@@ -1238,7 +1467,19 @@ function createAppointmentStatusButton(appt) {
 ========================================================= */
 
 function renderAll() {
-  updateAutomaticAppointmentStatuses();
+  /*
+    There is NO automatic status update here.
+
+    Scheduled stays Scheduled.
+
+    In Consultation stays In Consultation.
+
+    Ready to Complete stays Ready to Complete.
+
+    Completed stays Completed.
+
+    No Show stays No Show.
+  */
 
   renderCalendar();
   renderTimeline();
@@ -1468,11 +1709,11 @@ function renderTimeline() {
           occupied.className = "occupied-slot";
 
           occupied.innerHTML = `
-              <i class="fa-solid fa-lock"></i>
-              Occupied · ${fmtTime(appt.start)}–${fmtTime(
-                getAppointmentEndTime(appt),
-              )}
-            `;
+            <i class="fa-solid fa-lock"></i>
+            Occupied · ${fmtTime(appt.start)}–${fmtTime(
+              getAppointmentEndTime(appt),
+            )}
+          `;
 
           occupied.addEventListener("click", () => openViewModal(appt.id));
 
@@ -1596,8 +1837,21 @@ function renderWaitingQueue() {
 
   const selectedKey = dateToKey(selectedDate);
 
+  /*
+    Completed and No Show appointments
+    are removed from Waiting Queue.
+
+    Scheduled
+    In Consultation
+    Ready to Complete
+
+    remain visible.
+  */
+
   const queue = filteredAppts().filter(
-    (appt) => appt.status !== APPOINTMENT_STATUS.COMPLETED,
+    (appt) =>
+      appt.status !== APPOINTMENT_STATUS.COMPLETED &&
+      appt.status !== APPOINTMENT_STATUS.NO_SHOW,
   );
 
   if (!queue.length) {
@@ -1687,17 +1941,17 @@ function renderRealtimeDentistsDuty() {
 
     let statusClass = "status-badge-available";
 
+    const isInactive = (appt) =>
+      appt.status === APPOINTMENT_STATUS.COMPLETED ||
+      appt.status === APPOINTMENT_STATUS.NO_SHOW;
+
     if (isToday(selectedKey)) {
       const currentAppointment = doctorAppointments.find((appt) => {
         const start = timeToMinutes(appt.start);
 
         const end = getAppointmentEnd(appt);
 
-        return (
-          nowMinutes >= start &&
-          nowMinutes < end &&
-          appt.status !== APPOINTMENT_STATUS.COMPLETED
-        );
+        return nowMinutes >= start && nowMinutes < end && !isInactive(appt);
       });
 
       if (currentAppointment) {
@@ -1709,8 +1963,7 @@ function renderRealtimeDentistsDuty() {
       } else if (doctorAppointments.length) {
         const nextAppt = doctorAppointments.find(
           (appt) =>
-            timeToMinutes(appt.start) >= nowMinutes &&
-            appt.status !== APPOINTMENT_STATUS.COMPLETED,
+            timeToMinutes(appt.start) >= nowMinutes && !isInactive(appt),
         );
 
         if (nextAppt) {
@@ -1718,14 +1971,14 @@ function renderRealtimeDentistsDuty() {
         } else {
           const lastAppt = doctorAppointments[doctorAppointments.length - 1];
 
-          status = `${fmtTime(lastAppt.start)} · ${lastAppt.patient} · ${
-            lastAppt.type
-          }`;
+          status = `${fmtTime(lastAppt.start)} · ${
+            lastAppt.patient
+          } · ${lastAppt.type}`;
         }
       }
     } else if (!isPastDate(selectedKey) && doctorAppointments.length) {
       const activeCount = doctorAppointments.filter(
-        (appt) => appt.status !== APPOINTMENT_STATUS.COMPLETED,
+        (appt) => !isInactive(appt),
       ).length;
 
       status = `${activeCount} appointment${

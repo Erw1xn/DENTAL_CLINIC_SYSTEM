@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Patients | DentaNueva Dental Clinic</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+    />
+
+    <link rel="stylesheet" href="../../navigation_bar/sidebar.css" />
+    <link rel="stylesheet" href="patients.css" />
+  </head>
+
+  <body>
+    <div class="patients-layout">
+      <aside id="sidebar-container"></aside>
+
+      <main class="patients-main">
+        <div class="patients-content">
+          <!-- =====================================================
+               PATIENT STATISTICS
+               ===================================================== -->
+
+          <section class="patient-stats">
+            <!-- TOTAL PATIENTS -->
+            <article class="stat-card">
+              <div class="stat-icon total-icon">
+                <i class="fa-solid fa-users"></i>
+              </div>
+
+              <div class="stat-content">
+                <span class="stat-label">Total Patients</span>
+
+                <strong class="stat-value" id="totalPatients">0</strong>
+
+                <span class="stat-description"> Patients in system </span>
+              </div>
+            </article>
+
+            <!-- ACTIVE PATIENTS -->
+            <article class="stat-card">
+              <div class="stat-icon active-icon">
+                <i class="fa-solid fa-user-check"></i>
+              </div>
+
+              <div class="stat-content">
+                <span class="stat-label">Active Patients</span>
+
+                <strong class="stat-value" id="activePatients">0</strong>
+
+                <span class="stat-description"> Currently active </span>
+              </div>
+            </article>
+
+            <!-- NEW PATIENTS -->
+            <article class="stat-card">
+              <div class="stat-icon new-icon">
+                <i class="fa-solid fa-user-plus"></i>
+              </div>
+
+              <div class="stat-content">
+                <span class="stat-label">New Patients</span>
+
+                <strong class="stat-value" id="newPatients">0</strong>
+
+                <span class="stat-description"> Registered this month </span>
+              </div>
+            </article>
+
+            <!-- INACTIVE PATIENTS -->
+            <article class="stat-card">
+              <div class="stat-icon inactive-icon">
+                <i class="fa-solid fa-user-clock"></i>
+              </div>
+
+              <div class="stat-content">
+                <span class="stat-label">Inactive Patients</span>
+
+                <strong class="stat-value" id="inactivePatients">0</strong>
+
+                <span class="stat-description"> No recent activity </span>
+              </div>
+            </article>
+          </section>
+
+          <!-- =====================================================
+               PATIENT LIST
+               ===================================================== -->
+
+          <section class="patient-list-card">
+            <!-- LIST HEADER -->
+            <div class="patient-list-header">
+              <div class="patient-list-title">
+                <h1>Patients</h1>
+
+                <p>
+                  Manage patient information and keep track of their clinic
+                  records.
+                </p>
+              </div>
+
+              <div class="patient-list-header-right">
+                <span class="patient-count-label" id="patientCountLabel">
+                  0 patients
+                </span>
+
+                <!--
+                  IMPORTANT:
+                  Same ID and class.
+                  JavaScript logic remains unchanged.
+                -->
+                <button
+                  type="button"
+                  class="btn-add-patient"
+                  id="addPatientBtn"
+                >
+                  <i class="fa-solid fa-user-plus"></i>
+                  <span>Add Patient</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- TOOLBAR -->
+            <div class="patient-toolbar">
+              <!-- SEARCH -->
+              <div class="patient-search">
+                <i class="fa-solid fa-magnifying-glass"></i>
+
+                <input
+                  type="search"
+                  id="patientSearch"
+                  name="patientSearch"
+                  autocomplete="off"
+                  placeholder="Search patient name, ID, email or phone..."
+                />
+              </div>
+
+              <!-- STATUS FILTER -->
+              <select
+                id="statusFilter"
+                name="statusFilter"
+                class="patient-select"
+                autocomplete="off"
+              >
+                <option value="all">All Patients</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+
+              <!-- SORT -->
+              <select
+                id="sortPatients"
+                name="sortPatients"
+                class="patient-select sort-select"
+                autocomplete="off"
+              >
+                <option value="newest">Newest</option>
+                <option value="oldest">Oldest</option>
+                <option value="nameAsc">Name A-Z</option>
+                <option value="nameDesc">Name Z-A</option>
+              </select>
+            </div>
+
+            <!-- TABLE -->
+            <div class="patient-table-wrapper">
+              <table class="patient-table">
+                <thead>
+                  <tr>
+                    <th class="patient-column">PATIENT</th>
+                    <th class="contact-column">CONTACT</th>
+                    <th class="age-column">AGE / GENDER</th>
+                    <th class="visit-column">LAST VISIT</th>
+                    <th class="appointment-column">NEXT APPOINTMENT</th>
+                    <th class="status-column">STATUS</th>
+                    <th class="action-column">ACTION</th>
+                  </tr>
+                </thead>
+
+                <tbody id="patientTableBody">
+                  <!-- Javascript inserts patients here -->
+                </tbody>
+              </table>
+
+              <!-- EMPTY STATE -->
+              <div class="patient-empty-state" id="patientEmptyState" hidden>
+                <div class="empty-icon">
+                  <i class="fa-solid fa-user-group"></i>
+                </div>
+
+                <h3>No patients found</h3>
+
+                <p>Try changing your search or filter.</p>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <!-- =========================================================
+         PATIENT MODAL
+         ========================================================= -->
+
+    <div
+      class="patient-modal-backdrop"
+      id="patientModalBackdrop"
+      aria-hidden="true"
+    >
+      <div
+        class="patient-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="patientModalTitle"
+      >
+        <!-- MODAL HEADER -->
+        <div class="patient-modal-header">
+          <div>
+            <span class="modal-eyebrow"> PATIENT RECORD </span>
+
+            <h2 id="patientModalTitle">Add Patient</h2>
+          </div>
+
+          <button
+            type="button"
+            class="modal-close-btn"
+            id="closePatientModal"
+            aria-label="Close"
+          >
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <!-- FORM -->
+        <form id="patientForm" autocomplete="off">
+          <input
+            type="hidden"
+            id="patientId"
+            name="patientId"
+            autocomplete="off"
+          />
+
+          <div class="form-grid">
+            <!-- FIRST NAME -->
+            <div class="form-field">
+              <label for="firstName"> First Name </label>
+
+              <input
+                type="text"
+                id="firstName"
+                name="firstName"
+                autocomplete="given-name"
+                placeholder="Enter first name"
+                required
+              />
+            </div>
+
+            <!-- LAST NAME -->
+            <div class="form-field">
+              <label for="lastName"> Last Name </label>
+
+              <input
+                type="text"
+                id="lastName"
+                name="lastName"
+                autocomplete="family-name"
+                placeholder="Enter last name"
+                required
+              />
+            </div>
+
+            <!-- PHONE -->
+            <div class="form-field">
+              <label for="phone"> Phone Number </label>
+
+              <input
+                type="tel"
+                id="phone"
+                name="phone"
+                autocomplete="tel"
+                placeholder="09XXXXXXXXX"
+              />
+            </div>
+
+            <!-- EMAIL -->
+            <div class="form-field">
+              <label for="email"> Email </label>
+
+              <input
+                type="email"
+                id="email"
+                name="email"
+                autocomplete="email"
+                placeholder="patient@example.com"
+              />
+            </div>
+
+            <!-- DATE OF BIRTH -->
+            <div class="form-field">
+              <label for="birthDate"> Date of Birth </label>
+
+              <input
+                type="date"
+                id="birthDate"
+                name="birthDate"
+                autocomplete="bday"
+              />
+            </div>
+
+            <!-- GENDER -->
+            <div class="form-field">
+              <label for="gender"> Gender </label>
+
+              <select id="gender" name="gender" autocomplete="sex">
+                <option value="">Select gender</option>
+
+                <option value="Male">Male</option>
+
+                <option value="Female">Female</option>
+
+                <option value="Other">Other</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- FORM ACTIONS -->
+          <div class="patient-modal-actions">
+            <button
+              type="button"
+              class="btn-modal-secondary"
+              id="cancelPatientBtn"
+            >
+              Cancel
+            </button>
+
+            <button type="submit" class="btn-modal-primary">
+              Save Patient
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- =========================================================
+         ACTION MENU
+         ========================================================= -->
+
+    <div class="patient-action-menu" id="patientActionMenu">
+      <button type="button" data-action="view">
+        <i class="fa-regular fa-eye"></i>
+        View Patient
+      </button>
+
+      <button type="button" data-action="edit">
+        <i class="fa-regular fa-pen-to-square"></i>
+        Edit Patient
+      </button>
+
+      <button type="button" data-action="toggle">
+        <i class="fa-solid fa-user-slash"></i>
+        Change Status
+      </button>
+    </div>
+
+    <script src="patients.js"></script>
+    <script src="../../navigation_bar/sidebar.js"></script>
+  </body>
+</html>
