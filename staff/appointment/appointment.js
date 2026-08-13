@@ -1,5 +1,16 @@
+/* =========================================================
+   DENTANUEVA APPOINTMENT MANAGEMENT
+   CONNECTED TO PATIENTS PAGE
+========================================================= */
+
+/* =========================================================
+   STORAGE KEYS
+========================================================= */
+
 const APPOINTMENTS_STORAGE_KEY = "appointments";
 const LEGACY_STORAGE_KEY = "dentanueva_appointments";
+
+const PATIENTS_STORAGE_KEY = "dentanueva_patients";
 
 /* =========================================================
    CLINIC SETTINGS
@@ -10,6 +21,19 @@ const END_HOUR = 20;
 const SLOT_MIN = 30;
 
 const NO_SHOW_GRACE_PERIOD_MIN = 15;
+
+/*
+  TESTING MODE
+
+  true:
+  Mark No Show is immediately available for Scheduled
+  appointments.
+
+  false:
+  Staff must wait until 15 minutes after the appointment
+  start time before Mark No Show becomes available.
+*/
+
 const NO_SHOW_TESTING_MODE = true;
 
 /* =========================================================
@@ -61,63 +85,12 @@ const APPOINTMENT_STATUS = {
   NO_SHOW: "no_show",
 };
 
-/*
-  WORKFLOW
-
-  Scheduled
-      ↓
-  Check In
-      ↓
-  In Consultation
-      ↓
-  Confirmation
-      ↓
-  Complete
-      ↓
-  Confirmation
-      ↓
-  Completed
-
-  NO SHOW BRANCH
-
-  Scheduled
-      ↓
-  15 min grace period passes
-      ↓
-  "Mark No Show" button appears next to "Check In"
-      ↓
-  Staff confirms
-      ↓
-  No Show
-
-  IMPORTANT:
-
-  Once an appointment is marked as NO SHOW:
-
-  - Check In button disappears
-  - Mark No Show button disappears
-  - Only the No Show badge remains
-  - Appointment is removed from Waiting Queue
-  - Appointment remains in the schedule/history
-
-  IMPORTANT:
-
-  There is NO automatic status change.
-
-  Time is only used to decide whether the
-  "Mark No Show" button should be displayed.
-
-  Staff must explicitly confirm "Mark No Show".
-
-  In Consultation will remain In Consultation
-  until the staff manually finishes the consultation.
-*/
-
 /* =========================================================
    STATE
 ========================================================= */
 
 let appointments = [];
+let patients = [];
 
 let currentCalendarDate = new Date();
 let selectedDate = new Date();
@@ -129,30 +102,25 @@ let modalMode = "new";
 let statusActionTargetId = null;
 let statusActionType = null;
 
+let toastTimer = null;
+
 /* =========================================================
    DOM READY
 ========================================================= */
 
 document.addEventListener("DOMContentLoaded", () => {
+  loadPatients();
   loadAppointments();
+
   initializeDate();
   setupEvents();
-
-  /*
-    We intentionally DO NOT automatically change
-    Scheduled to No Show, or In Consultation to
-    Ready to Complete, based on time.
-  */
 
   renderAll();
 
   /*
-    Refresh the page every second so the system can
-    re-evaluate when the "Mark No Show" button should
-    become visible.
+    Refresh only realtime UI.
 
-    IMPORTANT:
-    This DOES NOT automatically change appointment status.
+    No automatic status changes happen here.
   */
 
   setInterval(() => {
@@ -161,8 +129,35 @@ document.addEventListener("DOMContentLoaded", () => {
     renderRealtimeDentistsDuty();
   }, 1000);
 
+  /*
+    Detect changes made by the Patients page
+    from another browser tab/window.
+  */
+
+  window.addEventListener("storage", handleStorageChange);
+
   openAppointmentFromURL();
 });
+
+/* =========================================================
+   STORAGE CHANGE
+========================================================= */
+
+function handleStorageChange(event) {
+  if (event.key === PATIENTS_STORAGE_KEY) {
+    loadPatients();
+    refreshPatientSelector();
+    renderAll();
+  }
+
+  if (
+    event.key === APPOINTMENTS_STORAGE_KEY ||
+    event.key === LEGACY_STORAGE_KEY
+  ) {
+    loadAppointments();
+    renderAll();
+  }
+}
 
 /* =========================================================
    INITIAL DATE
@@ -249,10 +244,260 @@ function setupEvents() {
   if (durationInput) {
     durationInput.addEventListener("input", checkCurrentFormConflict);
   }
+
+  /*
+    Patient field.
+
+    This works with the existing f_patient input.
+  */
+
+  const patientInput = document.getElementById("f_patient");
+
+  if (patientInput) {
+    patientInput.addEventListener("input", handlePatientInputChange);
+    patientInput.addEventListener("change", handlePatientInputChange);
+  }
 }
 
 /* =========================================================
-   STORAGE
+   LOAD PATIENTS
+========================================================= */
+
+function loadPatients() {
+  const stored = localStorage.getItem(PATIENTS_STORAGE_KEY);
+
+  if (!stored) {
+    patients = [];
+    return;
+  }
+
+  try {
+    const parsed = JSON.parse(stored);
+
+    if (Array.isArray(parsed)) {
+      patients = parsed.map(normalizePatient);
+    } else {
+      patients = [];
+    }
+  } catch (error) {
+    console.error("Unable to load patients:", error);
+    patients = [];
+  }
+}
+
+/* =========================================================
+   NORMALIZE PATIENT
+========================================================= */
+
+function normalizePatient(patient) {
+  const normalized = {
+    ...patient,
+
+    id: patient.id || `P${String(Date.now()).slice(-6)}`,
+
+    firstName: patient.firstName || "",
+
+    lastName: patient.lastName || "",
+
+    dateOfBirth: patient.dateOfBirth || "",
+
+    gender: patient.gender || "",
+
+    phone: patient.phone || "",
+
+    email: patient.email || "",
+
+    address: patient.address || "",
+
+    emergencyName: patient.emergencyName || "",
+
+    emergencyContact: patient.emergencyContact || "",
+
+    medicalForm: patient.medicalForm || {},
+
+    appointments: Array.isArray(patient.appointments)
+      ? patient.appointments
+      : [],
+  };
+
+  return normalized;
+}
+
+/* =========================================================
+   SAVE PATIENTS
+========================================================= */
+
+function savePatientsToStorage() {
+  localStorage.setItem(PATIENTS_STORAGE_KEY, JSON.stringify(patients));
+}
+
+/* =========================================================
+   PATIENT FULL NAME
+========================================================= */
+
+function getPatientFullName(patient) {
+  if (!patient) {
+    return "Unknown Patient";
+  }
+
+  const first = String(patient.firstName || "").trim();
+  const last = String(patient.lastName || "").trim();
+
+  const fullName = `${first} ${last}`.trim();
+
+  return fullName || "Unknown Patient";
+}
+
+/* =========================================================
+   FIND PATIENT BY ID
+========================================================= */
+
+function findPatientById(patientId) {
+  if (!patientId) return null;
+
+  return (
+    patients.find((patient) => String(patient.id) === String(patientId)) || null
+  );
+}
+
+/* =========================================================
+   FIND PATIENT BY NAME
+========================================================= */
+
+function findPatientByName(name) {
+  if (!name) return null;
+
+  const target = String(name).trim().toLowerCase();
+
+  return (
+    patients.find(
+      (patient) => getPatientFullName(patient).trim().toLowerCase() === target,
+    ) || null
+  );
+}
+
+/* =========================================================
+   PATIENT SELECTOR
+========================================================= */
+
+/*
+  Your current Appointment HTML already has:
+
+  #f_patient
+
+  This function keeps that element intact and connects it
+  to the Patients page.
+
+  A datalist is created dynamically, so your HTML does not
+  need to be rebuilt just to connect the patient records.
+*/
+
+function setupPatientDatalist() {
+  const patientInput = document.getElementById("f_patient");
+
+  if (!patientInput) {
+    return;
+  }
+
+  let datalist = document.getElementById("appointmentPatientList");
+
+  if (!datalist) {
+    datalist = document.createElement("datalist");
+
+    datalist.id = "appointmentPatientList";
+
+    document.body.appendChild(datalist);
+  }
+
+  patientInput.setAttribute("list", "appointmentPatientList");
+
+  refreshPatientSelector();
+}
+
+/* =========================================================
+   REFRESH PATIENT SELECTOR
+========================================================= */
+
+function refreshPatientSelector() {
+  const patientInput = document.getElementById("f_patient");
+
+  if (!patientInput) {
+    return;
+  }
+
+  let datalist = document.getElementById("appointmentPatientList");
+
+  if (!datalist) {
+    datalist = document.createElement("datalist");
+
+    datalist.id = "appointmentPatientList";
+
+    document.body.appendChild(datalist);
+  }
+
+  datalist.innerHTML = "";
+
+  patients
+    .slice()
+    .sort((a, b) => getPatientFullName(a).localeCompare(getPatientFullName(b)))
+    .forEach((patient) => {
+      const option = document.createElement("option");
+
+      option.value = getPatientFullName(patient);
+
+      option.label = `${getPatientFullName(patient)} · ${patient.id}`;
+
+      datalist.appendChild(option);
+    });
+
+  patientInput.setAttribute("list", "appointmentPatientList");
+}
+
+/* =========================================================
+   PATIENT INPUT CHANGE
+========================================================= */
+
+function handlePatientInputChange() {
+  const patientInput = document.getElementById("f_patient");
+
+  if (!patientInput) {
+    return;
+  }
+
+  const patient = findPatientByName(patientInput.value);
+
+  /*
+    If a patient exists, use the official patient name
+    from the Patients page.
+  */
+
+  if (patient) {
+    patientInput.value = getPatientFullName(patient);
+  }
+}
+
+/* =========================================================
+   GET PATIENT FOR CURRENT FORM
+========================================================= */
+
+function getCurrentFormPatient() {
+  const patientInput = document.getElementById("f_patient");
+
+  if (!patientInput) {
+    return null;
+  }
+
+  const value = patientInput.value.trim();
+
+  if (!value) {
+    return null;
+  }
+
+  return findPatientByName(value);
+}
+
+/* =========================================================
+   APPOINTMENT STORAGE
 ========================================================= */
 
 function loadAppointments() {
@@ -277,12 +522,19 @@ function loadAppointments() {
     }
   } catch (error) {
     console.error("Unable to load appointments:", error);
+
     appointments = [];
   }
+
+  /*
+    Link older appointments to existing patients.
+  */
+
+  linkExistingAppointmentsToPatients();
 }
 
 /* =========================================================
-   SAVE STORAGE
+   SAVE APPOINTMENTS
 ========================================================= */
 
 function saveAppointmentsToStorage() {
@@ -294,11 +546,34 @@ function saveAppointmentsToStorage() {
 ========================================================= */
 
 function normalizeAppointment(appt) {
+  let patientId = appt.patientId || appt.patient_id || "";
+
+  /*
+    If older appointment data does not contain patientId,
+    try matching using the stored patient name.
+  */
+
+  if (!patientId && appt.patient) {
+    const matchedPatient = findPatientByName(appt.patient);
+
+    if (matchedPatient) {
+      patientId = matchedPatient.id;
+    }
+  }
+
+  const linkedPatient = findPatientById(patientId);
+
+  const patientName = linkedPatient
+    ? getPatientFullName(linkedPatient)
+    : appt.patient || "Unknown Patient";
+
   const normalized = {
     id:
       appt.id || `appt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
 
-    patient: appt.patient || "Unknown Patient",
+    patientId: patientId || null,
+
+    patient: patientName,
 
     date: appt.date || "",
 
@@ -336,12 +611,235 @@ function normalizeAppointment(appt) {
 }
 
 /* =========================================================
+   LINK EXISTING APPOINTMENTS TO PATIENTS
+========================================================= */
+
+function linkExistingAppointmentsToPatients() {
+  let changed = false;
+
+  appointments.forEach((appt) => {
+    if (appt.patientId) {
+      const patient = findPatientById(appt.patientId);
+
+      if (patient) {
+        const officialName = getPatientFullName(patient);
+
+        if (appt.patient !== officialName) {
+          appt.patient = officialName;
+          changed = true;
+        }
+      }
+
+      return;
+    }
+
+    const patient = findPatientByName(appt.patient);
+
+    if (!patient) {
+      return;
+    }
+
+    appt.patientId = patient.id;
+    appt.patient = getPatientFullName(patient);
+
+    changed = true;
+  });
+
+  if (changed) {
+    saveAppointmentsToStorage();
+  }
+
+  /*
+    Make sure the patient-side appointment records
+    are also synchronized.
+  */
+
+  synchronizeAllPatientAppointments();
+}
+
+/* =========================================================
+   SYNC ALL PATIENT APPOINTMENTS
+========================================================= */
+
+function synchronizeAllPatientAppointments() {
+  if (!patients.length) {
+    return;
+  }
+
+  let changed = false;
+
+  patients.forEach((patient) => {
+    if (!Array.isArray(patient.appointments)) {
+      patient.appointments = [];
+      changed = true;
+    }
+
+    const linkedAppointments = appointments.filter(
+      (appt) => String(appt.patientId) === String(patient.id),
+    );
+
+    const appointmentRecords = linkedAppointments.map((appt) => ({
+      id: appt.id,
+      appointmentId: appt.id,
+      date: appt.date,
+      time: appt.start,
+      type: appt.type,
+      service: appt.type,
+      dentist: appt.dentist,
+      duration: appt.duration,
+      status: appt.status,
+    }));
+
+    const oldValue = JSON.stringify(patient.appointments);
+
+    const newValue = JSON.stringify(appointmentRecords);
+
+    if (oldValue !== newValue) {
+      patient.appointments = appointmentRecords;
+
+      changed = true;
+    }
+
+    updatePatientNextAppointment(patient, linkedAppointments);
+  });
+
+  if (changed) {
+    savePatientsToStorage();
+  }
+}
+
+/* =========================================================
+   UPDATE PATIENT NEXT APPOINTMENT
+========================================================= */
+
+function updatePatientNextAppointment(patient, linkedAppointments = null) {
+  const source =
+    linkedAppointments ||
+    appointments.filter(
+      (appt) => String(appt.patientId) === String(patient.id),
+    );
+
+  const todayKey = dateToKey(new Date());
+
+  const futureAppointments = source
+    .filter(
+      (appt) =>
+        appt.date >= todayKey &&
+        appt.status !== APPOINTMENT_STATUS.COMPLETED &&
+        appt.status !== APPOINTMENT_STATUS.NO_SHOW,
+    )
+    .sort((a, b) => {
+      if (a.date !== b.date) {
+        return a.date.localeCompare(b.date);
+      }
+
+      return timeToMinutes(a.start) - timeToMinutes(b.start);
+    });
+
+  const next = futureAppointments[0] || null;
+
+  if (!next) {
+    if (patient.nextAppointment !== null) {
+      patient.nextAppointment = null;
+    }
+
+    return;
+  }
+
+  patient.nextAppointment = {
+    id: next.id,
+    appointmentId: next.id,
+    date: next.date,
+    time: next.start,
+    type: next.type,
+    dentist: next.dentist,
+    status: next.status,
+  };
+}
+
+/* =========================================================
+   LINK APPOINTMENT TO PATIENT
+========================================================= */
+
+function syncAppointmentToPatient(appt) {
+  if (!appt || !appt.patientId) {
+    return;
+  }
+
+  const patient = findPatientById(appt.patientId);
+
+  if (!patient) {
+    return;
+  }
+
+  if (!Array.isArray(patient.appointments)) {
+    patient.appointments = [];
+  }
+
+  const record = {
+    id: appt.id,
+    appointmentId: appt.id,
+    date: appt.date,
+    time: appt.start,
+    type: appt.type,
+    service: appt.type,
+    dentist: appt.dentist,
+    duration: appt.duration,
+    status: appt.status,
+  };
+
+  const index = patient.appointments.findIndex(
+    (item) => String(item.appointmentId || item.id) === String(appt.id),
+  );
+
+  if (index === -1) {
+    patient.appointments.push(record);
+  } else {
+    patient.appointments[index] = record;
+  }
+
+  updatePatientNextAppointment(patient);
+
+  savePatientsToStorage();
+}
+
+/* =========================================================
+   REMOVE APPOINTMENT FROM PATIENT
+========================================================= */
+
+function removeAppointmentFromPatient(appt) {
+  if (!appt || !appt.patientId) {
+    return;
+  }
+
+  const patient = findPatientById(appt.patientId);
+
+  if (!patient) {
+    return;
+  }
+
+  if (!Array.isArray(patient.appointments)) {
+    patient.appointments = [];
+  }
+
+  patient.appointments = patient.appointments.filter(
+    (item) => String(item.appointmentId || item.id) !== String(appt.id),
+  );
+
+  updatePatientNextAppointment(patient);
+
+  savePatientsToStorage();
+}
+
+/* =========================================================
    DATE HELPERS
 ========================================================= */
 
 function dateToKey(date) {
   const y = date.getFullYear();
+
   const m = String(date.getMonth() + 1).padStart(2, "0");
+
   const d = String(date.getDate()).padStart(2, "0");
 
   return `${y}-${m}-${d}`;
@@ -364,7 +862,9 @@ function isToday(dateOrKey) {
 }
 
 function isPastDate(dateOrKey) {
-  if (!dateOrKey) return false;
+  if (!dateOrKey) {
+    return false;
+  }
 
   const today = new Date();
 
@@ -383,12 +883,19 @@ function isPastDate(dateOrKey) {
 ========================================================= */
 
 function timeToMinutes(time) {
-  if (!time) return 0;
+  if (!time) {
+    return 0;
+  }
 
   const parts = time.split(":");
 
   const hours = Number(parts[0]);
+
   const minutes = Number(parts[1]);
+
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) {
+    return 0;
+  }
 
   return hours * 60 + minutes;
 }
@@ -397,6 +904,7 @@ function minutesToTime(totalMinutes) {
   totalMinutes = Math.max(0, Math.round(totalMinutes));
 
   const hours = Math.floor(totalMinutes / 60);
+
   const minutes = totalMinutes % 60;
 
   return (
@@ -408,6 +916,7 @@ function fmtTime(time) {
   const minutes = timeToMinutes(time);
 
   let hours = Math.floor(minutes / 60);
+
   const mins = minutes % 60;
 
   const suffix = hours >= 12 ? "PM" : "AM";
@@ -437,6 +946,7 @@ function formatDateLong(dateKey) {
 
 function getAppointmentEnd(appt) {
   const start = timeToMinutes(appt.start);
+
   const duration = Number(appt.duration) || 30;
 
   return start + duration;
@@ -450,58 +960,18 @@ function getAppointmentEndTime(appt) {
    NO SHOW ELIGIBILITY
 ========================================================= */
 
-/*
-  This only decides whether the "Mark No Show"
-  button should be visible.
-
-  It DOES NOT change the appointment status.
-
-  The appointment remains Scheduled until staff
-  explicitly confirms Mark No Show.
-*/
-
 function isNoShowEligible(appt) {
-  /*
-    Mark No Show is ONLY available for Scheduled
-    appointments.
-
-    Once the appointment is already No Show,
-    this returns false.
-
-    Therefore the Mark No Show button will
-    disappear after confirmation.
-  */
-
   if (appt.status !== APPOINTMENT_STATUS.SCHEDULED) {
     return false;
   }
-
-  /*
-    TESTING MODE
-
-    When true, Mark No Show appears immediately
-    for Scheduled appointments.
-
-    Set to false for the actual 15-minute rule.
-  */
 
   if (NO_SHOW_TESTING_MODE) {
     return true;
   }
 
-  /*
-    Past day:
-    The 15-minute grace period has already passed.
-  */
-
   if (isPastDate(appt.date)) {
     return true;
   }
-
-  /*
-    Only today's appointments can become eligible
-    in real time.
-  */
 
   if (!isToday(appt.date)) {
     return false;
@@ -558,11 +1028,6 @@ function findDentistConflict(date, start, duration, dentist, ignoreId = null) {
         return false;
       }
 
-      /*
-        Completed and No Show appointments no longer
-        occupy the dentist's time.
-      */
-
       if (
         appt.status === APPOINTMENT_STATUS.COMPLETED ||
         appt.status === APPOINTMENT_STATUS.NO_SHOW
@@ -576,30 +1041,16 @@ function findDentistConflict(date, start, duration, dentist, ignoreId = null) {
 }
 
 /* =========================================================
-   AUTOMATIC APPOINTMENT STATUS
+   AUTOMATIC STATUS
 ========================================================= */
 
-/*
-  IMPORTANT:
-
-  No appointment status is automatically changed
-  based on time.
-
-  Scheduled remains Scheduled.
-
-  In Consultation remains In Consultation.
-
-  Ready to Complete remains Ready to Complete.
-
-  Completed remains Completed.
-
-  No Show remains No Show.
-
-  The only time-based behavior is the visibility
-  of the Mark No Show button.
-*/
-
 function updateAutomaticAppointmentStatuses() {
+  /*
+    Intentionally disabled.
+
+    Appointment status changes only through staff actions.
+  */
+
   return false;
 }
 
@@ -668,6 +1119,17 @@ function handleModalDateChange() {
 ========================================================= */
 
 function openNewModal(date = null, time = null) {
+  /*
+    Refresh patients every time the New Appointment
+    modal opens.
+
+    This means newly registered patients from the
+    Patients page are immediately available.
+  */
+
+  loadPatients();
+  refreshPatientSelector();
+
   modalMode = "new";
   editingId = null;
 
@@ -692,11 +1154,13 @@ function openNewModal(date = null, time = null) {
   modalSubtitle.textContent = "Create a new appointment";
 
   saveBtn.style.display = "inline-block";
+
   saveBtn.disabled = false;
 
   deleteBtn.style.display = "none";
 
   viewNotice.classList.remove("show");
+
   conflictNotice.classList.remove("show");
 
   resetFormEditable();
@@ -717,9 +1181,11 @@ function openNewModal(date = null, time = null) {
 
   if (isPastDate(selectedKey)) {
     pastNotice.classList.add("show");
+
     saveBtn.disabled = true;
   } else {
     pastNotice.classList.remove("show");
+
     saveBtn.disabled = false;
   }
 
@@ -733,7 +1199,9 @@ function openNewModal(date = null, time = null) {
 function openViewModal(id) {
   const appt = appointments.find((item) => item.id === id);
 
-  if (!appt) return;
+  if (!appt) {
+    return;
+  }
 
   modalMode = "view";
   editingId = id;
@@ -753,6 +1221,24 @@ function openViewModal(id) {
   const pastNotice = document.getElementById("pastRecordNotice");
 
   const conflictNotice = document.getElementById("scheduleConflictNotice");
+
+  /*
+    If this is an older appointment,
+    try to reconnect it to a patient.
+  */
+
+  if (!appt.patientId) {
+    const matched = findPatientByName(appt.patient);
+
+    if (matched) {
+      appt.patientId = matched.id;
+
+      appt.patient = getPatientFullName(matched);
+
+      saveAppointmentsToStorage();
+      syncAppointmentToPatient(appt);
+    }
+  }
 
   modalTitle.textContent = "Appointment Details";
 
@@ -775,9 +1261,11 @@ function openViewModal(id) {
   setFormReadOnly(true);
 
   saveBtn.style.display = "none";
+
   deleteBtn.style.display = "flex";
 
   viewNotice.classList.add("show");
+
   conflictNotice.classList.remove("show");
 
   if (isPastDate(appt.date)) {
@@ -821,7 +1309,11 @@ function resetFormEditable() {
 ========================================================= */
 
 function closeModal() {
-  document.getElementById("overlay").classList.remove("show");
+  const overlay = document.getElementById("overlay");
+
+  if (overlay) {
+    overlay.classList.remove("show");
+  }
 
   editingId = null;
   modalMode = "new";
@@ -895,7 +1387,38 @@ function saveAppt() {
     return;
   }
 
-  const patient = document.getElementById("f_patient").value.trim();
+  /*
+    Always refresh patient records before saving.
+  */
+
+  loadPatients();
+
+  const patientInput = document.getElementById("f_patient");
+
+  const patientName = patientInput.value.trim();
+
+  const patient = findPatientByName(patientName);
+
+  /*
+    IMPORTANT:
+
+    Appointment must belong to an existing
+    patient record.
+  */
+
+  if (!patientName) {
+    showToast("Please select a patient.");
+
+    return;
+  }
+
+  if (!patient) {
+    showToast(
+      "Patient not found. Please select a patient from the Patients page.",
+    );
+
+    return;
+  }
 
   const date = document.getElementById("f_date").value;
 
@@ -907,33 +1430,33 @@ function saveAppt() {
 
   const dentist = document.getElementById("f_dentist").value;
 
-  if (!patient) {
-    showToast("Please enter the patient's name.");
-    return;
-  }
-
   if (!date) {
     showToast("Please select a date.");
+
     return;
   }
 
   if (!start) {
     showToast("Please select an appointment time.");
+
     return;
   }
 
   if (!type) {
     showToast("Please select or enter a service type.");
+
     return;
   }
 
   if (!duration || duration < 5) {
     showToast("Please enter a valid duration.");
+
     return;
   }
 
   if (!dentists[dentist]) {
     showToast("Please select a valid dentist.");
+
     return;
   }
 
@@ -941,6 +1464,7 @@ function saveAppt() {
     showToast(
       "Past dates are historical records only. New appointments cannot be booked.",
     );
+
     return;
   }
 
@@ -954,10 +1478,11 @@ function saveAppt() {
 
   if (startMinutes < clinicStart || appointmentEnd > clinicEnd) {
     showToast(
-      `Appointment must be within clinic hours (${fmtTime(
-        "10:00",
-      )}–${fmtTime("20:00")}).`,
+      `Appointment must be within clinic hours (${fmtTime("10:00")}–${fmtTime(
+        "20:00",
+      )}).`,
     );
+
     return;
   }
 
@@ -980,14 +1505,33 @@ function saveAppt() {
     return;
   }
 
+  /*
+    CREATE APPOINTMENT
+
+    The important connection is:
+
+    patientId: patient.id
+
+    The patient name is also stored so your
+    appointment UI remains compatible with
+    your existing code.
+  */
+
   const newAppointment = {
     id: `appt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
 
-    patient,
+    patientId: patient.id,
+
+    patient: getPatientFullName(patient),
+
     date,
+
     start,
+
     type,
+
     dentist,
+
     duration,
 
     status: APPOINTMENT_STATUS.SCHEDULED,
@@ -996,6 +1540,13 @@ function saveAppt() {
   appointments.push(newAppointment);
 
   saveAppointmentsToStorage();
+
+  /*
+    Sync the appointment into the
+    patient's record.
+  */
+
+  syncAppointmentToPatient(newAppointment);
 
   closeModal();
 
@@ -1006,9 +1557,9 @@ function saveAppt() {
   renderAll();
 
   showToast(
-    `Appointment saved: ${patient} · ${fmtTime(start)}–${fmtTime(
-      getAppointmentEndTime(newAppointment),
-    )}`,
+    `Appointment saved for ${getPatientFullName(patient)}: ${fmtTime(
+      start,
+    )}–${fmtTime(getAppointmentEndTime(newAppointment))}`,
   );
 }
 
@@ -1017,11 +1568,15 @@ function saveAppt() {
 ========================================================= */
 
 function deleteAppt() {
-  if (!editingId) return;
+  if (!editingId) {
+    return;
+  }
 
   const appt = appointments.find((item) => item.id === editingId);
 
-  if (!appt) return;
+  if (!appt) {
+    return;
+  }
 
   deleteTargetId = appt.id;
 
@@ -1046,50 +1601,49 @@ function confirmDeleteAppt() {
 
   const target = appointments.find((item) => item.id === deleteTargetId);
 
+  if (!target) {
+    closeDeleteConfirmation();
+    return;
+  }
+
+  /*
+    Remove from Patients page first.
+  */
+
+  removeAppointmentFromPatient(target);
+
+  /*
+    Remove from Appointment storage.
+  */
+
   appointments = appointments.filter((item) => item.id !== deleteTargetId);
 
   saveAppointmentsToStorage();
+
+  /*
+    Recalculate all patient next appointments.
+  */
+
+  synchronizeAllPatientAppointments();
 
   closeDeleteConfirmation();
   closeModal();
 
   renderAll();
 
-  if (target) {
-    showToast(`${target.patient}'s appointment was deleted.`);
-  }
+  showToast(`${target.patient}'s appointment was deleted.`);
 }
 
 /* =========================================================
    CHECK IN
 ========================================================= */
 
-/*
-  SCHEDULED
-      ↓
-  CHECK IN
-      ↓
-  IN CONSULTATION
-
-  IMPORTANT:
-
-  Check In is ONLY available while status is Scheduled.
-
-  Once staff marks an appointment as No Show,
-  Check In is no longer available.
-*/
-
 function checkInAppointment(id) {
   const appt = appointments.find((item) => item.id === id);
 
-  if (!appt) return;
-
-  /*
-    IMPORTANT:
-    Only Scheduled appointments can be checked in.
-
-    No Show appointments can NO LONGER be checked in.
-  */
+  if (!appt) {
+    return;
+  }
 
   if (appt.status !== APPOINTMENT_STATUS.SCHEDULED) {
     return;
@@ -1098,6 +1652,8 @@ function checkInAppointment(id) {
   appt.status = APPOINTMENT_STATUS.IN_CONSULTATION;
 
   saveAppointmentsToStorage();
+
+  syncAppointmentToPatient(appt);
 
   renderAll();
 
@@ -1111,7 +1667,9 @@ function checkInAppointment(id) {
 function openStatusConfirmation(id, actionType) {
   const appt = appointments.find((item) => item.id === id);
 
-  if (!appt) return;
+  if (!appt) {
+    return;
+  }
 
   statusActionTargetId = id;
   statusActionType = actionType;
@@ -1126,10 +1684,6 @@ function openStatusConfirmation(id, actionType) {
 
   const icon = document.getElementById("statusConfirmIcon");
 
-  /*
-    FINISH CONSULTATION
-  */
-
   if (actionType === "finishConsultation") {
     title.textContent = "Finish Consultation?";
 
@@ -1142,10 +1696,6 @@ function openStatusConfirmation(id, actionType) {
     icon.classList.remove("status-confirm-icon-warning");
   }
 
-  /*
-    FINAL COMPLETE
-  */
-
   if (actionType === "completeAppointment") {
     title.textContent = "Complete Appointment?";
 
@@ -1157,10 +1707,6 @@ function openStatusConfirmation(id, actionType) {
 
     icon.classList.remove("status-confirm-icon-warning");
   }
-
-  /*
-    MARK NO SHOW
-  */
 
   if (actionType === "markNoShow") {
     title.textContent = "Mark as No Show?";
@@ -1189,7 +1735,9 @@ function closeStatusConfirmation() {
 
   const icon = document.getElementById("statusConfirmIcon");
 
-  icon.classList.remove("status-confirm-icon-warning");
+  if (icon) {
+    icon.classList.remove("status-confirm-icon-warning");
+  }
 
   document.getElementById("statusConfirmOverlay").classList.remove("show");
 }
@@ -1210,15 +1758,9 @@ function confirmStatusAction() {
     return;
   }
 
-  /*
-    FINISH CONSULTATION
-
-    In Consultation
-         ↓
-    confirmation
-         ↓
-    Complete
-  */
+  /* =======================================================
+     FINISH CONSULTATION
+  ======================================================= */
 
   if (statusActionType === "finishConsultation") {
     if (appt.status !== APPOINTMENT_STATUS.IN_CONSULTATION) {
@@ -1229,6 +1771,8 @@ function confirmStatusAction() {
     appt.status = APPOINTMENT_STATUS.READY_COMPLETE;
 
     saveAppointmentsToStorage();
+
+    syncAppointmentToPatient(appt);
 
     closeStatusConfirmation();
 
@@ -1241,15 +1785,9 @@ function confirmStatusAction() {
     return;
   }
 
-  /*
-    COMPLETE APPOINTMENT
-
-    Complete
-         ↓
-    confirmation
-         ↓
-    Completed
-  */
+  /* =======================================================
+     COMPLETE APPOINTMENT
+  ======================================================= */
 
   if (statusActionType === "completeAppointment") {
     if (appt.status !== APPOINTMENT_STATUS.READY_COMPLETE) {
@@ -1260,6 +1798,8 @@ function confirmStatusAction() {
     appt.status = APPOINTMENT_STATUS.COMPLETED;
 
     saveAppointmentsToStorage();
+
+    syncAppointmentToPatient(appt);
 
     closeStatusConfirmation();
 
@@ -1272,24 +1812,9 @@ function confirmStatusAction() {
     return;
   }
 
-  /*
-    MARK NO SHOW
-
-    Scheduled
-         ↓
-    confirmation
-         ↓
-    No Show
-
-    IMPORTANT:
-
-    Once this happens:
-    - Check In button disappears
-    - Mark No Show button disappears
-    - No Show badge remains
-    - Removed from Waiting Queue
-    - Remains in schedule/history
-  */
+  /* =======================================================
+     MARK NO SHOW
+  ======================================================= */
 
   if (statusActionType === "markNoShow") {
     if (appt.status !== APPOINTMENT_STATUS.SCHEDULED) {
@@ -1300,6 +1825,8 @@ function confirmStatusAction() {
     appt.status = APPOINTMENT_STATUS.NO_SHOW;
 
     saveAppointmentsToStorage();
+
+    syncAppointmentToPatient(appt);
 
     closeStatusConfirmation();
 
@@ -1320,13 +1847,9 @@ function createAppointmentStatusButton(appt) {
 
   wrapper.className = "appt-status-area";
 
-  /*
-    SCHEDULED
-
-    Check In is available.
-
-    Mark No Show appears when eligible.
-  */
+  /* =======================================================
+     SCHEDULED
+  ======================================================= */
 
   if (appt.status === APPOINTMENT_STATUS.SCHEDULED) {
     const checkInBtn = document.createElement("button");
@@ -1344,10 +1867,6 @@ function createAppointmentStatusButton(appt) {
     });
 
     wrapper.appendChild(checkInBtn);
-
-    /*
-      Mark No Show appears only while status is Scheduled.
-    */
 
     if (isNoShowEligible(appt)) {
       const noShowBtn = document.createElement("button");
@@ -1371,9 +1890,9 @@ function createAppointmentStatusButton(appt) {
     return wrapper;
   }
 
-  /*
-    IN CONSULTATION
-  */
+  /* =======================================================
+     IN CONSULTATION
+  ======================================================= */
 
   if (appt.status === APPOINTMENT_STATUS.IN_CONSULTATION) {
     const button = document.createElement("button");
@@ -1395,9 +1914,9 @@ function createAppointmentStatusButton(appt) {
     return wrapper;
   }
 
-  /*
-    READY TO COMPLETE
-  */
+  /* =======================================================
+     READY TO COMPLETE
+  ======================================================= */
 
   if (appt.status === APPOINTMENT_STATUS.READY_COMPLETE) {
     const button = document.createElement("button");
@@ -1419,9 +1938,9 @@ function createAppointmentStatusButton(appt) {
     return wrapper;
   }
 
-  /*
-    COMPLETED
-  */
+  /* =======================================================
+     COMPLETED
+  ======================================================= */
 
   if (appt.status === APPOINTMENT_STATUS.COMPLETED) {
     const badge = document.createElement("span");
@@ -1435,17 +1954,9 @@ function createAppointmentStatusButton(appt) {
     return wrapper;
   }
 
-  /*
-    NO SHOW
-
-    IMPORTANT FIX:
-
-    When status is NO_SHOW:
-
-    - DO NOT create Check In button
-    - DO NOT create Mark No Show button
-    - ONLY show the No Show badge
-  */
+  /* =======================================================
+     NO SHOW
+  ======================================================= */
 
   if (appt.status === APPOINTMENT_STATUS.NO_SHOW) {
     const badge = document.createElement("span");
@@ -1467,20 +1978,6 @@ function createAppointmentStatusButton(appt) {
 ========================================================= */
 
 function renderAll() {
-  /*
-    There is NO automatic status update here.
-
-    Scheduled stays Scheduled.
-
-    In Consultation stays In Consultation.
-
-    Ready to Complete stays Ready to Complete.
-
-    Completed stays Completed.
-
-    No Show stays No Show.
-  */
-
   renderCalendar();
   renderTimeline();
   renderWaitingQueue();
@@ -1517,6 +2014,7 @@ function renderCalendar() {
     const element = document.createElement("div");
 
     element.className = "dow";
+
     element.textContent = day;
 
     grid.appendChild(element);
@@ -1557,6 +2055,7 @@ function makeDayBtn(date, muted) {
   const button = document.createElement("button");
 
   button.type = "button";
+
   button.className = "day";
 
   const key = dateToKey(date);
@@ -1709,11 +2208,11 @@ function renderTimeline() {
           occupied.className = "occupied-slot";
 
           occupied.innerHTML = `
-            <i class="fa-solid fa-lock"></i>
-            Occupied · ${fmtTime(appt.start)}–${fmtTime(
-              getAppointmentEndTime(appt),
-            )}
-          `;
+              <i class="fa-solid fa-lock"></i>
+              Occupied · ${fmtTime(appt.start)}–${fmtTime(
+                getAppointmentEndTime(appt),
+              )}
+            `;
 
           occupied.addEventListener("click", () => openViewModal(appt.id));
 
@@ -1836,17 +2335,6 @@ function renderWaitingQueue() {
   list.innerHTML = "";
 
   const selectedKey = dateToKey(selectedDate);
-
-  /*
-    Completed and No Show appointments
-    are removed from Waiting Queue.
-
-    Scheduled
-    In Consultation
-    Ready to Complete
-
-    remain visible.
-  */
 
   const queue = filteredAppts().filter(
     (appt) =>
@@ -1971,9 +2459,9 @@ function renderRealtimeDentistsDuty() {
         } else {
           const lastAppt = doctorAppointments[doctorAppointments.length - 1];
 
-          status = `${fmtTime(lastAppt.start)} · ${
-            lastAppt.patient
-          } · ${lastAppt.type}`;
+          status = `${fmtTime(lastAppt.start)} · ${lastAppt.patient} · ${
+            lastAppt.type
+          }`;
         }
       }
     } else if (!isPastDate(selectedKey) && doctorAppointments.length) {
@@ -2080,8 +2568,6 @@ function escapeHtml(value) {
    TOAST
 ========================================================= */
 
-let toastTimer = null;
-
 function showToast(message) {
   const toast = document.getElementById("toast");
 
@@ -2137,15 +2623,23 @@ document.addEventListener("keydown", (event) => {
 
   const deleteOverlay = document.getElementById("deleteConfirmOverlay");
 
-  if (statusOverlay.classList.contains("show")) {
+  if (statusOverlay && statusOverlay.classList.contains("show")) {
     closeStatusConfirmation();
     return;
   }
 
-  if (deleteOverlay.classList.contains("show")) {
+  if (deleteOverlay && deleteOverlay.classList.contains("show")) {
     closeDeleteConfirmation();
     return;
   }
 
   closeModal();
+});
+
+/* =========================================================
+   INITIAL PATIENT SELECTOR SETUP
+========================================================= */
+
+document.addEventListener("DOMContentLoaded", () => {
+  setupPatientDatalist();
 });

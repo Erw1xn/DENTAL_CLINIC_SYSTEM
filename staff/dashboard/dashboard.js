@@ -6,9 +6,33 @@ document.addEventListener("DOMContentLoaded", () => {
    STORAGE
 ========================================================= */
 
+/*
+ * IMPORTANT:
+ * The Patients page stores patient records using:
+ *
+ *     dentanueva_patients
+ *
+ * This MUST be the primary key used by the dashboard.
+ */
 const APPOINTMENTS_STORAGE_KEY = "appointments";
-const PATIENTS_STORAGE_KEY = "patients";
+const PATIENTS_STORAGE_KEY = "dentanueva_patients";
 const TRANSACTIONS_STORAGE_KEY = "transactions";
+
+/*
+ * Additional patient storage keys are supported ONLY as
+ * fallbacks in case the Patients page uses one of these.
+ *
+ * "patients" is kept as a fallback for compatibility.
+ */
+const PATIENT_STORAGE_FALLBACK_KEYS = [
+  "patients",
+  "patientRecords",
+  "patient_records",
+  "patientList",
+  "patientsList",
+  "clinicPatients",
+  "dentaNuevaPatients",
+];
 
 /* =========================================================
    DASHBOARD INITIALIZATION
@@ -35,7 +59,8 @@ function initializeDashboard() {
     if (
       event.key === APPOINTMENTS_STORAGE_KEY ||
       event.key === PATIENTS_STORAGE_KEY ||
-      event.key === TRANSACTIONS_STORAGE_KEY
+      event.key === TRANSACTIONS_STORAGE_KEY ||
+      PATIENT_STORAGE_FALLBACK_KEYS.includes(event.key)
     ) {
       renderDashboard();
     }
@@ -46,6 +71,18 @@ function initializeDashboard() {
   });
 
   window.addEventListener("appointmentsUpdated", () => {
+    renderDashboard();
+  });
+
+  window.addEventListener("patientsUpdated", () => {
+    renderDashboard();
+  });
+
+  window.addEventListener("patientAdded", () => {
+    renderDashboard();
+  });
+
+  window.addEventListener("patientUpdated", () => {
     renderDashboard();
   });
 }
@@ -312,10 +349,6 @@ function normalizeAppointmentStatus(status) {
     .replace(/[_\-]+/g, " ")
     .replace(/\s+/g, " ");
 
-  /*
-    SCHEDULED
-  */
-
   if (
     value === "" ||
     value === "scheduled" ||
@@ -327,10 +360,6 @@ function normalizeAppointmentStatus(status) {
     return "scheduled";
   }
 
-  /*
-    CHECKED IN
-  */
-
   if (
     value === "checkedin" ||
     value === "checked in" ||
@@ -340,17 +369,9 @@ function normalizeAppointmentStatus(status) {
     return "checkedin";
   }
 
-  /*
-    IN CONSULTATION
-  */
-
   if (value === "in consultation" || value === "inconsultation") {
     return "in consultation";
   }
-
-  /*
-    COMPLETE
-  */
 
   if (
     value === "complete" ||
@@ -360,25 +381,13 @@ function normalizeAppointmentStatus(status) {
     return "complete";
   }
 
-  /*
-    COMPLETED
-  */
-
   if (value === "completed" || value === "done") {
     return "completed";
   }
 
-  /*
-    CANCELLED
-  */
-
   if (value === "cancelled" || value === "canceled") {
     return "cancelled";
   }
-
-  /*
-    NO SHOW
-  */
 
   if (value === "no show" || value === "noshow") {
     return "no-show";
@@ -493,21 +502,272 @@ function capitalizeDentistName(value) {
 ========================================================= */
 
 function getStoredPatients() {
-  try {
-    const stored = localStorage.getItem(PATIENTS_STORAGE_KEY);
+  const possibleSources = [];
 
-    if (!stored) {
-      return [];
+  /* -------------------------------------------------------
+     PRIMARY PATIENT STORAGE
+  ------------------------------------------------------- */
+
+  const primaryPatients = readLocalStorageJSON(PATIENTS_STORAGE_KEY);
+
+  if (primaryPatients !== null) {
+    possibleSources.push({
+      key: PATIENTS_STORAGE_KEY,
+      data: primaryPatients,
+    });
+  }
+
+  /* -------------------------------------------------------
+     FALLBACK PATIENT STORAGE KEYS
+  ------------------------------------------------------- */
+
+  PATIENT_STORAGE_FALLBACK_KEYS.forEach((key) => {
+    /*
+     * Do not read the primary key twice.
+     */
+    if (key === PATIENTS_STORAGE_KEY) {
+      return;
     }
 
-    const parsed = JSON.parse(stored);
+    const data = readLocalStorageJSON(key);
 
-    return Array.isArray(parsed) ? parsed : [];
+    if (data !== null) {
+      possibleSources.push({
+        key,
+        data,
+      });
+    }
+  });
+
+  /* -------------------------------------------------------
+     FIND THE BEST PATIENT COLLECTION
+  ------------------------------------------------------- */
+
+  let bestPatients = [];
+
+  possibleSources.forEach((source) => {
+    const extracted = extractPatientCollection(source.data);
+
+    if (extracted.length > bestPatients.length) {
+      bestPatients = extracted;
+    }
+  });
+
+  /*
+   * Remove duplicate records only when the same patient
+   * appears in more than one storage source.
+   */
+  return removeDuplicatePatients(bestPatients);
+}
+
+/* =========================================================
+   READ JSON FROM LOCAL STORAGE
+========================================================= */
+
+function readLocalStorageJSON(key) {
+  try {
+    const stored = localStorage.getItem(key);
+
+    if (!stored) {
+      return null;
+    }
+
+    return JSON.parse(stored);
   } catch (error) {
-    console.error("Unable to read patients:", error);
+    console.error(`Unable to read "${key}" from localStorage:`, error);
 
+    return null;
+  }
+}
+
+/* =========================================================
+   EXTRACT PATIENT COLLECTION
+========================================================= */
+
+function extractPatientCollection(data) {
+  if (!data) {
     return [];
   }
+
+  /*
+   * Direct array
+   */
+  if (Array.isArray(data)) {
+    return data.filter(isPatientRecord);
+  }
+
+  /*
+   * Object
+   */
+  if (typeof data !== "object") {
+    return [];
+  }
+
+  /*
+   * Common patient array property names.
+   */
+  const preferredProperties = [
+    "patients",
+    "patientRecords",
+    "patient_records",
+    "patientList",
+    "patientsList",
+    "records",
+    "data",
+    "items",
+    "list",
+  ];
+
+  for (const property of preferredProperties) {
+    if (Array.isArray(data[property])) {
+      const patients = data[property].filter(isPatientRecord);
+
+      if (patients.length > 0) {
+        return patients;
+      }
+    }
+  }
+
+  /*
+   * Object keyed by patient ID.
+   */
+  const objectValues = Object.values(data);
+
+  const directPatientValues = objectValues.filter(isPatientRecord);
+
+  if (directPatientValues.length > 0) {
+    return directPatientValues;
+  }
+
+  /*
+   * Recursive fallback.
+   */
+  let bestNestedCollection = [];
+
+  for (const value of objectValues) {
+    if (!value || typeof value !== "object") {
+      continue;
+    }
+
+    const nestedPatients = extractPatientCollection(value);
+
+    if (nestedPatients.length > bestNestedCollection.length) {
+      bestNestedCollection = nestedPatients;
+    }
+  }
+
+  return bestNestedCollection;
+}
+
+/* =========================================================
+   IDENTIFY PATIENT RECORD
+========================================================= */
+
+function isPatientRecord(record) {
+  if (!record || typeof record !== "object" || Array.isArray(record)) {
+    return false;
+  }
+
+  const patientFields = [
+    "patientId",
+    "patientID",
+    "patient_id",
+    "id",
+    "firstName",
+    "first_name",
+    "lastName",
+    "last_name",
+    "fullName",
+    "full_name",
+    "name",
+    "dob",
+    "dateOfBirth",
+    "date_of_birth",
+    "birthDate",
+    "birth_date",
+    "contact",
+    "phone",
+    "email",
+  ];
+
+  return patientFields.some((field) => {
+    return (
+      Object.prototype.hasOwnProperty.call(record, field) &&
+      record[field] !== null &&
+      record[field] !== undefined &&
+      String(record[field]).trim() !== ""
+    );
+  });
+}
+
+/* =========================================================
+   REMOVE DUPLICATE PATIENTS
+========================================================= */
+
+function removeDuplicatePatients(patients) {
+  const unique = [];
+  const seen = new Set();
+
+  patients.forEach((patient) => {
+    if (!patient || typeof patient !== "object") {
+      return;
+    }
+
+    const identity = getPatientIdentity(patient);
+
+    if (seen.has(identity)) {
+      return;
+    }
+
+    seen.add(identity);
+    unique.push(patient);
+  });
+
+  return unique;
+}
+
+/* =========================================================
+   PATIENT IDENTITY
+========================================================= */
+
+function getPatientIdentity(patient) {
+  const patientId =
+    patient.patientId ??
+    patient.patientID ??
+    patient.patient_id ??
+    patient.id ??
+    patient.recordId ??
+    patient.recordID ??
+    patient.record_id ??
+    "";
+
+  if (String(patientId).trim() !== "") {
+    return `id:${String(patientId).trim().toLowerCase()}`;
+  }
+
+  const firstName = patient.firstName ?? patient.first_name ?? "";
+
+  const lastName = patient.lastName ?? patient.last_name ?? "";
+
+  const fullName = patient.fullName ?? patient.full_name ?? patient.name ?? "";
+
+  const dob =
+    patient.dob ??
+    patient.dateOfBirth ??
+    patient.date_of_birth ??
+    patient.birthDate ??
+    patient.birth_date ??
+    "";
+
+  const fallbackIdentity = `${firstName}|${lastName}|${fullName}|${dob}`
+    .trim()
+    .toLowerCase();
+
+  if (fallbackIdentity.replace(/\|/g, "") !== "") {
+    return `profile:${fallbackIdentity}`;
+  }
+
+  return `record:${JSON.stringify(patient)}`;
 }
 
 /* =========================================================
@@ -594,36 +854,9 @@ function updateSummaryCards() {
 ========================================================= */
 
 function updateClinicSummary(todayAppointments) {
-  /*
-    SCHEDULED
-
-    Only appointments that are
-    still waiting for check-in.
-  */
-
   const scheduledCount = todayAppointments.filter(
     (appointment) => appointment.status === "scheduled",
   ).length;
-
-  /*
-    CHECKED IN
-
-    IMPORTANT FIX:
-
-    The Appointment page does NOT
-    store a separate "checkedin"
-    state because Check In goes
-    directly to In Consultation.
-
-    Therefore an appointment with
-    status "in consultation" means:
-
-      Checked In = 1
-      In Consultation = 1
-
-    Legacy "checkedin" records are
-    also still supported.
-  */
 
   const checkedInCount = todayAppointments.filter(
     (appointment) =>
@@ -631,44 +864,13 @@ function updateClinicSummary(todayAppointments) {
       appointment.status === "in consultation",
   ).length;
 
-  /*
-    IN CONSULTATION
-
-    Active consultation.
-  */
-
   const inConsultationCount = todayAppointments.filter(
     (appointment) => appointment.status === "in consultation",
   ).length;
 
-  /*
-    COMPLETE
-
-    Complete is intentionally NOT
-    included in Today's Clinic
-    Summary.
-
-    It is only displayed in
-    Today's Appointments as "Complete".
-
-    It becomes Completed only after
-    staff confirmation.
-  */
-
-  /*
-    COMPLETED
-
-    Only final "completed" status
-    is counted.
-  */
-
   const completedCount = todayAppointments.filter(
     (appointment) => appointment.status === "completed",
   ).length;
-
-  /*
-    UPDATE UI
-  */
 
   setText("summaryScheduled", formatNumber(scheduledCount));
 
@@ -684,7 +886,17 @@ function updateClinicSummary(todayAppointments) {
 ========================================================= */
 
 function getTotalPatients() {
-  return dashboardData.patients.length;
+  /*
+   * The Patients page stores its records under:
+   *
+   *     dentanueva_patients
+   *
+   * getStoredPatients() now reads that key as the
+   * PRIMARY patient source.
+   */
+  return Array.isArray(dashboardData.patients)
+    ? dashboardData.patients.length
+    : 0;
 }
 
 function updatePatientTrend() {
@@ -735,7 +947,6 @@ function renderUpcomingAppointments() {
   const today = getTodayDate();
 
   const appointments = dashboardData.appointments
-
     .filter((appointment) => {
       const appointmentDate = normalizeAppointmentDate(appointment.date);
 
@@ -743,9 +954,7 @@ function renderUpcomingAppointments() {
         appointmentDate === today && !isExcludedFromToday(appointment.status)
       );
     })
-
     .sort((a, b) => compareAppointments(a, b))
-
     .slice(0, 5);
 
   if (appointments.length === 0) {
@@ -1019,14 +1228,12 @@ function renderInventoryAlerts() {
   }
 
   const alerts = dashboardData.inventory
-
     .filter(
       (item) =>
         item.status === "low" ||
         item.status === "critical" ||
         item.status === "out",
     )
-
     .sort(
       (a, b) => getInventoryPriority(b.status) - getInventoryPriority(a.status),
     );
@@ -1152,13 +1359,11 @@ function getTodayRevenue() {
   const today = getTodayDate();
 
   return dashboardData.transactions
-
     .filter(
       (transaction) =>
         normalizeAppointmentDate(transaction.date) === today &&
         String(transaction.status).toLowerCase() === "paid",
     )
-
     .reduce((total, transaction) => total + Number(transaction.amount || 0), 0);
 }
 
@@ -1166,13 +1371,11 @@ function getMonthlyRevenue() {
   const currentMonth = getCurrentMonth();
 
   return dashboardData.transactions
-
     .filter(
       (transaction) =>
         String(transaction.date).startsWith(currentMonth) &&
         String(transaction.status).toLowerCase() === "paid",
     )
-
     .reduce((total, transaction) => total + Number(transaction.amount || 0), 0);
 }
 
@@ -1393,9 +1596,9 @@ function openAppointment(appointmentId) {
 
   const appointmentPage = "../appointment/appointment.html";
 
-  const url = `${appointmentPage}?appointmentId=${encodeURIComponent(
-    appointmentId,
-  )}`;
+  const url =
+    `${appointmentPage}?appointmentId=` +
+    `${encodeURIComponent(appointmentId)}`;
 
   window.location.href = url;
 }
@@ -1429,7 +1632,8 @@ function openInventoryItem(inventoryId) {
 
   const inventoryPage = "../inventory/inventory.html";
 
-  const url = `${inventoryPage}?inventoryId=${encodeURIComponent(inventoryId)}`;
+  const url =
+    `${inventoryPage}?inventoryId=` + `${encodeURIComponent(inventoryId)}`;
 
   window.location.href = url;
 }
@@ -1596,7 +1800,7 @@ function normalizeAppointmentDate(value) {
   const directMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
 
   if (directMatch) {
-    return `${directMatch[1]}-${directMatch[2]}-${directMatch[3]}`;
+    return `${directMatch[1]}-` + `${directMatch[2]}-` + `${directMatch[3]}`;
   }
 
   const date = new Date(value);
