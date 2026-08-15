@@ -1,28 +1,13 @@
-/* =========================================================
-   DENTANUEVA PATIENTS PAGE
-   UPDATED MEDICAL FORM FLOW
-   APPOINTMENT-READY PATIENT DATA
-   ========================================================= */
-
 "use strict";
-
-/* =========================================================
-   STORAGE
-   ========================================================= */
 
 const PATIENT_STORAGE_KEY = "dentanueva_patients";
 const TOTAL_PATIENTS_STORAGE_KEY = "dentanueva_total_patients";
 
 let patients = [];
-
 let currentPatientId = null;
 let currentMedicalPatientId = null;
 let currentActionPatientId = null;
 let currentMedicalStep = 1;
-
-/* =========================================================
-   DOM HELPERS
-   ========================================================= */
 
 const $ = (id) => document.getElementById(id);
 
@@ -33,31 +18,15 @@ const patientSearch = $("patientSearch");
 const sortPatients = $("sortPatients");
 const patientActionMenu = $("patientActionMenu");
 
-/* =========================================================
-   INITIALIZE
-   ========================================================= */
-
 document.addEventListener("DOMContentLoaded", () => {
   loadPatients();
-
   bindPatientEvents();
   bindMedicalFormEvents();
   bindActionMenuEvents();
-
   removeMedicalFormFromActionMenu();
-
   renderPatients();
-
-  /*
-   * Keep the total patient count synchronized
-   * after the Patients page loads.
-   */
   updateTotalPatientCount();
 });
-
-/* =========================================================
-   REMOVE MEDICAL FORM FROM ACTION MENU
-   ========================================================= */
 
 function removeMedicalFormFromActionMenu() {
   document
@@ -71,10 +40,6 @@ function removeMedicalFormFromActionMenu() {
     });
 }
 
-/* =========================================================
-   LOAD PATIENTS
-   ========================================================= */
-
 function loadPatients() {
   try {
     const stored = localStorage.getItem(PATIENT_STORAGE_KEY);
@@ -82,9 +47,6 @@ function loadPatients() {
     if (!stored) {
       patients = [];
 
-      /*
-       * No patient records means total is 0.
-       */
       localStorage.setItem(TOTAL_PATIENTS_STORAGE_KEY, "0");
 
       return;
@@ -94,20 +56,8 @@ function loadPatients() {
 
     patients = Array.isArray(parsed) ? parsed : [];
 
-    /*
-     * Normalize existing patient records.
-     *
-     * This keeps older patient records compatible with
-     * the appointment page.
-     */
     patients = patients.map((patient) => normalizePatient(patient));
 
-    /*
-     * Synchronize total patient count.
-     *
-     * IMPORTANT:
-     * This uses patients.length, not filteredPatients.length.
-     */
     localStorage.setItem(TOTAL_PATIENTS_STORAGE_KEY, String(patients.length));
   } catch (error) {
     console.error("Unable to load DentaNueva patients:", error);
@@ -118,33 +68,20 @@ function loadPatients() {
   }
 }
 
-/* =========================================================
-   NORMALIZE PATIENT
-   ========================================================= */
-
 function normalizePatient(patient) {
   const normalized = {
     ...patient,
   };
 
-  /*
-   * Every patient must have a stable patientId.
-   */
   if (!normalized.patientId) {
     normalized.patientId =
       normalized.id || `PN-${String(Date.now()).slice(-8)}`;
   }
 
-  /*
-   * Keep id and patientId compatible.
-   */
   if (!normalized.id) {
     normalized.id = normalized.patientId;
   }
 
-  /*
-   * Keep gender fields compatible with older records.
-   */
   if (!normalized.gender && normalized.patientGender) {
     normalized.gender = normalized.patientGender;
   }
@@ -153,11 +90,6 @@ function normalizePatient(patient) {
     normalized.patientGender = normalized.gender;
   }
 
-  /*
-   * Ensure appointments is always an array.
-   *
-   * This is important for the appointment page connection.
-   */
   if (!Array.isArray(normalized.appointments)) {
     normalized.appointments = [];
   }
@@ -165,75 +97,37 @@ function normalizePatient(patient) {
   return normalized;
 }
 
-/* =========================================================
-   SAVE PATIENTS
-   ========================================================= */
-
 function savePatients() {
   try {
     localStorage.setItem(PATIENT_STORAGE_KEY, JSON.stringify(patients));
 
-    /*
-     * Keep total patient count synchronized.
-     */
     localStorage.setItem(TOTAL_PATIENTS_STORAGE_KEY, String(patients.length));
 
-    /*
-     * Update visible total counters if they exist
-     * on the current page.
-     */
     updateTotalPatientCount();
   } catch (error) {
     console.error("Unable to save DentaNueva patients:", error);
   }
 }
 
-/* =========================================================
-   UPDATE TOTAL PATIENT COUNT
-   ========================================================= */
-
 function updateTotalPatientCount() {
-  /*
-   * The total must ALWAYS come from the complete
-   * patients array.
-   *
-   * Do NOT use filteredPatients here.
-   */
   const totalPatients = patients.length;
 
-  /*
-   * Save synchronized total for the Dashboard.
-   */
   try {
     localStorage.setItem(TOTAL_PATIENTS_STORAGE_KEY, String(totalPatients));
   } catch (error) {
     console.error("Unable to synchronize total patient count:", error);
   }
 
-  /*
-   * Update any counter on the current page that uses:
-   *
-   * data-total-patients
-   */
   document.querySelectorAll("[data-total-patients]").forEach((element) => {
     element.textContent = totalPatients;
   });
 
-  /*
-   * Also support a dashboard counter using:
-   *
-   * id="totalPatients"
-   */
   const totalPatientsElement = $("totalPatients");
 
   if (totalPatientsElement) {
     totalPatientsElement.textContent = totalPatients;
   }
 }
-
-/* =========================================================
-   PATIENT ID
-   ========================================================= */
 
 function generatePatientId() {
   let maxNumber = 0;
@@ -248,10 +142,6 @@ function generatePatientId() {
 
   return `PN-${String(maxNumber + 1).padStart(4, "0")}`;
 }
-
-/* =========================================================
-   DATE / AGE HELPERS
-   ========================================================= */
 
 function calculateAge(dateOfBirth) {
   if (!dateOfBirth) {
@@ -318,10 +208,6 @@ function formatDateTime(value) {
   });
 }
 
-/* =========================================================
-   TEXT HELPERS
-   ========================================================= */
-
 function escapeHTML(value) {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -337,7 +223,6 @@ function getFullName(patient) {
 
 function getInitials(patient) {
   const first = patient.firstName?.charAt(0) || "";
-
   const last = patient.lastName?.charAt(0) || "";
 
   return (first + last).toUpperCase();
@@ -363,10 +248,6 @@ function arrayValue(value) {
   return [value];
 }
 
-/* =========================================================
-   FIND PATIENT
-   ========================================================= */
-
 function findPatient(patientId) {
   if (patientId === undefined || patientId === null || patientId === "") {
     return null;
@@ -378,10 +259,6 @@ function findPatient(patientId) {
       String(patient.patientId) === String(patientId),
   );
 }
-
-/* =========================================================
-   PATIENT EVENTS
-   ========================================================= */
 
 function bindPatientEvents() {
   $("addPatientBtn")?.addEventListener("click", () => {
@@ -418,7 +295,7 @@ function bindPatientEvents() {
 
 /* =========================================================
    ADD PATIENT
-   ========================================================= */
+========================================================= */
 
 function openAddPatientModal() {
   currentPatientId = null;
@@ -442,7 +319,7 @@ function openAddPatientModal() {
 
 /* =========================================================
    EDIT PATIENT
-   ========================================================= */
+========================================================= */
 
 function openEditPatientModal(patientId) {
   const patient = findPatient(patientId);
@@ -482,7 +359,7 @@ function openEditPatientModal(patientId) {
 
 /* =========================================================
    SAVE PATIENT
-   ========================================================= */
+========================================================= */
 
 function savePatientFromForm(event) {
   event.preventDefault();
@@ -524,9 +401,6 @@ function savePatientFromForm(event) {
 
     emergencyContact: $("emergencyContact").value.trim(),
 
-    /*
-     * Preserve appointments.
-     */
     appointments: Array.isArray(existingPatient?.appointments)
       ? existingPatient.appointments
       : [],
@@ -561,7 +435,7 @@ function savePatientFromForm(event) {
 
 /* =========================================================
    CLOSE PATIENT MODAL
-   ========================================================= */
+========================================================= */
 
 function closePatientModal() {
   $("patientModalBackdrop")?.classList.remove("open");
@@ -573,19 +447,13 @@ function closePatientModal() {
 
 /* =========================================================
    RENDER PATIENTS
-   ========================================================= */
+========================================================= */
 
 function renderPatients() {
   if (!patientTableBody) {
     return;
   }
 
-  /*
-   * IMPORTANT:
-   * Update the total using ALL patients.
-   *
-   * Search and sorting must NOT affect this number.
-   */
   updateTotalPatientCount();
 
   let filteredPatients = [...patients];
@@ -631,12 +499,6 @@ function renderPatients() {
 
   patientTableBody.innerHTML = "";
 
-  /*
-   * This label is for the visible filtered table.
-   *
-   * The dashboard total is separate and always uses
-   * patients.length.
-   */
   if (patientCountLabel) {
     patientCountLabel.textContent = `${filteredPatients.length} ${
       filteredPatients.length === 1 ? "patient" : "patients"
@@ -666,7 +528,7 @@ function renderPatients() {
 
 /* =========================================================
    PATIENT ROW
-   ========================================================= */
+========================================================= */
 
 function createPatientRow(patient) {
   const name = getFullName(patient) || "Unnamed Patient";
@@ -770,7 +632,7 @@ function createPatientRow(patient) {
 
 /* =========================================================
    NEXT APPOINTMENT
-   ========================================================= */
+========================================================= */
 
 function getNextAppointment(patient) {
   const appointments = Array.isArray(patient.appointments)
@@ -787,14 +649,60 @@ function getNextAppointment(patient) {
     .map((appointment) => {
       const date = appointment.date || appointment.appointmentDate || "";
 
-      const time = appointment.time || appointment.appointmentTime || "00:00";
+      /*
+       * Appointment.js stores the start time
+       * as "start".
+       *
+       * The patient appointment record also
+       * stores it as "time".
+       *
+       * Keep support for both.
+       */
+      const time =
+        appointment.time ||
+        appointment.start ||
+        appointment.appointmentTime ||
+        "00:00";
+
+      /*
+       * Appointment.js stores duration in minutes.
+       */
+      const duration = Number(
+        appointment.duration || appointment.durationMinutes || 0,
+      );
 
       const dateTime = new Date(`${date}T${time}`);
 
+      /*
+       * Calculate the end time from:
+       *
+       * start time + appointment duration
+       */
+      let endTime = time;
+
+      if (
+        !Number.isNaN(dateTime.getTime()) &&
+        Number.isFinite(duration) &&
+        duration > 0
+      ) {
+        const endDateTime = new Date(dateTime.getTime() + duration * 60 * 1000);
+
+        endTime = `${String(endDateTime.getHours()).padStart(2, "0")}:${String(
+          endDateTime.getMinutes(),
+        ).padStart(2, "0")}`;
+      }
+
       return {
         ...appointment,
+
         date,
+
         time,
+
+        duration,
+
+        endTime,
+
         dateTime,
       };
     })
@@ -809,8 +717,61 @@ function getNextAppointment(patient) {
 }
 
 /* =========================================================
+   TIME DISPLAY
+   Converts 24-hour time into 12-hour time.
+
+   Examples:
+   18:00 -> 6:00 PM
+   13:30 -> 1:30 PM
+   12:00 -> 12:00 PM
+   00:00 -> 12:00 AM
+   09:30 -> 9:30 AM
+
+   IMPORTANT:
+   This changes ONLY the display.
+   The stored appointment time remains
+   in the original format.
+========================================================= */
+
+function formatTime12Hour(timeString) {
+  if (!timeString) {
+    return "";
+  }
+
+  const time = String(timeString).trim();
+
+  if (/[APap][Mm]$/.test(time)) {
+    return time;
+  }
+
+  const match = time.match(/^(\d{1,2}):(\d{2})$/);
+
+  if (!match) {
+    return time;
+  }
+
+  let hours = Number(match[1]);
+
+  const minutes = match[2];
+
+  if (Number.isNaN(hours) || hours < 0 || hours > 23) {
+    return time;
+  }
+
+  const period = hours >= 12 ? "PM" : "AM";
+
+  hours = hours % 12;
+
+  if (hours === 0) {
+    hours = 12;
+  }
+
+  return `${hours}:${minutes} ${period}`;
+}
+
+/* =========================================================
    APPOINTMENT DISPLAY
-   ========================================================= */
+========================================================= */
 
 function renderAppointment(appointment) {
   if (!appointment) {
@@ -821,20 +782,35 @@ function renderAppointment(appointment) {
     `;
   }
 
+  const startTime = formatTime12Hour(appointment.time || "");
+
+  const endTime = formatTime12Hour(
+    appointment.endTime || appointment.time || "",
+  );
+
+  /*
+   * Display start time and end time.
+   *
+   * Example:
+   * 6:00 PM – 7:00 PM
+   */
+  const timeDisplay =
+    appointment.duration > 0 ? `${startTime} – ${endTime}` : startTime;
+
   return `
     <div class="appointment-date">
       ${escapeHTML(formatDate(appointment.date))}
     </div>
 
     <div class="appointment-time">
-      ${escapeHTML(appointment.time || "")}
+      ${escapeHTML(timeDisplay)}
     </div>
   `;
 }
 
 /* =========================================================
    TABLE CLICK HANDLING
-   ========================================================= */
+========================================================= */
 
 patientTableBody?.addEventListener("click", (event) => {
   const medicalButton = event.target.closest("[data-medical-form-id]");
@@ -868,7 +844,7 @@ patientTableBody?.addEventListener("click", (event) => {
 
 /* =========================================================
    ACTION MENU
-   ========================================================= */
+========================================================= */
 
 function bindActionMenuEvents() {
   patientActionMenu?.addEventListener("click", (event) => {
@@ -910,7 +886,7 @@ function bindActionMenuEvents() {
 
 /* =========================================================
    OPEN ACTION MENU
-   ========================================================= */
+========================================================= */
 
 function openActionMenu(trigger, patientId) {
   removeMedicalFormFromActionMenu();
@@ -954,7 +930,7 @@ function openActionMenu(trigger, patientId) {
 
 /* =========================================================
    CLOSE ACTION MENU
-   ========================================================= */
+========================================================= */
 
 function closeActionMenu() {
   patientActionMenu?.classList.remove("open");
@@ -968,7 +944,7 @@ function closeActionMenu() {
 
 /* =========================================================
    ACTION HANDLER
-   ========================================================= */
+========================================================= */
 
 function handlePatientAction(action, patientId) {
   const patient = findPatient(patientId);
@@ -994,7 +970,7 @@ function handlePatientAction(action, patientId) {
 
 /* =========================================================
    VIEW PATIENT
-   ========================================================= */
+========================================================= */
 
 function openPatientDetails(patient) {
   const name = getFullName(patient);
@@ -1032,6 +1008,7 @@ function openPatientDetails(patient) {
 
         <div class="details-item">
           <label>DATE OF BIRTH</label>
+
           <p>
             ${escapeHTML(formatDate(patient.dateOfBirth))}
           </p>
@@ -1039,6 +1016,7 @@ function openPatientDetails(patient) {
 
         <div class="details-item">
           <label>AGE</label>
+
           <p>
             ${escapeHTML(age === "" ? "Not provided" : `${age} years`)}
           </p>
@@ -1046,6 +1024,7 @@ function openPatientDetails(patient) {
 
         <div class="details-item">
           <label>GENDER</label>
+
           <p>
             ${escapeHTML(gender)}
           </p>
@@ -1053,6 +1032,7 @@ function openPatientDetails(patient) {
 
         <div class="details-item">
           <label>PHONE</label>
+
           <p>
             ${escapeHTML(valueOrNone(patient.phone))}
           </p>
@@ -1060,6 +1040,7 @@ function openPatientDetails(patient) {
 
         <div class="details-item">
           <label>EMAIL</label>
+
           <p>
             ${escapeHTML(valueOrNone(patient.email))}
           </p>
@@ -1067,6 +1048,7 @@ function openPatientDetails(patient) {
 
         <div class="details-item">
           <label>EMERGENCY CONTACT</label>
+
           <p>
             ${escapeHTML(valueOrNone(patient.emergencyName))}
           </p>
@@ -1074,6 +1056,7 @@ function openPatientDetails(patient) {
 
         <div class="details-item">
           <label>EMERGENCY CONTACT NO.</label>
+
           <p>
             ${escapeHTML(valueOrNone(patient.emergencyContact))}
           </p>
@@ -1081,6 +1064,7 @@ function openPatientDetails(patient) {
 
         <div class="details-item full">
           <label>ADDRESS</label>
+
           <p>
             ${escapeHTML(valueOrNone(patient.address))}
           </p>
@@ -1098,7 +1082,7 @@ function openPatientDetails(patient) {
 
 /* =========================================================
    CLOSE PATIENT DETAILS
-   ========================================================= */
+========================================================= */
 
 function closePatientDetailsModal() {
   $("patientDetailsModalBackdrop")?.classList.remove("open");
@@ -1108,7 +1092,7 @@ function closePatientDetailsModal() {
 
 /* =========================================================
    MEDICAL FORM EVENTS
-   ========================================================= */
+========================================================= */
 
 function bindMedicalFormEvents() {
   $("closeMedicalFormModal")?.addEventListener("click", closeMedicalForm);
@@ -1147,7 +1131,7 @@ function bindMedicalFormEvents() {
 
 /* =========================================================
    OPEN MEDICAL FORM
-   ========================================================= */
+========================================================= */
 
 function openMedicalForm(patient, step = 1) {
   currentMedicalPatientId = patient.id || patient.patientId;
@@ -1175,7 +1159,7 @@ function openMedicalForm(patient, step = 1) {
 
 /* =========================================================
    RESET MEDICAL FORM
-   ========================================================= */
+========================================================= */
 
 function resetMedicalForm() {
   $("medicalForm")?.reset();
@@ -1225,7 +1209,7 @@ function resetMedicalForm() {
 
 /* =========================================================
    POPULATE PATIENT PROFILE
-   ========================================================= */
+========================================================= */
 
 function populateMedicalProfile(patient) {
   const name = getFullName(patient);
@@ -1255,7 +1239,7 @@ function populateMedicalProfile(patient) {
 
 /* =========================================================
    POPULATE EXISTING MEDICAL FORM
-   ========================================================= */
+========================================================= */
 
 function populateExistingMedicalForm(medical) {
   setCheckboxValues("dentalConcern", medical.dentalConcern);
@@ -1307,7 +1291,7 @@ function populateExistingMedicalForm(medical) {
 
 /* =========================================================
    CHECKBOX HELPERS
-   ========================================================= */
+========================================================= */
 
 function setCheckboxValues(name, values) {
   const normalized = arrayValue(values);
@@ -1333,7 +1317,7 @@ function setRadioValue(name, value) {
 
 /* =========================================================
    MEDICAL STEP
-   ========================================================= */
+========================================================= */
 
 function updateMedicalStep() {
   document.querySelectorAll(".medform-step").forEach((step) => {
@@ -1362,9 +1346,6 @@ function updateMedicalStep() {
 
   const submitButton = $("medformSubmitBtn");
 
-  /*
-   * BACK BUTTON
-   */
   if (backButton) {
     const firstStep = currentMedicalStep === 1;
 
@@ -1373,12 +1354,6 @@ function updateMedicalStep() {
     backButton.setAttribute("aria-hidden", firstStep ? "true" : "false");
   }
 
-  /*
-   * NEXT BUTTON
-   *
-   * It must NOT exist visually or interactively
-   * on Step 5.
-   */
   if (nextButton) {
     const isFinalStep = currentMedicalStep === 5;
 
@@ -1397,9 +1372,6 @@ function updateMedicalStep() {
     }
   }
 
-  /*
-   * SUBMIT BUTTON
-   */
   if (submitButton) {
     const isFinalStep = currentMedicalStep === 5;
 
@@ -1432,7 +1404,7 @@ function updateMedicalStep() {
 
 /* =========================================================
    SUBMIT BUTTON
-   ========================================================= */
+========================================================= */
 
 function updateSubmitButton() {
   const submitButton = $("medformSubmitBtn");
@@ -1452,7 +1424,7 @@ function updateSubmitButton() {
 
 /* =========================================================
    BUILD REVIEW
-   ========================================================= */
+========================================================= */
 
 function buildMedicalReview() {
   const data = collectMedicalFormData(false);
@@ -1531,7 +1503,7 @@ function reviewRow(label, value) {
 
 /* =========================================================
    COLLECT MEDICAL DATA
-   ========================================================= */
+========================================================= */
 
 function collectMedicalFormData(includeConsent = true) {
   return {
@@ -1575,23 +1547,18 @@ function collectMedicalFormData(includeConsent = true) {
 
 /* =========================================================
    SAVE MEDICAL FORM
-   ========================================================= */
+========================================================= */
 
 function saveMedicalForm(event) {
   event.preventDefault();
 
-  /*
-   * Only Step 5 can submit.
-   */
   if (currentMedicalStep !== 5) {
     return;
   }
 
-  /*
-   * Consent is mandatory.
-   */
   if (!$("medConsent").checked) {
     $("medConsent").focus();
+
     return;
   }
 
@@ -1626,7 +1593,7 @@ function saveMedicalForm(event) {
 
 /* =========================================================
    CLOSE MEDICAL FORM
-   ========================================================= */
+========================================================= */
 
 function closeMedicalForm() {
   $("medicalFormModalBackdrop")?.classList.remove("open");
@@ -1637,9 +1604,6 @@ function closeMedicalForm() {
 
   currentMedicalStep = 1;
 
-  /*
-   * Reset Next button.
-   */
   const nextButton = $("medformNextBtn");
 
   if (nextButton) {
@@ -1654,9 +1618,6 @@ function closeMedicalForm() {
     nextButton.style.removeProperty("display");
   }
 
-  /*
-   * Reset Submit button.
-   */
   const submitButton = $("medformSubmitBtn");
 
   if (submitButton) {
@@ -1672,7 +1633,7 @@ function closeMedicalForm() {
 
 /* =========================================================
    MEDICAL RESULT
-   ========================================================= */
+========================================================= */
 
 function openMedicalResult(patient) {
   const medical = patient.medicalForm;
@@ -1720,7 +1681,7 @@ function openMedicalResult(patient) {
 
 /* =========================================================
    BUILD MEDICAL RESULT
-   ========================================================= */
+========================================================= */
 
 function buildMedicalResult(patient, medical) {
   const concerns = [...arrayValue(medical.dentalConcern)];
@@ -1915,7 +1876,7 @@ function buildMedicalResult(patient, medical) {
 
 /* =========================================================
    RESULT TAGS
-   ========================================================= */
+========================================================= */
 
 function renderResultTags(values) {
   const cleanValues = values.filter((value) => value && String(value).trim());
@@ -1947,7 +1908,7 @@ function renderResultTags(values) {
 
 /* =========================================================
    MEDICAL RESULT EVENTS
-   ========================================================= */
+========================================================= */
 
 $("closeMedicalResultModal")?.addEventListener("click", closeMedicalResult);
 
@@ -1972,9 +1933,6 @@ $("editMedicalResultBtn")?.addEventListener("click", () => {
 
   closeMedicalResult();
 
-  /*
-   * Both Fill and Edit start at Step 1.
-   */
   if (mode === "fill" || mode === "edit") {
     openMedicalForm(patient, 1);
   }
@@ -1982,7 +1940,7 @@ $("editMedicalResultBtn")?.addEventListener("click", () => {
 
 /* =========================================================
    CLOSE MEDICAL RESULT
-   ========================================================= */
+========================================================= */
 
 function closeMedicalResult() {
   $("medicalResultModalBackdrop")?.classList.remove("open");
@@ -1992,7 +1950,7 @@ function closeMedicalResult() {
 
 /* =========================================================
    DELETE PATIENT
-   ========================================================= */
+========================================================= */
 
 function deletePatient(patientId) {
   const patient = findPatient(patientId);
@@ -2017,18 +1975,10 @@ function deletePatient(patientId) {
       String(patient.id || patient.patientId),
   );
 
-  /*
-   * savePatients() now automatically
-   * updates the dashboard total.
-   */
   savePatients();
 
   renderPatients();
 }
-
-/* =========================================================
-   ESC KEY
-   ========================================================= */
 
 document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") {
@@ -2037,21 +1987,25 @@ document.addEventListener("keydown", (event) => {
 
   if ($("medicalResultModalBackdrop")?.classList.contains("open")) {
     closeMedicalResult();
+
     return;
   }
 
   if ($("medicalFormModalBackdrop")?.classList.contains("open")) {
     closeMedicalForm();
+
     return;
   }
 
   if ($("patientDetailsModalBackdrop")?.classList.contains("open")) {
     closePatientDetailsModal();
+
     return;
   }
 
   if ($("patientModalBackdrop")?.classList.contains("open")) {
     closePatientModal();
+
     return;
   }
 

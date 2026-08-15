@@ -75,7 +75,7 @@
                 <button
                   type="button"
                   class="qa-btn-pill"
-                  onclick="window.location.href = '../patient/patient.html'"
+                  onclick="window.location.href = '../patients/patients.html'"
                 >
                   <i class="fa-solid fa-user-plus"></i>
                   <span>Add Patient</span>
@@ -87,14 +87,11 @@
 
         <!-- STAT CARDS -->
         <section class="stats-grid">
+          <!-- TOTAL PATIENTS -->
           <div
             class="stat-card"
             title="Total number of registered patients in the system"
           >
-            <div class="stat-icon icon-patients">
-              <i class="fa-solid fa-users"></i>
-            </div>
-
             <div class="stat-body">
               <span class="stat-label"> Total Patients </span>
 
@@ -106,56 +103,46 @@
             </div>
           </div>
 
+          <!-- APPOINTMENTS TODAY -->
           <div class="stat-card" title="Appointments scheduled for today">
-            <div class="stat-icon icon-appointments">
-              <i class="fa-solid fa-calendar-check"></i>
-            </div>
-
             <div class="stat-body">
               <span class="stat-label"> Appointments Today </span>
 
               <span class="stat-value" id="statTodayAppointments"> 0 </span>
 
-              <span class="stat-trend neutral" id="statAppointmentsTrend">
+              <span class="stat-trend up" id="statAppointmentsTrend">
                 No Appointments Today
               </span>
             </div>
           </div>
 
+          <!-- TODAY'S REVENUE -->
           <div
             class="stat-card"
             title="Total payment transactions recorded today"
           >
-            <div class="stat-icon icon-revenue">
-              <i class="fa-solid fa-peso-sign"></i>
-            </div>
-
             <div class="stat-body">
               <span class="stat-label"> Today's Revenue </span>
 
               <span class="stat-value" id="statTodayRevenue"> ₱0.00 </span>
 
-              <span class="stat-trend neutral" id="statTodayRevenueTrend">
+              <span class="stat-trend up" id="statTodayRevenueTrend">
                 Today's collection
               </span>
             </div>
           </div>
 
+          <!-- MONTHLY REVENUE -->
           <div
             class="stat-card"
             title="Total accumulated revenue generated this month"
           >
-            <div class="stat-icon icon-monthly">
-              <i class="fa-solid fa-chart-line"></i>
-            </div>
-
             <div class="stat-body">
               <span class="stat-label"> Monthly Revenue </span>
 
               <span class="stat-value" id="statMonthlyRevenue"> ₱0.00 </span>
 
               <span class="stat-trend up" id="statMonthlyRevenueTrend">
-                <i class="fa-solid fa-calendar"></i>
                 August revenue
               </span>
             </div>
