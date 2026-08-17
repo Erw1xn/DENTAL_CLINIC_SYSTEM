@@ -1,0 +1,678 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Inventory | DentaNueva Dental Clinic</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+    />
+
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"
+      onerror="window.__chartLibFailed = true"
+    ></script>
+
+    <link rel="stylesheet" href="../../navigation_bar/sidebar.css" />
+
+    <link rel="stylesheet" href="inventory.css" />
+  </head>
+
+  <body>
+    <div id="sidebar-container"></div>
+
+    <main class="inventory-main">
+      <div class="inventory-page">
+        <!-- =====================================================
+             INVENTORY PANEL
+             ===================================================== -->
+
+        <section class="inventory-panel">
+          <!-- PANEL HEADER -->
+
+          <div class="panel-header">
+            <div class="panel-header-left">
+              <div>
+                <h2>Inventory Items</h2>
+
+                <p>View and manage your dental supplies.</p>
+              </div>
+            </div>
+
+            <div class="panel-header-right">
+              <div class="inventory-header-actions">
+                <button
+                  type="button"
+                  class="btn-secondary"
+                  id="stockMovementBtn"
+                >
+                  <i class="fa-solid fa-right-left"></i>
+
+                  <span>Stock Movement</span>
+                </button>
+
+                <button type="button" class="btn-primary" id="addItemBtn">
+                  <i class="fa-solid fa-plus"></i>
+
+                  <span>Add Item</span>
+                </button>
+              </div>
+
+              <span class="item-count" id="itemCount"> 0 items </span>
+            </div>
+          </div>
+
+          <!-- =====================================================
+               PAGE 1 - INVENTORY ITEMS (inventory.js)
+               ===================================================== -->
+
+          <div
+            class="inventory-page-section active"
+            id="inventoryPage1"
+            data-page-section="1"
+          >
+            <div class="inventory-toolbar">
+              <div class="search-wrapper">
+                <i class="fa-solid fa-magnifying-glass"></i>
+
+                <input
+                  type="text"
+                  id="inventorySearch"
+                  placeholder="Search item name, category, or supplier..."
+                  autocomplete="off"
+                />
+              </div>
+
+              <select id="categoryFilter" class="filter-select">
+                <option value="all">All Categories</option>
+              </select>
+
+              <select id="statusFilter" class="filter-select">
+                <option value="all">All Stock Status</option>
+
+                <option value="normal">Normal</option>
+
+                <option value="low">Low Stock</option>
+
+                <option value="out">Out of Stock</option>
+              </select>
+
+              <select id="sortFilter" class="filter-select">
+                <option value="name-asc">Name A–Z</option>
+
+                <option value="name-desc">Name Z–A</option>
+
+                <option value="stock-low">Stock Low–High</option>
+
+                <option value="stock-high">Stock High–Low</option>
+
+                <option value="expiry">Expiry Soonest</option>
+              </select>
+            </div>
+
+            <div class="table-wrapper">
+              <table class="inventory-table">
+                <thead>
+                  <tr>
+                    <th>ITEM</th>
+                    <th>CATEGORY</th>
+                    <th>STOCK</th>
+                    <th>MINIMUM</th>
+                    <th>UNIT</th>
+                    <th>EXPIRY</th>
+                    <th>STATUS</th>
+                    <th>ACTION</th>
+                  </tr>
+                </thead>
+
+                <tbody id="inventoryTableBody"></tbody>
+              </table>
+
+              <div class="empty-state" id="emptyState" hidden>
+                <div class="empty-icon">
+                  <i class="fa-solid fa-box-open"></i>
+                </div>
+
+                <h3>No inventory items found</h3>
+
+                <p>
+                  Try changing your search or filter, or add a new inventory
+                  item.
+                </p>
+
+                <button type="button" class="btn-primary" id="emptyAddItemBtn">
+                  <i class="fa-solid fa-plus"></i>
+
+                  Add Item
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- =====================================================
+               PAGE 2 - HISTORICAL USAGE FORECAST (moving_average.js)
+               ===================================================== -->
+
+          <div
+            class="inventory-page-section"
+            id="inventoryPage2"
+            data-page-section="2"
+          >
+            <div class="forecasting-prototype">
+              <div class="prototype-header">
+                <div>
+                  <span class="prototype-label"> CURRENT PROTOTYPE </span>
+
+                  <h3>Historical Usage Forecast</h3>
+
+                  <p>
+                    This prototype uses recorded stock-out movements to estimate
+                    future usage. It is not yet an AI or machine learning model.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  class="btn-secondary forecast-refresh-btn"
+                  id="refreshForecastBtn"
+                >
+                  <i class="fa-solid fa-rotate"></i>
+
+                  Refresh
+                </button>
+              </div>
+
+              <div class="forecast-table-wrapper">
+                <table class="forecast-table">
+                  <thead>
+                    <tr>
+                      <th>ITEM</th>
+                      <th>USAGE RECORDS</th>
+                      <th>TOTAL USED</th>
+                      <th>AVG. USAGE</th>
+                      <th>EST. NEXT PERIOD</th>
+                      <th>DATA STATUS</th>
+                    </tr>
+                  </thead>
+
+                  <tbody id="forecastTableBody"></tbody>
+                </table>
+
+                <div class="forecast-empty" id="forecastEmpty" hidden>
+                  <i class="fa-solid fa-chart-line"></i>
+
+                  <h3>Not enough historical data</h3>
+
+                  <p>
+                    Record stock-out movements to build historical usage data
+                    for forecasting.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- =====================================================
+               PAGE 3 - DEMAND FORECASTING (inventory_chart.js)
+               ===================================================== -->
+
+          <div
+            class="inventory-page-section"
+            id="inventoryPage3"
+            data-page-section="3"
+          >
+            <section class="forecasting-panel">
+              <div class="forecasting-top">
+                <div class="forecasting-icon">
+                  <i class="fa-solid fa-chart-line"></i>
+                </div>
+
+                <div class="forecasting-content">
+                  <span class="forecasting-label"> DEMAND FORECASTING </span>
+
+                  <h2>Inventory Demand Forecasting</h2>
+
+                  <p>
+                    Historical stock movements are recorded and analyzed to
+                    prepare the inventory data for future demand forecasting.
+                  </p>
+                </div>
+
+                <div class="forecasting-status">
+                  <span class="forecasting-status-dot"></span>
+
+                  <span> Ready for ML Integration </span>
+                </div>
+              </div>
+
+              <!-- FORECAST INFORMATION -->
+
+              <div class="forecasting-info">
+                <div class="forecast-info-card">
+                  <div class="forecast-info-icon">
+                    <i class="fa-solid fa-database"></i>
+                  </div>
+
+                  <div>
+                    <span> Historical Records </span>
+
+                    <strong id="forecastMovementCount"> 0 </strong>
+                  </div>
+                </div>
+
+                <div class="forecast-info-card">
+                  <div class="forecast-info-icon">
+                    <i class="fa-solid fa-arrow-down"></i>
+                  </div>
+
+                  <div>
+                    <span> Usage Records </span>
+
+                    <strong id="forecastUsageCount"> 0 </strong>
+                  </div>
+                </div>
+
+                <div class="forecast-info-card">
+                  <div class="forecast-info-icon">
+                    <i class="fa-solid fa-chart-simple"></i>
+                  </div>
+
+                  <div>
+                    <span> Items With Data </span>
+
+                    <strong id="forecastItemsWithData"> 0 </strong>
+                  </div>
+                </div>
+
+                <div class="forecast-info-card">
+                  <div class="forecast-info-icon">
+                    <i class="fa-solid fa-calendar-days"></i>
+                  </div>
+
+                  <div>
+                    <span> Forecast Method </span>
+
+                    <strong> Moving Average </strong>
+                  </div>
+                </div>
+              </div>
+
+              <!-- =================================================
+                   VISUAL BASIS
+                   ================================================= -->
+
+              <div class="forecast-chart-card">
+                <div class="prototype-header">
+                  <div>
+                    <span class="prototype-label"> VISUAL BASIS </span>
+
+                    <h3>Average Usage vs. Estimated Next Period</h3>
+
+                    <p>
+                      This chart plots the same numbers shown in the table
+                      below, so you can see visually why each estimate came out
+                      the way it did.
+                    </p>
+                  </div>
+
+                  <div class="chart-toggle" id="chartToggle">
+                    <button
+                      type="button"
+                      class="chart-toggle-btn active"
+                      data-chart-mode="bar"
+                    >
+                      <i class="fa-solid fa-chart-column"></i>
+
+                      Bar
+                    </button>
+
+                    <button
+                      type="button"
+                      class="chart-toggle-btn"
+                      data-chart-mode="line"
+                    >
+                      <i class="fa-solid fa-chart-line"></i>
+
+                      Trend
+                    </button>
+                  </div>
+                </div>
+
+                <div class="chart-canvas-wrapper">
+                  <canvas id="forecastChart" height="110"></canvas>
+
+                  <div class="forecast-empty" id="chartEmpty" hidden>
+                    <i class="fa-solid fa-chart-simple" id="chartEmptyIcon"></i>
+
+                    <h3 id="chartEmptyTitle">No chart data yet</h3>
+
+                    <p id="chartEmptyText">
+                      Record at least one stock-out movement so the chart has
+                      something to plot.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- =================================================
+                   FUTURE MACHINE LEARNING
+                   ================================================= -->
+
+              <div class="ml-integration-note">
+                <div class="ml-note-icon">
+                  <i class="fa-solid fa-microchip"></i>
+                </div>
+
+                <div class="ml-note-content">
+                  <strong> Future Machine Learning Integration </strong>
+
+                  <p>
+                    The current system collects historical inventory movement
+                    data. In the future, this data can be processed by a machine
+                    learning model to generate demand forecasts and support
+                    inventory planning.
+                  </p>
+                </div>
+
+                <span class="ml-note-status"> Future Feature </span>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <!-- =====================================================
+             FIXED PAGE NAVIGATION
+             ===================================================== -->
+
+        <div
+          class="inventory-page-navigation"
+          id="inventoryPageNavigation"
+          aria-label="Inventory sections"
+        >
+          <button
+            type="button"
+            class="inventory-page-btn active"
+            data-page="1"
+            aria-label="Inventory Items"
+            aria-current="page"
+          >
+            <span>1</span>
+          </button>
+
+          <button
+            type="button"
+            class="inventory-page-btn"
+            data-page="2"
+            aria-label="Historical Usage Forecast"
+          >
+            <span>2</span>
+          </button>
+
+          <button
+            type="button"
+            class="inventory-page-btn"
+            data-page="3"
+            aria-label="Demand Forecasting"
+          >
+            <span>3</span>
+          </button>
+        </div>
+      </div>
+    </main>
+
+    <!-- =========================================================
+         ITEM MODAL
+         ========================================================= -->
+
+    <div class="modal-backdrop" id="itemModal" aria-hidden="true">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div>
+            <span class="modal-eyebrow"> INVENTORY </span>
+
+            <h3 id="itemModalTitle">Add Inventory Item</h3>
+          </div>
+
+          <button
+            type="button"
+            class="modal-close"
+            id="itemModalClose"
+            aria-label="Close"
+          >
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <form id="itemForm">
+          <input type="hidden" id="itemId" />
+
+          <div class="form-grid">
+            <div class="form-group form-full">
+              <label for="itemName"> Item Name </label>
+
+              <input
+                type="text"
+                id="itemName"
+                placeholder="e.g. Composite Resin"
+                required
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="itemCategory"> Category </label>
+
+              <select id="itemCategory" required>
+                <option value="">Select category</option>
+
+                <option value="Dental Materials">Dental Materials</option>
+
+                <option value="Dental Supplies">Dental Supplies</option>
+
+                <option value="PPE">PPE</option>
+
+                <option value="Medications">Medications</option>
+
+                <option value="Instruments">Instruments</option>
+
+                <option value="Cleaning Supplies">Cleaning Supplies</option>
+
+                <option value="Other">Other</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="itemUnit"> Unit </label>
+
+              <input
+                type="text"
+                id="itemUnit"
+                placeholder="e.g. Box, Tube, Piece"
+                required
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="itemStock"> Current Stock </label>
+
+              <input
+                type="number"
+                id="itemStock"
+                min="0"
+                step="1"
+                value="0"
+                required
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="itemMinimum"> Minimum Stock </label>
+
+              <input
+                type="number"
+                id="itemMinimum"
+                min="0"
+                step="1"
+                value="5"
+                required
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="itemSupplier"> Supplier </label>
+
+              <input
+                type="text"
+                id="itemSupplier"
+                placeholder="Supplier name"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="itemExpiry"> Expiry Date </label>
+
+              <input type="date" id="itemExpiry" />
+            </div>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" class="btn-modal-cancel" id="itemCancelBtn">
+              Cancel
+            </button>
+
+            <button type="submit" class="btn-primary">
+              <i class="fa-solid fa-check"></i>
+
+              Save Item
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- =========================================================
+         STOCK MOVEMENT MODAL
+         ========================================================= -->
+
+    <div class="modal-backdrop" id="movementModal" aria-hidden="true">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div>
+            <span class="modal-eyebrow"> STOCK MOVEMENT </span>
+
+            <h3>Record Stock Movement</h3>
+          </div>
+
+          <button
+            type="button"
+            class="modal-close"
+            id="movementModalClose"
+            aria-label="Close"
+          >
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <form id="movementForm">
+          <div class="form-grid">
+            <div class="form-group form-full">
+              <label for="movementItem"> Inventory Item </label>
+
+              <select id="movementItem" required>
+                <option value="">Select item</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="movementType"> Movement Type </label>
+
+              <select id="movementType" required>
+                <option value="stock-in">Stock In</option>
+
+                <option value="stock-out">Stock Out</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="movementQuantity"> Quantity </label>
+
+              <input
+                type="number"
+                id="movementQuantity"
+                min="1"
+                step="1"
+                value="1"
+                required
+              />
+            </div>
+
+            <div class="form-group form-full">
+              <label for="movementReason"> Reason </label>
+
+              <input
+                type="text"
+                id="movementReason"
+                placeholder="e.g. Restock, Patient Treatment, Damaged"
+              />
+            </div>
+          </div>
+
+          <div class="modal-actions">
+            <button
+              type="button"
+              class="btn-modal-cancel"
+              id="movementCancelBtn"
+            >
+              Cancel
+            </button>
+
+            <button type="submit" class="btn-primary">
+              <i class="fa-solid fa-right-left"></i>
+
+              Record Movement
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- =========================================================
+         ACTION MENU
+         ========================================================= -->
+
+    <div class="action-menu" id="actionMenu">
+      <button type="button" data-action="edit">
+        <i class="fa-solid fa-pen"></i>
+
+        Edit Item
+      </button>
+
+      <button type="button" data-action="movement">
+        <i class="fa-solid fa-right-left"></i>
+
+        Stock Movement
+      </button>
+
+      <button type="button" class="danger-action" data-action="delete">
+        <i class="fa-solid fa-trash"></i>
+
+        Delete Item
+      </button>
+    </div>
+    <script src="../../navigation_bar/sidebar.js"></script>
+    <script src="inventory.js"></script>
+    <script src="moving_average.js"></script>
+    <script src="inventory_chart.js"></script>
+  </body>
+</html>

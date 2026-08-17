@@ -29,41 +29,33 @@
 
       <main class="patients-main">
         <div class="patients-content">
-          <!-- =====================================================
-               PATIENT LIST
-               ===================================================== -->
+          <div class="patient-list-header">
+            <div class="patient-list-title">
+              <h1>Patients</h1>
 
-          <section class="patient-list-card">
-            <!-- HEADER -->
-
-            <div class="patient-list-header">
-              <div class="patient-list-title">
-                <h1>Patients</h1>
-
-                <p>
-                  Manage patient information and keep track of their clinic
-                  records.
-                </p>
-              </div>
-
-              <div class="patient-list-header-right">
-                <span class="patient-count-label" id="patientCountLabel">
-                  0 patients
-                </span>
-
-                <button
-                  type="button"
-                  class="btn-add-patient"
-                  id="addPatientBtn"
-                >
-                  <i class="fa-solid fa-user-plus"></i>
-                  <span>Add Patient</span>
-                </button>
-              </div>
+              <p>
+                Manage patient information and keep track of their clinic
+                records.
+              </p>
             </div>
 
-            <!-- TOOLBAR -->
+            <div class="patient-list-header-right">
+              <span
+                class="patient-count-label"
+                id="patientCount"
+                aria-live="polite"
+              >
+                0 patients
+              </span>
 
+              <button type="button" class="btn-add-patient" id="addPatientBtn">
+                <i class="fa-solid fa-user-plus"></i>
+                <span>Add Patient</span>
+              </button>
+            </div>
+          </div>
+
+          <section class="patient-list-card">
             <div class="patient-toolbar">
               <div class="patient-search">
                 <i class="fa-solid fa-magnifying-glass"></i>
@@ -88,8 +80,6 @@
                 <option value="nameDesc">Name Z-A</option>
               </select>
             </div>
-
-            <!-- TABLE -->
 
             <div class="patient-table-wrapper">
               <table class="patient-table">
@@ -121,10 +111,6 @@
         </div>
       </main>
     </div>
-
-    <!-- =========================================================
-         ADD / EDIT PATIENT MODAL
-         ========================================================= -->
 
     <div
       class="patient-modal-backdrop"
@@ -289,10 +275,6 @@
       </div>
     </div>
 
-    <!-- =========================================================
-         MEDICAL & DENTAL HISTORY FORM
-         ========================================================= -->
-
     <div
       class="patient-modal-backdrop"
       id="medicalFormModalBackdrop"
@@ -322,8 +304,6 @@
             <i class="fa-solid fa-xmark"></i>
           </button>
         </div>
-
-        <!-- PROGRESS -->
 
         <div class="medform-progress" id="medformProgress">
           <div class="medform-progress-track">
@@ -358,16 +338,10 @@
           </div>
         </div>
 
-        <!-- MEDICAL FORM -->
-
         <form id="medicalForm" autocomplete="off">
           <input type="hidden" id="medFormPatientId" name="medFormPatientId" />
 
           <div class="medform-step-viewport" id="medformStepViewport">
-            <!-- =================================================
-                 STEP 1
-                 ================================================= -->
-
             <div class="medform-step active" data-step="1">
               <section class="medform-section">
                 <div class="medform-section-heading">
@@ -444,10 +418,6 @@
                 </div>
               </section>
             </div>
-
-            <!-- =================================================
-                 STEP 2
-                 ================================================= -->
 
             <div class="medform-step" data-step="2">
               <section class="medform-section">
@@ -578,10 +548,6 @@
               </section>
             </div>
 
-            <!-- =================================================
-                 STEP 3
-                 ================================================= -->
-
             <div class="medform-step" data-step="3">
               <section class="medform-section">
                 <h3>Dental History</h3>
@@ -645,10 +611,6 @@
                 </div>
               </section>
             </div>
-
-            <!-- =================================================
-                 STEP 4
-                 ================================================= -->
 
             <div class="medform-step" data-step="4">
               <section class="medform-section">
@@ -785,10 +747,6 @@
               </section>
             </div>
 
-            <!-- =================================================
-                 STEP 5
-                 ================================================= -->
-
             <div class="medform-step" data-step="5">
               <section class="medform-section">
                 <h3>Review &amp; Consent</h3>
@@ -819,8 +777,6 @@
               </div>
             </div>
           </div>
-
-          <!-- FOOTER -->
 
           <div class="patient-modal-actions medform-step-actions">
             <button
@@ -865,10 +821,6 @@
       </div>
     </div>
 
-    <!-- =========================================================
-         PATIENT DETAILS MODAL
-         ========================================================= -->
-
     <div
       class="patient-modal-backdrop"
       id="patientDetailsModalBackdrop"
@@ -900,11 +852,6 @@
         <div class="patient-details-body" id="patientDetailsBody"></div>
       </div>
     </div>
-
-    <!-- =========================================================
-         MEDICAL FORM RESULT MODAL
-         ACTIONS > MEDICAL FORM
-         ========================================================= -->
 
     <div
       class="patient-modal-backdrop"
@@ -957,10 +904,6 @@
         </div>
       </div>
     </div>
-
-    <!-- =========================================================
-         ACTION MENU
-         ========================================================= -->
 
     <div class="patient-action-menu" id="patientActionMenu">
       <button type="button" data-action="view">

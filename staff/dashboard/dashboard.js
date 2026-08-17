@@ -2,37 +2,9 @@ document.addEventListener("DOMContentLoaded", () => {
   initializeDashboard();
 });
 
-/* =========================================================
-   STORAGE
-========================================================= */
-
-/*
- * IMPORTANT:
- * The Patients page stores patient records using:
- *
- *     dentanueva_patients
- *
- * This MUST be the primary key used by the dashboard.
- */
 const APPOINTMENTS_STORAGE_KEY = "appointments";
 const PATIENTS_STORAGE_KEY = "dentanueva_patients";
 const TRANSACTIONS_STORAGE_KEY = "transactions";
-
-/*
- * Additional patient storage keys are supported ONLY as
- * fallbacks in case the Patients page uses one of these.
- *
- * "patients" is kept as a fallback for compatibility.
- */
-const PATIENT_STORAGE_FALLBACK_KEYS = [
-  "patients",
-  "patientRecords",
-  "patient_records",
-  "patientList",
-  "patientsList",
-  "clinicPatients",
-  "dentaNuevaPatients",
-];
 
 /* =========================================================
    DASHBOARD INITIALIZATION
@@ -59,8 +31,7 @@ function initializeDashboard() {
     if (
       event.key === APPOINTMENTS_STORAGE_KEY ||
       event.key === PATIENTS_STORAGE_KEY ||
-      event.key === TRANSACTIONS_STORAGE_KEY ||
-      PATIENT_STORAGE_FALLBACK_KEYS.includes(event.key)
+      event.key === TRANSACTIONS_STORAGE_KEY
     ) {
       renderDashboard();
     }
@@ -83,6 +54,10 @@ function initializeDashboard() {
   });
 
   window.addEventListener("patientUpdated", () => {
+    renderDashboard();
+  });
+
+  window.addEventListener("patientDeleted", () => {
     renderDashboard();
   });
 }
@@ -502,62 +477,33 @@ function capitalizeDentistName(value) {
 ========================================================= */
 
 function getStoredPatients() {
-  const possibleSources = [];
-
-  /* -------------------------------------------------------
-     PRIMARY PATIENT STORAGE
-  ------------------------------------------------------- */
+  /*
+   * IMPORTANT:
+   *
+   * The Patients page is the SINGLE SOURCE OF TRUTH
+   * for patient records.
+   *
+   * The Dashboard will ONLY read:
+   *
+   *     dentanueva_patients
+   *
+   * It will NOT read old/fallback patient storage keys.
+   */
 
   const primaryPatients = readLocalStorageJSON(PATIENTS_STORAGE_KEY);
 
-  if (primaryPatients !== null) {
-    possibleSources.push({
-      key: PATIENTS_STORAGE_KEY,
-      data: primaryPatients,
-    });
+  /*
+   * If the Patients page has no stored patient data,
+   * the correct Dashboard count is ZERO.
+   */
+
+  if (primaryPatients === null) {
+    return [];
   }
 
-  /* -------------------------------------------------------
-     FALLBACK PATIENT STORAGE KEYS
-  ------------------------------------------------------- */
+  const patients = extractPatientCollection(primaryPatients);
 
-  PATIENT_STORAGE_FALLBACK_KEYS.forEach((key) => {
-    /*
-     * Do not read the primary key twice.
-     */
-    if (key === PATIENTS_STORAGE_KEY) {
-      return;
-    }
-
-    const data = readLocalStorageJSON(key);
-
-    if (data !== null) {
-      possibleSources.push({
-        key,
-        data,
-      });
-    }
-  });
-
-  /* -------------------------------------------------------
-     FIND THE BEST PATIENT COLLECTION
-  ------------------------------------------------------- */
-
-  let bestPatients = [];
-
-  possibleSources.forEach((source) => {
-    const extracted = extractPatientCollection(source.data);
-
-    if (extracted.length > bestPatients.length) {
-      bestPatients = extracted;
-    }
-  });
-
-  /*
-   * Remove duplicate records only when the same patient
-   * appears in more than one storage source.
-   */
-  return removeDuplicatePatients(bestPatients);
+  return removeDuplicatePatients(patients);
 }
 
 /* =========================================================
@@ -592,6 +538,7 @@ function extractPatientCollection(data) {
   /*
    * Direct array
    */
+
   if (Array.isArray(data)) {
     return data.filter(isPatientRecord);
   }
@@ -599,6 +546,7 @@ function extractPatientCollection(data) {
   /*
    * Object
    */
+
   if (typeof data !== "object") {
     return [];
   }
@@ -606,6 +554,7 @@ function extractPatientCollection(data) {
   /*
    * Common patient array property names.
    */
+
   const preferredProperties = [
     "patients",
     "patientRecords",
@@ -625,12 +574,22 @@ function extractPatientCollection(data) {
       if (patients.length > 0) {
         return patients;
       }
+
+      /*
+       * If the property exists and is an empty array,
+       * it means there are currently zero patients.
+       */
+
+      if (data[property].length === 0) {
+        return [];
+      }
     }
   }
 
   /*
    * Object keyed by patient ID.
    */
+
   const objectValues = Object.values(data);
 
   const directPatientValues = objectValues.filter(isPatientRecord);
@@ -642,6 +601,7 @@ function extractPatientCollection(data) {
   /*
    * Recursive fallback.
    */
+
   let bestNestedCollection = [];
 
   for (const value of objectValues) {
@@ -887,13 +847,14 @@ function updateClinicSummary(todayAppointments) {
 
 function getTotalPatients() {
   /*
-   * The Patients page stores its records under:
+   * dashboardData.patients is loaded directly from:
    *
    *     dentanueva_patients
    *
-   * getStoredPatients() now reads that key as the
-   * PRIMARY patient source.
+   * Therefore the Dashboard patient count always matches
+   * the Patients page records.
    */
+
   return Array.isArray(dashboardData.patients)
     ? dashboardData.patients.length
     : 0;
@@ -1996,13 +1957,11 @@ window.DentalClinicDashboard = {
 
   refresh: () => {
     loadDashboardData();
-
     renderDashboard();
   },
 
   update: () => {
     loadDashboardData();
-
     renderDashboard();
   },
 

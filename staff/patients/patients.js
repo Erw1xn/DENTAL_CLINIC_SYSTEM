@@ -4,28 +4,65 @@ const PATIENT_STORAGE_KEY = "dentanueva_patients";
 const TOTAL_PATIENTS_STORAGE_KEY = "dentanueva_total_patients";
 
 let patients = [];
+
 let currentPatientId = null;
 let currentMedicalPatientId = null;
 let currentActionPatientId = null;
 let currentMedicalStep = 1;
 
+let appointmentRefreshInterval = null;
+let patientFormValidationBound = false;
+
 const $ = (id) => document.getElementById(id);
 
 const patientTableBody = $("patientTableBody");
 const patientEmptyState = $("patientEmptyState");
-const patientCountLabel = $("patientCountLabel");
+const patientCountLabel = $("patientCount");
 const patientSearch = $("patientSearch");
 const sortPatients = $("sortPatients");
 const patientActionMenu = $("patientActionMenu");
 
 document.addEventListener("DOMContentLoaded", () => {
   loadPatients();
+
   bindPatientEvents();
+
   bindMedicalFormEvents();
+
   bindActionMenuEvents();
+
   removeMedicalFormFromActionMenu();
+
+  setupPatientFormValidation();
+
   renderPatients();
+
   updateTotalPatientCount();
+
+  startAppointmentRealtimeRefresh();
+});
+
+function startAppointmentRealtimeRefresh() {
+  if (appointmentRefreshInterval) {
+    clearInterval(appointmentRefreshInterval);
+  }
+
+  appointmentRefreshInterval = setInterval(() => {
+    loadPatients();
+
+    renderPatients();
+  }, 1000);
+}
+
+window.addEventListener("storage", (event) => {
+  if (
+    event.key === PATIENT_STORAGE_KEY ||
+    event.key === TOTAL_PATIENTS_STORAGE_KEY
+  ) {
+    loadPatients();
+
+    renderPatients();
+  }
 });
 
 function removeMedicalFormFromActionMenu() {
@@ -38,6 +75,122 @@ function removeMedicalFormFromActionMenu() {
     .forEach((button) => {
       button.remove();
     });
+}
+
+function setupPatientFormValidation() {
+  const form = $("patientForm");
+
+  if (!form) {
+    return;
+  }
+
+  const fields = form.querySelectorAll(
+    'input:not([type="hidden"]), select, textarea',
+  );
+
+  fields.forEach((field) => {
+    field.required = true;
+  });
+
+  const phoneField = $("phone");
+
+  if (phoneField) {
+    phoneField.type = "tel";
+    phoneField.required = true;
+    phoneField.pattern = "^(09\\d{9}|\\+639\\d{9})$";
+    phoneField.title =
+      "Please enter a valid Philippine phone number (09XXXXXXXXX or +639XXXXXXXXX).";
+    phoneField.setAttribute("placeholder", "09XXXXXXXXX");
+  }
+
+  const emergencyContactField = $("emergencyContact");
+
+  if (emergencyContactField) {
+    emergencyContactField.type = "tel";
+    emergencyContactField.required = true;
+    emergencyContactField.pattern = "^(09\\d{9}|\\+639\\d{9})$";
+    emergencyContactField.title =
+      "Please enter a valid Philippine emergency contact number (09XXXXXXXXX or +639XXXXXXXXX).";
+    emergencyContactField.setAttribute("placeholder", "09XXXXXXXXX");
+  }
+
+  const emailField = $("email");
+
+  if (emailField) {
+    emailField.type = "email";
+    emailField.required = true;
+  }
+
+  if (patientFormValidationBound) {
+    return;
+  }
+
+  patientFormValidationBound = true;
+
+  form.addEventListener("submit", (event) => {
+    if (!form.checkValidity()) {
+      event.preventDefault();
+
+      form.reportValidity();
+
+      return;
+    }
+
+    const phoneValue = phoneField?.value.trim() || "";
+
+    if (phoneValue && !/^(09\d{9}|\+639\d{9})$/.test(phoneValue)) {
+      event.preventDefault();
+
+      if (phoneField) {
+        phoneField.setCustomValidity(
+          "Please enter a valid Philippine phone number (09XXXXXXXXX or +639XXXXXXXXX).",
+        );
+
+        phoneField.reportValidity();
+
+        phoneField.focus();
+
+        setTimeout(() => {
+          phoneField.setCustomValidity("");
+        }, 100);
+      }
+
+      return;
+    }
+
+    if (phoneField) {
+      phoneField.setCustomValidity("");
+    }
+
+    const emergencyContactValue = emergencyContactField?.value.trim() || "";
+
+    if (
+      emergencyContactValue &&
+      !/^(09\d{9}|\+639\d{9})$/.test(emergencyContactValue)
+    ) {
+      event.preventDefault();
+
+      if (emergencyContactField) {
+        emergencyContactField.setCustomValidity(
+          "Please enter a valid Philippine emergency contact number (09XXXXXXXXX or +639XXXXXXXXX).",
+        );
+
+        emergencyContactField.reportValidity();
+
+        emergencyContactField.focus();
+
+        setTimeout(() => {
+          emergencyContactField.setCustomValidity("");
+        }, 100);
+      }
+
+      return;
+    }
+
+    if (emergencyContactField) {
+      emergencyContactField.setCustomValidity("");
+    }
+  });
 }
 
 function loadPatients() {
@@ -119,13 +272,23 @@ function updateTotalPatientCount() {
   }
 
   document.querySelectorAll("[data-total-patients]").forEach((element) => {
-    element.textContent = totalPatients;
+    element.textContent = `${totalPatients} ${
+      totalPatients === 1 ? "patient" : "patients"
+    }`;
   });
 
   const totalPatientsElement = $("totalPatients");
 
   if (totalPatientsElement) {
-    totalPatientsElement.textContent = totalPatients;
+    totalPatientsElement.textContent = `${totalPatients} ${
+      totalPatients === 1 ? "patient" : "patients"
+    }`;
+  }
+
+  if (patientCountLabel && !patientSearch?.value?.trim()) {
+    patientCountLabel.textContent = `${totalPatients} ${
+      totalPatients === 1 ? "patient" : "patients"
+    }`;
   }
 }
 
@@ -223,6 +386,7 @@ function getFullName(patient) {
 
 function getInitials(patient) {
   const first = patient.firstName?.charAt(0) || "";
+
   const last = patient.lastName?.charAt(0) || "";
 
   return (first + last).toUpperCase();
@@ -253,11 +417,130 @@ function findPatient(patientId) {
     return null;
   }
 
-  return patients.find(
-    (patient) =>
-      String(patient.id) === String(patientId) ||
-      String(patient.patientId) === String(patientId),
+  return (
+    patients.find(
+      (patient) =>
+        String(patient.id) === String(patientId) ||
+        String(patient.patientId) === String(patientId),
+    ) || null
   );
+}
+
+function findPatientById(patientId) {
+  if (!patientId) {
+    return null;
+  }
+
+  return (
+    patients.find(
+      (patient) =>
+        String(patient.id) === String(patientId) ||
+        String(patient.patientId) === String(patientId),
+    ) || null
+  );
+}
+
+function findPatientByName(name) {
+  if (!name) {
+    return null;
+  }
+
+  const target = String(name).trim().toLowerCase();
+
+  return (
+    patients.find(
+      (patient) => getFullName(patient).trim().toLowerCase() === target,
+    ) || null
+  );
+}
+
+function setupPatientDatalist() {
+  const patientInput = document.getElementById("f_patient");
+
+  if (!patientInput) {
+    return;
+  }
+
+  let datalist = document.getElementById("appointmentPatientList");
+
+  if (!datalist) {
+    datalist = document.createElement("datalist");
+
+    datalist.id = "appointmentPatientList";
+
+    document.body.appendChild(datalist);
+  }
+
+  patientInput.setAttribute("list", "appointmentPatientList");
+
+  refreshPatientSelector();
+}
+
+function refreshPatientSelector() {
+  const patientInput = document.getElementById("f_patient");
+
+  if (!patientInput) {
+    return;
+  }
+
+  let datalist = document.getElementById("appointmentPatientList");
+
+  if (!datalist) {
+    datalist = document.createElement("datalist");
+
+    datalist.id = "appointmentPatientList";
+
+    document.body.appendChild(datalist);
+  }
+
+  datalist.innerHTML = "";
+
+  patients
+    .slice()
+    .sort((a, b) => getFullName(a).localeCompare(getFullName(b)))
+    .forEach((patient) => {
+      const option = document.createElement("option");
+
+      option.value = getFullName(patient);
+
+      option.label = `${getFullName(patient)} · ${
+        patient.patientId || patient.id
+      }`;
+
+      datalist.appendChild(option);
+    });
+
+  patientInput.setAttribute("list", "appointmentPatientList");
+}
+
+function handlePatientInputChange() {
+  const patientInput = document.getElementById("f_patient");
+
+  if (!patientInput) {
+    return;
+  }
+
+  const patient = findPatientByName(patientInput.value);
+
+  if (patient) {
+    patientInput.value = getFullName(patient);
+  }
+}
+
+function getCurrentFormPatient() {
+  const patientInput = document.getElementById("f_patient");
+
+  if (!patientInput) {
+    return null;
+  }
+
+  const value = patientInput.value.trim();
+
+  if (!value) {
+    return null;
+  }
+
+  return findPatientByName(value);
 }
 
 function bindPatientEvents() {
@@ -293,16 +576,14 @@ function bindPatientEvents() {
   sortPatients?.addEventListener("change", renderPatients);
 }
 
-/* =========================================================
-   ADD PATIENT
-========================================================= */
-
 function openAddPatientModal() {
   currentPatientId = null;
 
   const form = $("patientForm");
 
   form?.reset();
+
+  setupPatientFormValidation();
 
   $("patientId").value = "";
 
@@ -316,10 +597,6 @@ function openAddPatientModal() {
     $("firstName")?.focus();
   }, 50);
 }
-
-/* =========================================================
-   EDIT PATIENT
-========================================================= */
 
 function openEditPatientModal(patientId) {
   const patient = findPatient(patientId);
@@ -352,17 +629,75 @@ function openEditPatientModal(patientId) {
 
   $("emergencyContact").value = patient.emergencyContact || "";
 
+  setupPatientFormValidation();
+
   $("patientModalBackdrop").classList.add("open");
 
   $("patientModalBackdrop").setAttribute("aria-hidden", "false");
 }
 
-/* =========================================================
-   SAVE PATIENT
-========================================================= */
-
 function savePatientFromForm(event) {
   event.preventDefault();
+
+  const form = $("patientForm");
+
+  if (form && !form.checkValidity()) {
+    form.reportValidity();
+
+    return;
+  }
+
+  const phoneField = $("phone");
+
+  const phoneValue = phoneField?.value.trim() || "";
+
+  if (!/^(09\d{9}|\+639\d{9})$/.test(phoneValue)) {
+    if (phoneField) {
+      phoneField.setCustomValidity(
+        "Please enter a valid Philippine phone number (09XXXXXXXXX or +639XXXXXXXXX).",
+      );
+
+      phoneField.reportValidity();
+
+      phoneField.focus();
+
+      setTimeout(() => {
+        phoneField.setCustomValidity("");
+      }, 100);
+    }
+
+    return;
+  }
+
+  if (phoneField) {
+    phoneField.setCustomValidity("");
+  }
+
+  const emergencyContactField = $("emergencyContact");
+
+  const emergencyContactValue = emergencyContactField?.value.trim() || "";
+
+  if (!/^(09\d{9}|\+639\d{9})$/.test(emergencyContactValue)) {
+    if (emergencyContactField) {
+      emergencyContactField.setCustomValidity(
+        "Please enter a valid Philippine emergency contact number (09XXXXXXXXX or +639XXXXXXXXX).",
+      );
+
+      emergencyContactField.reportValidity();
+
+      emergencyContactField.focus();
+
+      setTimeout(() => {
+        emergencyContactField.setCustomValidity("");
+      }, 100);
+    }
+
+    return;
+  }
+
+  if (emergencyContactField) {
+    emergencyContactField.setCustomValidity("");
+  }
 
   const existingPatient = currentPatientId
     ? findPatient(currentPatientId)
@@ -433,10 +768,6 @@ function savePatientFromForm(event) {
   renderPatients();
 }
 
-/* =========================================================
-   CLOSE PATIENT MODAL
-========================================================= */
-
 function closePatientModal() {
   $("patientModalBackdrop")?.classList.remove("open");
 
@@ -445,16 +776,10 @@ function closePatientModal() {
   currentPatientId = null;
 }
 
-/* =========================================================
-   RENDER PATIENTS
-========================================================= */
-
 function renderPatients() {
   if (!patientTableBody) {
     return;
   }
-
-  updateTotalPatientCount();
 
   let filteredPatients = [...patients];
 
@@ -499,16 +824,20 @@ function renderPatients() {
 
   patientTableBody.innerHTML = "";
 
+  const displayedPatientCount = filteredPatients.length;
+
   if (patientCountLabel) {
-    patientCountLabel.textContent = `${filteredPatients.length} ${
-      filteredPatients.length === 1 ? "patient" : "patients"
+    patientCountLabel.textContent = `${displayedPatientCount} ${
+      displayedPatientCount === 1 ? "patient" : "patients"
     }`;
   }
 
-  if (!filteredPatients.length) {
+  if (!displayedPatientCount) {
     if (patientEmptyState) {
       patientEmptyState.hidden = false;
     }
+
+    updateTotalPatientCount();
 
     return;
   }
@@ -524,11 +853,15 @@ function renderPatients() {
 
     patientTableBody.appendChild(row);
   });
-}
 
-/* =========================================================
-   PATIENT ROW
-========================================================= */
+  updateTotalPatientCount();
+
+  if (patientCountLabel) {
+    patientCountLabel.textContent = `${displayedPatientCount} ${
+      displayedPatientCount === 1 ? "patient" : "patients"
+    }`;
+  }
+}
 
 function createPatientRow(patient) {
   const name = getFullName(patient) || "Unnamed Patient";
@@ -630,9 +963,76 @@ function createPatientRow(patient) {
   `;
 }
 
-/* =========================================================
-   NEXT APPOINTMENT
-========================================================= */
+function getLocalDateString(date = new Date()) {
+  const year = date.getFullYear();
+
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function createAppointmentDateTime(date, time) {
+  if (!date) {
+    return null;
+  }
+
+  const normalizedTime = time || "00:00";
+
+  const dateTime = new Date(`${date}T${normalizedTime}`);
+
+  if (Number.isNaN(dateTime.getTime())) {
+    return null;
+  }
+
+  return dateTime;
+}
+
+function getAppointmentStatus(appointment) {
+  const status = String(
+    appointment.status ||
+      appointment.appointmentStatus ||
+      appointment.state ||
+      "",
+  )
+    .trim()
+    .toLowerCase();
+
+  if (status === "completed" || status === "complete") {
+    return "completed";
+  }
+
+  if (status === "cancelled" || status === "canceled") {
+    return "cancelled";
+  }
+
+  if (status === "no_show" || status === "no show" || status === "noshow") {
+    return "no_show";
+  }
+
+  if (status === "confirmed") {
+    return "confirmed";
+  }
+
+  return "pending";
+}
+
+function isAppointmentToday(appointment) {
+  return appointment.date === getLocalDateString(new Date());
+}
+
+function isFutureAppointment(appointment) {
+  const today = getLocalDateString(new Date());
+
+  return appointment.date > today;
+}
+
+function isPastAppointmentDate(appointment) {
+  const today = getLocalDateString(new Date());
+
+  return appointment.date < today;
+}
 
 function getNextAppointment(patient) {
   const appointments = Array.isArray(patient.appointments)
@@ -645,47 +1045,34 @@ function getNextAppointment(patient) {
 
   const now = new Date();
 
-  const upcoming = appointments
-    .map((appointment) => {
-      const date = appointment.date || appointment.appointmentDate || "";
+  const today = getLocalDateString(now);
 
-      /*
-       * Appointment.js stores the start time
-       * as "start".
-       *
-       * The patient appointment record also
-       * stores it as "time".
-       *
-       * Keep support for both.
-       */
+  const normalizedAppointments = appointments
+    .map((appointment) => {
+      const date =
+        appointment.date ||
+        appointment.appointmentDate ||
+        appointment.scheduleDate ||
+        "";
+
       const time =
         appointment.time ||
         appointment.start ||
         appointment.appointmentTime ||
         "00:00";
 
-      /*
-       * Appointment.js stores duration in minutes.
-       */
       const duration = Number(
         appointment.duration || appointment.durationMinutes || 0,
       );
 
-      const dateTime = new Date(`${date}T${time}`);
+      const dateTime = createAppointmentDateTime(date, time);
 
-      /*
-       * Calculate the end time from:
-       *
-       * start time + appointment duration
-       */
       let endTime = time;
 
-      if (
-        !Number.isNaN(dateTime.getTime()) &&
-        Number.isFinite(duration) &&
-        duration > 0
-      ) {
-        const endDateTime = new Date(dateTime.getTime() + duration * 60 * 1000);
+      let endDateTime = null;
+
+      if (dateTime && Number.isFinite(duration) && duration > 0) {
+        endDateTime = new Date(dateTime.getTime() + duration * 60 * 1000);
 
         endTime = `${String(endDateTime.getHours()).padStart(2, "0")}:${String(
           endDateTime.getMinutes(),
@@ -704,34 +1091,94 @@ function getNextAppointment(patient) {
         endTime,
 
         dateTime,
+
+        endDateTime,
+
+        status: getAppointmentStatus(appointment),
       };
     })
-    .filter(
-      (appointment) =>
-        !Number.isNaN(appointment.dateTime.getTime()) &&
-        appointment.dateTime >= now,
-    )
-    .sort((a, b) => a.dateTime - b.dateTime);
+    .filter((appointment) => appointment.date);
 
-  return upcoming[0] || null;
+  if (!normalizedAppointments.length) {
+    return null;
+  }
+
+  const todaysAppointments = normalizedAppointments
+    .filter((appointment) => {
+      if (appointment.status === "cancelled") {
+        return false;
+      }
+
+      return appointment.date === today;
+    })
+    .sort((a, b) => {
+      return (a.dateTime?.getTime() || 0) - (b.dateTime?.getTime() || 0);
+    });
+
+  if (todaysAppointments.length) {
+    const activeToday = todaysAppointments
+      .filter((appointment) => {
+        if (appointment.status === "completed") {
+          return false;
+        }
+
+        if (appointment.status === "no_show") {
+          return false;
+        }
+
+        if (appointment.endDateTime) {
+          return appointment.endDateTime >= now;
+        }
+
+        if (appointment.dateTime) {
+          return appointment.dateTime >= now;
+        }
+
+        return false;
+      })
+      .sort((a, b) => {
+        return (a.dateTime?.getTime() || 0) - (b.dateTime?.getTime() || 0);
+      });
+
+    if (activeToday.length) {
+      return activeToday[0];
+    }
+
+    const completedToday = todaysAppointments
+      .filter((appointment) => appointment.status === "completed")
+      .sort((a, b) => {
+        return (b.dateTime?.getTime() || 0) - (a.dateTime?.getTime() || 0);
+      });
+
+    if (completedToday.length) {
+      return completedToday[0];
+    }
+
+    return todaysAppointments[todaysAppointments.length - 1];
+  }
+
+  const futureAppointments = normalizedAppointments
+    .filter((appointment) => {
+      if (appointment.status === "cancelled") {
+        return false;
+      }
+
+      return appointment.date > today;
+    })
+    .sort((a, b) => {
+      if (a.date !== b.date) {
+        return a.date.localeCompare(b.date);
+      }
+
+      return (a.dateTime?.getTime() || 0) - (b.dateTime?.getTime() || 0);
+    });
+
+  if (futureAppointments.length) {
+    return futureAppointments[0];
+  }
+
+  return null;
 }
-
-/* =========================================================
-   TIME DISPLAY
-   Converts 24-hour time into 12-hour time.
-
-   Examples:
-   18:00 -> 6:00 PM
-   13:30 -> 1:30 PM
-   12:00 -> 12:00 PM
-   00:00 -> 12:00 AM
-   09:30 -> 9:30 AM
-
-   IMPORTANT:
-   This changes ONLY the display.
-   The stored appointment time remains
-   in the original format.
-========================================================= */
 
 function formatTime12Hour(timeString) {
   if (!timeString) {
@@ -769,10 +1216,6 @@ function formatTime12Hour(timeString) {
   return `${hours}:${minutes} ${period}`;
 }
 
-/* =========================================================
-   APPOINTMENT DISPLAY
-========================================================= */
-
 function renderAppointment(appointment) {
   if (!appointment) {
     return `
@@ -788,14 +1231,22 @@ function renderAppointment(appointment) {
     appointment.endTime || appointment.time || "",
   );
 
-  /*
-   * Display start time and end time.
-   *
-   * Example:
-   * 6:00 PM – 7:00 PM
-   */
   const timeDisplay =
     appointment.duration > 0 ? `${startTime} – ${endTime}` : startTime;
+
+  const status = appointment.status || "pending";
+
+  const isCompleted = status === "completed";
+
+  const isToday = isAppointmentToday(appointment);
+
+  const statusDisplay = isCompleted
+    ? `
+        <div class="appointment-status appointment-status-completed">
+          Completed
+        </div>
+      `
+    : "";
 
   return `
     <div class="appointment-date">
@@ -805,12 +1256,20 @@ function renderAppointment(appointment) {
     <div class="appointment-time">
       ${escapeHTML(timeDisplay)}
     </div>
+
+    ${
+      isToday
+        ? `
+          <div class="appointment-day-label">
+            Today
+          </div>
+        `
+        : ""
+    }
+
+    ${statusDisplay}
   `;
 }
-
-/* =========================================================
-   TABLE CLICK HANDLING
-========================================================= */
 
 patientTableBody?.addEventListener("click", (event) => {
   const medicalButton = event.target.closest("[data-medical-form-id]");
@@ -841,10 +1300,6 @@ patientTableBody?.addEventListener("click", (event) => {
     openActionMenu(actionTrigger, patientId);
   }
 });
-
-/* =========================================================
-   ACTION MENU
-========================================================= */
 
 function bindActionMenuEvents() {
   patientActionMenu?.addEventListener("click", (event) => {
@@ -883,10 +1338,6 @@ function bindActionMenuEvents() {
 
   window.addEventListener("scroll", closeActionMenu, true);
 }
-
-/* =========================================================
-   OPEN ACTION MENU
-========================================================= */
 
 function openActionMenu(trigger, patientId) {
   removeMedicalFormFromActionMenu();
@@ -928,10 +1379,6 @@ function openActionMenu(trigger, patientId) {
   trigger.classList.add("active");
 }
 
-/* =========================================================
-   CLOSE ACTION MENU
-========================================================= */
-
 function closeActionMenu() {
   patientActionMenu?.classList.remove("open");
 
@@ -941,10 +1388,6 @@ function closeActionMenu() {
 
   currentActionPatientId = null;
 }
-
-/* =========================================================
-   ACTION HANDLER
-========================================================= */
 
 function handlePatientAction(action, patientId) {
   const patient = findPatient(patientId);
@@ -967,10 +1410,6 @@ function handlePatientAction(action, patientId) {
       break;
   }
 }
-
-/* =========================================================
-   VIEW PATIENT
-========================================================= */
 
 function openPatientDetails(patient) {
   const name = getFullName(patient);
@@ -1001,7 +1440,6 @@ function openPatientDetails(patient) {
           </span>
 
         </div>
-
       </div>
 
       <div class="details-grid">
@@ -1080,19 +1518,11 @@ function openPatientDetails(patient) {
   $("patientDetailsModalBackdrop").setAttribute("aria-hidden", "false");
 }
 
-/* =========================================================
-   CLOSE PATIENT DETAILS
-========================================================= */
-
 function closePatientDetailsModal() {
   $("patientDetailsModalBackdrop")?.classList.remove("open");
 
   $("patientDetailsModalBackdrop")?.setAttribute("aria-hidden", "true");
 }
-
-/* =========================================================
-   MEDICAL FORM EVENTS
-========================================================= */
 
 function bindMedicalFormEvents() {
   $("closeMedicalFormModal")?.addEventListener("click", closeMedicalForm);
@@ -1108,6 +1538,7 @@ function bindMedicalFormEvents() {
   $("medformNextBtn")?.addEventListener("click", () => {
     if (currentMedicalStep >= 5) {
       updateMedicalStep();
+
       return;
     }
 
@@ -1129,10 +1560,6 @@ function bindMedicalFormEvents() {
   $("medConsent")?.addEventListener("change", updateSubmitButton);
 }
 
-/* =========================================================
-   OPEN MEDICAL FORM
-========================================================= */
-
 function openMedicalForm(patient, step = 1) {
   currentMedicalPatientId = patient.id || patient.patientId;
 
@@ -1153,13 +1580,11 @@ function openMedicalForm(patient, step = 1) {
   updateMedicalStep();
 
   setTimeout(() => {
-    $("medformStepViewport").scrollTop = 0;
+    if ($("medformStepViewport")) {
+      $("medformStepViewport").scrollTop = 0;
+    }
   }, 0);
 }
-
-/* =========================================================
-   RESET MEDICAL FORM
-========================================================= */
 
 function resetMedicalForm() {
   $("medicalForm")?.reset();
@@ -1207,10 +1632,6 @@ function resetMedicalForm() {
   $("medformReview").innerHTML = "";
 }
 
-/* =========================================================
-   POPULATE PATIENT PROFILE
-========================================================= */
-
 function populateMedicalProfile(patient) {
   const name = getFullName(patient);
 
@@ -1236,10 +1657,6 @@ function populateMedicalProfile(patient) {
 
   $("medEmergencyContact").value = patient.emergencyContact || "";
 }
-
-/* =========================================================
-   POPULATE EXISTING MEDICAL FORM
-========================================================= */
 
 function populateExistingMedicalForm(medical) {
   setCheckboxValues("dentalConcern", medical.dentalConcern);
@@ -1289,10 +1706,6 @@ function populateExistingMedicalForm(medical) {
   }
 }
 
-/* =========================================================
-   CHECKBOX HELPERS
-========================================================= */
-
 function setCheckboxValues(name, values) {
   const normalized = arrayValue(values);
 
@@ -1314,10 +1727,6 @@ function setRadioValue(name, value) {
     radio.checked = true;
   }
 }
-
-/* =========================================================
-   MEDICAL STEP
-========================================================= */
 
 function updateMedicalStep() {
   document.querySelectorAll(".medform-step").forEach((step) => {
@@ -1352,6 +1761,8 @@ function updateMedicalStep() {
     backButton.hidden = firstStep;
 
     backButton.setAttribute("aria-hidden", firstStep ? "true" : "false");
+
+    backButton.tabIndex = firstStep ? -1 : 0;
   }
 
   if (nextButton) {
@@ -1402,10 +1813,6 @@ function updateMedicalStep() {
   updateSubmitButton();
 }
 
-/* =========================================================
-   SUBMIT BUTTON
-========================================================= */
-
 function updateSubmitButton() {
   const submitButton = $("medformSubmitBtn");
 
@@ -1421,10 +1828,6 @@ function updateSubmitButton() {
 
   submitButton.disabled = !$("medConsent").checked;
 }
-
-/* =========================================================
-   BUILD REVIEW
-========================================================= */
 
 function buildMedicalReview() {
   const data = collectMedicalFormData(false);
@@ -1501,10 +1904,6 @@ function reviewRow(label, value) {
   `;
 }
 
-/* =========================================================
-   COLLECT MEDICAL DATA
-========================================================= */
-
 function collectMedicalFormData(includeConsent = true) {
   return {
     dentalConcern: Array.from(
@@ -1544,10 +1943,6 @@ function collectMedicalFormData(includeConsent = true) {
     consent: includeConsent ? $("medConsent").checked : false,
   };
 }
-
-/* =========================================================
-   SAVE MEDICAL FORM
-========================================================= */
 
 function saveMedicalForm(event) {
   event.preventDefault();
@@ -1591,10 +1986,6 @@ function saveMedicalForm(event) {
   renderPatients();
 }
 
-/* =========================================================
-   CLOSE MEDICAL FORM
-========================================================= */
-
 function closeMedicalForm() {
   $("medicalFormModalBackdrop")?.classList.remove("open");
 
@@ -1630,10 +2021,6 @@ function closeMedicalForm() {
     submitButton.style.setProperty("display", "none", "important");
   }
 }
-
-/* =========================================================
-   MEDICAL RESULT
-========================================================= */
 
 function openMedicalResult(patient) {
   const medical = patient.medicalForm;
@@ -1678,10 +2065,6 @@ function openMedicalResult(patient) {
 
   $("medicalResultModalBackdrop").setAttribute("aria-hidden", "false");
 }
-
-/* =========================================================
-   BUILD MEDICAL RESULT
-========================================================= */
 
 function buildMedicalResult(patient, medical) {
   const concerns = [...arrayValue(medical.dentalConcern)];
@@ -1874,10 +2257,6 @@ function buildMedicalResult(patient, medical) {
   `;
 }
 
-/* =========================================================
-   RESULT TAGS
-========================================================= */
-
 function renderResultTags(values) {
   const cleanValues = values.filter((value) => value && String(value).trim());
 
@@ -1905,10 +2284,6 @@ function renderResultTags(values) {
     </div>
   `;
 }
-
-/* =========================================================
-   MEDICAL RESULT EVENTS
-========================================================= */
 
 $("closeMedicalResultModal")?.addEventListener("click", closeMedicalResult);
 
@@ -1938,19 +2313,11 @@ $("editMedicalResultBtn")?.addEventListener("click", () => {
   }
 });
 
-/* =========================================================
-   CLOSE MEDICAL RESULT
-========================================================= */
-
 function closeMedicalResult() {
   $("medicalResultModalBackdrop")?.classList.remove("open");
 
   $("medicalResultModalBackdrop")?.setAttribute("aria-hidden", "true");
 }
-
-/* =========================================================
-   DELETE PATIENT
-========================================================= */
 
 function deletePatient(patientId) {
   const patient = findPatient(patientId);

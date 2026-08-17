@@ -1,44 +1,13 @@
-/* =========================================================
-   DENTANUEVA APPOINTMENT MANAGEMENT
-   CONNECTED TO PATIENTS PAGE
-========================================================= */
-
-/* =========================================================
-   STORAGE KEYS
-========================================================= */
-
 const APPOINTMENTS_STORAGE_KEY = "appointments";
 const LEGACY_STORAGE_KEY = "dentanueva_appointments";
-
 const PATIENTS_STORAGE_KEY = "dentanueva_patients";
-
-/* =========================================================
-   CLINIC SETTINGS
-========================================================= */
 
 const START_HOUR = 10;
 const END_HOUR = 20;
 const SLOT_MIN = 30;
 
 const NO_SHOW_GRACE_PERIOD_MIN = 15;
-
-/*
-  TESTING MODE
-
-  true:
-  Mark No Show is immediately available for Scheduled
-  appointments.
-
-  false:
-  Staff must wait until 15 minutes after the appointment
-  start time before Mark No Show becomes available.
-*/
-
 const NO_SHOW_TESTING_MODE = true;
-
-/* =========================================================
-   SERVICE DURATIONS
-========================================================= */
 
 const SERVICE_DURATIONS = {
   Consultation: 30,
@@ -48,10 +17,6 @@ const SERVICE_DURATIONS = {
   "Root Canal": 90,
   "Braces Adjustment": 30,
 };
-
-/* =========================================================
-   DENTISTS
-========================================================= */
 
 const dentists = {
   santos: {
@@ -146,6 +111,16 @@ document.addEventListener("DOMContentLoaded", () => {
 function handleStorageChange(event) {
   if (event.key === PATIENTS_STORAGE_KEY) {
     loadPatients();
+
+    /*
+      IMPORTANT:
+      If a patient was deleted from the Patients page,
+      automatically remove all appointments belonging
+      to that deleted patient.
+    */
+
+    removeAppointmentsForDeletedPatients();
+
     refreshPatientSelector();
     renderAll();
   }
@@ -527,6 +502,16 @@ function loadAppointments() {
   }
 
   /*
+    IMPORTANT:
+    Remove appointments whose patient no longer exists.
+
+    This also handles the situation where the patient
+    was deleted before the Appointment page was opened.
+  */
+
+  removeAppointmentsForDeletedPatients();
+
+  /*
     Link older appointments to existing patients.
   */
 
@@ -539,6 +524,60 @@ function loadAppointments() {
 
 function saveAppointmentsToStorage() {
   localStorage.setItem(APPOINTMENTS_STORAGE_KEY, JSON.stringify(appointments));
+}
+
+/* =========================================================
+   REMOVE APPOINTMENTS FOR DELETED PATIENTS
+========================================================= */
+
+function removeAppointmentsForDeletedPatients() {
+  if (!Array.isArray(appointments) || !Array.isArray(patients)) {
+    return;
+  }
+
+  const beforeCount = appointments.length;
+
+  /*
+    Keep appointments only when their linked patient
+    still exists.
+
+    For older appointment records that do not have a
+    patientId, use the patient name as a fallback.
+  */
+
+  appointments = appointments.filter((appt) => {
+    if (appt.patientId) {
+      return !!findPatientById(appt.patientId);
+    }
+
+    /*
+      Legacy appointment compatibility:
+      if there is no patientId, try the stored patient name.
+    */
+
+    if (appt.patient) {
+      return !!findPatientByName(appt.patient);
+    }
+
+    return false;
+  });
+
+  const removedCount = beforeCount - appointments.length;
+
+  if (removedCount > 0) {
+    saveAppointmentsToStorage();
+
+    /*
+      Rebuild the appointment records inside the
+      remaining patient records.
+    */
+
+    synchronizeAllPatientAppointments();
+
+    console.log(
+      `${removedCount} appointment record(s) removed because the linked patient no longer exists.`,
+    );
+  }
 }
 
 /* =========================================================
@@ -1128,6 +1167,13 @@ function openNewModal(date = null, time = null) {
   */
 
   loadPatients();
+
+  /*
+    Also clean any orphan appointments before opening.
+  */
+
+  removeAppointmentsForDeletedPatients();
+
   refreshPatientSelector();
 
   modalMode = "new";
@@ -1236,8 +1282,23 @@ function openViewModal(id) {
       appt.patient = getPatientFullName(matched);
 
       saveAppointmentsToStorage();
+
       syncAppointmentToPatient(appt);
     }
+  }
+
+  /*
+    If the patient was deleted, do not allow
+    the orphan appointment to be opened.
+  */
+
+  if (appt.patientId && !findPatientById(appt.patientId)) {
+    removeAppointmentsForDeletedPatients();
+    renderAll();
+
+    showToast("This appointment belongs to a deleted patient.");
+
+    return;
   }
 
   modalTitle.textContent = "Appointment Details";
@@ -1354,6 +1415,7 @@ function checkCurrentFormConflict() {
 
   if (isPastDate(date)) {
     saveBtn.disabled = true;
+
     return;
   }
 
@@ -1392,6 +1454,12 @@ function saveAppt() {
   */
 
   loadPatients();
+
+  /*
+    Clean orphan records before creating a new appointment.
+  */
+
+  removeAppointmentsForDeletedPatients();
 
   const patientInput = document.getElementById("f_patient");
 
@@ -2443,9 +2511,9 @@ function renderRealtimeDentistsDuty() {
       });
 
       if (currentAppointment) {
-        status = `${getStatusLabel(currentAppointment.status)} · ${
-          currentAppointment.patient
-        }`;
+        status = `${getStatusLabel(
+          currentAppointment.status,
+        )} · ${currentAppointment.patient}`;
 
         statusClass = "status-badge-busy";
       } else if (doctorAppointments.length) {
@@ -2459,9 +2527,9 @@ function renderRealtimeDentistsDuty() {
         } else {
           const lastAppt = doctorAppointments[doctorAppointments.length - 1];
 
-          status = `${fmtTime(lastAppt.start)} · ${lastAppt.patient} · ${
-            lastAppt.type
-          }`;
+          status = `${fmtTime(
+            lastAppt.start,
+          )} · ${lastAppt.patient} · ${lastAppt.type}`;
         }
       }
     } else if (!isPastDate(selectedKey) && doctorAppointments.length) {
@@ -2523,7 +2591,7 @@ function renderRealtimeDentistsDuty() {
 }
 
 /* =========================================================
-   GET INITIALS
+   INITIALS
 ========================================================= */
 
 function getInitials(name) {
@@ -2587,7 +2655,7 @@ function showToast(message) {
 }
 
 /* =========================================================
-   CLOSE MODALS OUTSIDE
+   OVERLAY CLICK
 ========================================================= */
 
 document.addEventListener("click", (event) => {
@@ -2625,11 +2693,13 @@ document.addEventListener("keydown", (event) => {
 
   if (statusOverlay && statusOverlay.classList.contains("show")) {
     closeStatusConfirmation();
+
     return;
   }
 
   if (deleteOverlay && deleteOverlay.classList.contains("show")) {
     closeDeleteConfirmation();
+
     return;
   }
 
@@ -2637,7 +2707,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 /* =========================================================
-   INITIAL PATIENT SELECTOR SETUP
+   PATIENT DATALIST
 ========================================================= */
 
 document.addEventListener("DOMContentLoaded", () => {

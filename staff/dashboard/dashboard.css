@@ -724,7 +724,6 @@ button {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
-
 .summary-item {
   display: flex;
   align-items: center;
@@ -738,17 +737,14 @@ button {
     transform 0.15s ease,
     border-color 0.15s ease;
 }
-
 .summary-item:hover {
   background: var(--green-50);
   transform: translateY(-1px);
   border-color: var(--green-100);
 }
-
 .summary-clickable {
   cursor: pointer;
 }
-
 .summary-icon {
   width: 34px;
   height: 34px;
@@ -759,17 +755,14 @@ button {
   border-radius: 10px;
   font-size: 13px;
 }
-
 .summary-waiting {
   background: var(--amber-100);
   color: var(--amber-500);
 }
-
 .summary-checkin {
   background: var(--blue-100);
   color: var(--blue-500);
 }
-
 .summary-consultation {
   background: var(--green-100);
   color: var(--green-700);
@@ -779,11 +772,9 @@ button {
   background: var(--purple-100);
   color: var(--purple-500);
 }
-
 .summary-content {
   min-width: 0;
 }
-
 .summary-label {
   display: block;
   margin-bottom: 2px;
@@ -791,7 +782,6 @@ button {
   font-size: 10px;
   font-weight: 600;
 }
-
 .summary-value {
   display: block;
   color: var(--ink-900);
@@ -800,11 +790,6 @@ button {
   font-weight: 700;
   line-height: 1.2;
 }
-
-/* =========================================================
-   EMPTY STATE
-========================================================= */
-
 .empty-state {
   display: flex;
   flex-direction: column;
@@ -814,22 +799,15 @@ button {
   padding: 32px 18px;
   color: var(--ink-500);
 }
-
 .empty-state i {
   margin-bottom: 9px;
   color: var(--green-400);
   font-size: 24px;
 }
-
 .empty-state p {
   font-size: 12px;
   font-weight: 500;
 }
-
-/* =========================================================
-   NOTIFICATION
-========================================================= */
-
 .dashboard-notification {
   position: fixed;
   right: 24px;
@@ -853,95 +831,73 @@ button {
     opacity 0.2s ease,
     transform 0.2s ease;
 }
-
 .dashboard-notification.show {
   opacity: 1;
   transform: translateY(0);
 }
-
 .dashboard-notification.success i {
   color: var(--green-700);
 }
-
 .dashboard-notification.error i {
   color: var(--red-500);
 }
-
-/* =========================================================
-   RESPONSIVE
-========================================================= */
-
 @media (max-width: 1180px) {
   .main-content {
     padding: 28px 28px 44px;
   }
-
   .stats-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-
   .two-col-grid {
     grid-template-columns: 1fr;
   }
 }
-
 @media (max-width: 900px) {
   .main-content {
     padding: 24px 20px 40px;
   }
-
   .dash-header {
     align-items: flex-start;
     flex-direction: column;
     gap: 16px;
   }
-
   .dash-header-right {
     width: 100%;
   }
-
   .header-action-row {
     width: 100%;
     justify-content: space-between;
   }
 }
-
 @media (max-width: 640px) {
   .dashboard-layout {
     flex-direction: column;
     width: 100%;
   }
-
   .main-content {
     width: 100%;
     max-width: 700px;
     margin: 0 auto;
     padding: 20px 15px 32px;
   }
-
   .stats-grid {
     grid-template-columns: 1fr;
     gap: 12px;
   }
-
   .dash-header {
     margin-bottom: 22px;
   }
-
   .dashboard-title {
     font-size: 24px;
   }
-
   .dashboard-subtitle {
     font-size: 12px;
   }
-
   .header-action-row {
     flex-direction: column;
     align-items: stretch;
     gap: 9px;
   }
-
   .datetime-pill-widget {
     width: 100%;
     justify-content: flex-start;
@@ -950,148 +906,116 @@ button {
     border: none;
     box-shadow: none;
   }
-
   .datetime-icon-wrap {
     display: none;
   }
-
   .datetime-text-group {
     font-size: 11px;
   }
-
   .header-quick-actions {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     width: 100%;
     gap: 7px;
   }
-
   .qa-btn-pill {
     width: 100%;
     padding: 9px 7px;
     font-size: 10.5px;
   }
-
   .panel-header {
     padding: 16px;
     align-items: flex-start;
   }
-
   .panel-body {
     padding: 14px;
   }
-
   .clinic-summary-grid {
     grid-template-columns: 1fr;
   }
 }
-
 @media (max-width: 480px) {
   .main-content {
     padding: 17px 12px 28px;
   }
-
   .dashboard-title {
     font-size: 22px;
   }
-
   .dashboard-subtitle {
     font-size: 11.5px;
   }
-
   .stats-grid {
     gap: 10px;
   }
-
   .stat-card {
     padding: 16px;
   }
-
   .stat-value {
     font-size: 21px;
   }
-
   .panel-header {
     padding: 15px;
   }
-
   .panel-body {
     padding: 12px;
   }
-
   .panel-header h3 {
     font-size: 14px;
   }
-
   .panel-subtitle {
     font-size: 10.5px;
   }
-
   .appt-item {
     padding: 11px;
     gap: 9px;
   }
-
   .appt-avatar {
     width: 36px;
     height: 36px;
     font-size: 11px;
   }
-
   .appt-name {
     font-size: 11.5px;
   }
-
   .appt-meta,
   .appt-service {
     font-size: 10px;
   }
-
   .badge {
     font-size: 9px;
     padding: 4px 6px;
   }
-
   .dentist-item {
     padding: 9px;
     gap: 9px;
   }
-
   .dentist-avatar {
     width: 36px;
     height: 36px;
   }
-
   .dentist-name {
     font-size: 11.5px;
   }
-
   .dentist-spec {
     font-size: 10px;
   }
-
   .dentist-status {
     font-size: 9px;
     padding: 4px 6px;
   }
-
   .inv-item {
     padding: 10px;
   }
-
   .inv-icon {
     width: 33px;
     height: 33px;
   }
-
   .inv-name {
     font-size: 11.5px;
   }
-
   .inv-sub {
     font-size: 10px;
   }
-
   .summary-item {
     padding: 11px;
   }
