@@ -5,10 +5,7 @@ document.addEventListener("DOMContentLoaded", () => {
 const APPOINTMENTS_STORAGE_KEY = "appointments";
 const PATIENTS_STORAGE_KEY = "dentanueva_patients";
 const TRANSACTIONS_STORAGE_KEY = "transactions";
-
-/* =========================================================
-   DASHBOARD INITIALIZATION
-========================================================= */
+const INVENTORY_STORAGE_KEY = "dentanueva_inventory_items";
 
 function initializeDashboard() {
   updateDateTime();
@@ -31,10 +28,15 @@ function initializeDashboard() {
     if (
       event.key === APPOINTMENTS_STORAGE_KEY ||
       event.key === PATIENTS_STORAGE_KEY ||
-      event.key === TRANSACTIONS_STORAGE_KEY
+      event.key === TRANSACTIONS_STORAGE_KEY ||
+      event.key === INVENTORY_STORAGE_KEY
     ) {
       renderDashboard();
     }
+  });
+
+  window.addEventListener("inventory:data-changed", () => {
+    renderDashboard();
   });
 
   window.addEventListener("appointmentStatusChanged", () => {
@@ -61,10 +63,6 @@ function initializeDashboard() {
     renderDashboard();
   });
 }
-
-/* =========================================================
-   DASHBOARD DATA
-========================================================= */
 
 const dashboardData = {
   patients: [],
@@ -113,50 +111,20 @@ const dashboardData = {
     },
   ],
 
-  inventory: [
-    {
-      id: 1,
-      name: "Dental Gloves",
-      quantity: 8,
-      minimum: 20,
-      status: "low",
-    },
-
-    {
-      id: 2,
-      name: "Face Masks",
-      quantity: 5,
-      minimum: 20,
-      status: "critical",
-    },
-
-    {
-      id: 3,
-      name: "Composite Resin",
-      quantity: 0,
-      minimum: 5,
-      status: "out",
-    },
-  ],
+  inventory: [],
 
   transactions: [],
 };
-
-/* =========================================================
-   LOAD LOCAL STORAGE DATA
-========================================================= */
 
 function loadDashboardData() {
   dashboardData.appointments = getStoredAppointments();
 
   dashboardData.patients = getStoredPatients();
 
+  dashboardData.inventory = getStoredInventory();
+
   dashboardData.transactions = getStoredTransactions();
 }
-
-/* =========================================================
-   APPOINTMENTS
-========================================================= */
 
 function getStoredAppointments() {
   try {
@@ -179,10 +147,6 @@ function getStoredAppointments() {
     return [];
   }
 }
-
-/* =========================================================
-   NORMALIZE APPOINTMENT
-========================================================= */
 
 function normalizeDashboardAppointment(appointment) {
   if (!appointment || typeof appointment !== "object") {
@@ -313,10 +277,6 @@ function normalizeDashboardAppointment(appointment) {
   };
 }
 
-/* =========================================================
-   NORMALIZE STATUS
-========================================================= */
-
 function normalizeAppointmentStatus(status) {
   const value = String(status || "")
     .trim()
@@ -370,10 +330,6 @@ function normalizeAppointmentStatus(status) {
 
   return "scheduled";
 }
-
-/* =========================================================
-   RESOLVE DENTIST
-========================================================= */
 
 function resolveDentistName(value) {
   if (!value) {
@@ -472,30 +428,8 @@ function capitalizeDentistName(value) {
     .join(" ");
 }
 
-/* =========================================================
-   PATIENTS
-========================================================= */
-
 function getStoredPatients() {
-  /*
-   * IMPORTANT:
-   *
-   * The Patients page is the SINGLE SOURCE OF TRUTH
-   * for patient records.
-   *
-   * The Dashboard will ONLY read:
-   *
-   *     dentanueva_patients
-   *
-   * It will NOT read old/fallback patient storage keys.
-   */
-
   const primaryPatients = readLocalStorageJSON(PATIENTS_STORAGE_KEY);
-
-  /*
-   * If the Patients page has no stored patient data,
-   * the correct Dashboard count is ZERO.
-   */
 
   if (primaryPatients === null) {
     return [];
@@ -505,10 +439,6 @@ function getStoredPatients() {
 
   return removeDuplicatePatients(patients);
 }
-
-/* =========================================================
-   READ JSON FROM LOCAL STORAGE
-========================================================= */
 
 function readLocalStorageJSON(key) {
   try {
@@ -526,34 +456,18 @@ function readLocalStorageJSON(key) {
   }
 }
 
-/* =========================================================
-   EXTRACT PATIENT COLLECTION
-========================================================= */
-
 function extractPatientCollection(data) {
   if (!data) {
     return [];
   }
 
-  /*
-   * Direct array
-   */
-
   if (Array.isArray(data)) {
     return data.filter(isPatientRecord);
   }
 
-  /*
-   * Object
-   */
-
   if (typeof data !== "object") {
     return [];
   }
-
-  /*
-   * Common patient array property names.
-   */
 
   const preferredProperties = [
     "patients",
@@ -575,20 +489,11 @@ function extractPatientCollection(data) {
         return patients;
       }
 
-      /*
-       * If the property exists and is an empty array,
-       * it means there are currently zero patients.
-       */
-
       if (data[property].length === 0) {
         return [];
       }
     }
   }
-
-  /*
-   * Object keyed by patient ID.
-   */
 
   const objectValues = Object.values(data);
 
@@ -597,10 +502,6 @@ function extractPatientCollection(data) {
   if (directPatientValues.length > 0) {
     return directPatientValues;
   }
-
-  /*
-   * Recursive fallback.
-   */
 
   let bestNestedCollection = [];
 
@@ -618,10 +519,6 @@ function extractPatientCollection(data) {
 
   return bestNestedCollection;
 }
-
-/* =========================================================
-   IDENTIFY PATIENT RECORD
-========================================================= */
 
 function isPatientRecord(record) {
   if (!record || typeof record !== "object" || Array.isArray(record)) {
@@ -660,10 +557,6 @@ function isPatientRecord(record) {
   });
 }
 
-/* =========================================================
-   REMOVE DUPLICATE PATIENTS
-========================================================= */
-
 function removeDuplicatePatients(patients) {
   const unique = [];
   const seen = new Set();
@@ -685,10 +578,6 @@ function removeDuplicatePatients(patients) {
 
   return unique;
 }
-
-/* =========================================================
-   PATIENT IDENTITY
-========================================================= */
 
 function getPatientIdentity(patient) {
   const patientId =
@@ -730,9 +619,48 @@ function getPatientIdentity(patient) {
   return `record:${JSON.stringify(patient)}`;
 }
 
-/* =========================================================
-   TRANSACTIONS
-========================================================= */
+function getStoredInventory() {
+  try {
+    const stored = localStorage.getItem(INVENTORY_STORAGE_KEY);
+
+    if (!stored) {
+      return [];
+    }
+
+    const parsed = JSON.parse(stored);
+
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed
+      .filter((item) => item && typeof item === "object")
+      .map((item) => {
+        const stock = Number(item.stock) || 0;
+
+        const minimum = Number(item.minimum) || 0;
+
+        let status = "normal";
+
+        if (stock <= 0) {
+          status = "out";
+        } else if (stock <= minimum) {
+          status = "low";
+        }
+
+        return {
+          ...item,
+          stock,
+          minimum,
+          status,
+        };
+      });
+  } catch (error) {
+    console.error("Unable to read inventory from localStorage:", error);
+
+    return [];
+  }
+}
 
 function getStoredTransactions() {
   try {
@@ -752,10 +680,6 @@ function getStoredTransactions() {
   }
 }
 
-/* =========================================================
-   RENDER DASHBOARD
-========================================================= */
-
 function renderDashboard() {
   loadDashboardData();
 
@@ -767,10 +691,6 @@ function renderDashboard() {
 
   renderInventoryAlerts();
 }
-
-/* =========================================================
-   SUMMARY CARDS
-========================================================= */
 
 function updateSummaryCards() {
   const totalPatients = getTotalPatients();
@@ -809,10 +729,6 @@ function updateSummaryCards() {
   updateClinicSummary(todayAppointments);
 }
 
-/* =========================================================
-   TODAY'S CLINIC SUMMARY
-========================================================= */
-
 function updateClinicSummary(todayAppointments) {
   const scheduledCount = todayAppointments.filter(
     (appointment) => appointment.status === "scheduled",
@@ -841,20 +757,7 @@ function updateClinicSummary(todayAppointments) {
   setText("summaryCompleted", formatNumber(completedCount));
 }
 
-/* =========================================================
-   PATIENTS
-========================================================= */
-
 function getTotalPatients() {
-  /*
-   * dashboardData.patients is loaded directly from:
-   *
-   *     dentanueva_patients
-   *
-   * Therefore the Dashboard patient count always matches
-   * the Patients page records.
-   */
-
   return Array.isArray(dashboardData.patients)
     ? dashboardData.patients.length
     : 0;
@@ -872,10 +775,6 @@ function updatePatientTrend() {
   element.textContent = "Patients in System";
 }
 
-/* =========================================================
-   TODAY'S APPOINTMENTS
-========================================================= */
-
 function getTodayAppointments() {
   const today = getTodayDate();
 
@@ -884,19 +783,11 @@ function getTodayAppointments() {
   );
 }
 
-/* =========================================================
-   EXCLUDED STATUS
-========================================================= */
-
 function isExcludedFromToday(status) {
   const normalized = normalizeAppointmentStatus(status);
 
   return normalized === "cancelled" || normalized === "no-show";
 }
-
-/* =========================================================
-   UPCOMING APPOINTMENTS
-========================================================= */
 
 function renderUpcomingAppointments() {
   const container = document.getElementById("appointmentsList");
@@ -931,10 +822,6 @@ function renderUpcomingAppointments() {
     .map((appointment) => createAppointmentHTML(appointment))
     .join("");
 }
-
-/* =========================================================
-   APPOINTMENT HTML
-========================================================= */
 
 function createAppointmentHTML(appointment) {
   const initials = getInitials(appointment.patientName);
@@ -1003,10 +890,6 @@ function createAppointmentHTML(appointment) {
   `;
 }
 
-/* =========================================================
-   STATUS LABEL
-========================================================= */
-
 function getAppointmentStatusLabel(status) {
   switch (normalizeAppointmentStatus(status)) {
     case "scheduled":
@@ -1034,10 +917,6 @@ function getAppointmentStatusLabel(status) {
       return "Scheduled";
   }
 }
-
-/* =========================================================
-   DISPLAY TIME
-========================================================= */
 
 function formatDisplayTime(value) {
   if (!value) {
@@ -1078,10 +957,6 @@ function formatDisplayTime(value) {
 
   return text;
 }
-
-/* =========================================================
-   DENTIST AVAILABILITY
-========================================================= */
 
 function renderDentistAvailability() {
   const container = document.getElementById("dentistList");
@@ -1177,10 +1052,6 @@ function getDentistStatus(status) {
   }
 }
 
-/* =========================================================
-   INVENTORY
-========================================================= */
-
 function renderInventoryAlerts() {
   const container = document.getElementById("inventoryAlerts");
 
@@ -1189,12 +1060,15 @@ function renderInventoryAlerts() {
   }
 
   const alerts = dashboardData.inventory
-    .filter(
-      (item) =>
-        item.status === "low" ||
-        item.status === "critical" ||
-        item.status === "out",
-    )
+    .filter((item) => {
+      const status = getInventoryStatus(item.status);
+
+      return (
+        status.key === "low" ||
+        status.key === "critical" ||
+        status.key === "out"
+      );
+    })
     .sort(
       (a, b) => getInventoryPriority(b.status) - getInventoryPriority(a.status),
     );
@@ -1217,10 +1091,14 @@ function renderInventoryAlerts() {
 function createInventoryHTML(item) {
   const status = getInventoryStatus(item.status);
 
+  const quantity = Number(item.stock) || 0;
+
+  const minimum = Number(item.minimum) || 0;
+
   return `
     <div
       class="inv-item"
-      data-inventory-id="${item.id}"
+      data-inventory-id="${escapeHTML(item.id)}"
       role="button"
       tabindex="0"
     >
@@ -1238,8 +1116,8 @@ function createInventoryHTML(item) {
           </div>
 
           <div class="inv-sub">
-            ${item.quantity} remaining
-            • Minimum: ${item.minimum}
+            ${quantity} remaining
+            • Minimum: ${minimum}
           </div>
 
         </div>
@@ -1255,9 +1133,10 @@ function createInventoryHTML(item) {
 }
 
 function getInventoryStatus(status) {
-  switch (status) {
+  switch (String(status || "").toLowerCase()) {
     case "low":
       return {
+        key: "low",
         label: "Low Stock",
         className: "status-low",
         icon: "fa-triangle-exclamation",
@@ -1265,6 +1144,7 @@ function getInventoryStatus(status) {
 
     case "critical":
       return {
+        key: "critical",
         label: "Critical",
         className: "status-critical",
         icon: "fa-circle-exclamation",
@@ -1272,6 +1152,7 @@ function getInventoryStatus(status) {
 
     case "out":
       return {
+        key: "out",
         label: "Out of Stock",
         className: "status-out",
         icon: "fa-circle-xmark",
@@ -1279,6 +1160,7 @@ function getInventoryStatus(status) {
 
     default:
       return {
+        key: "normal",
         label: "Normal",
         className: "badge-confirmed",
         icon: "fa-circle-check",
@@ -1287,7 +1169,7 @@ function getInventoryStatus(status) {
 }
 
 function getInventoryPriority(status) {
-  switch (status) {
+  switch (String(status || "").toLowerCase()) {
     case "out":
       return 3;
 
@@ -1301,10 +1183,6 @@ function getInventoryPriority(status) {
       return 0;
   }
 }
-
-/* =========================================================
-   REVENUE
-========================================================= */
 
 function getTodayPaidTransactions() {
   const today = getTodayDate();
@@ -1371,10 +1249,6 @@ function updateMonthlyRevenueTrend() {
   `;
 }
 
-/* =========================================================
-   APPOINTMENT TREND
-========================================================= */
-
 function updateAppointmentTrend(todayAppointments) {
   const element = document.getElementById("statAppointmentsTrend");
 
@@ -1405,10 +1279,6 @@ function updateAppointmentTrend(todayAppointments) {
   }
 }
 
-/* =========================================================
-   DATE / TIME
-========================================================= */
-
 function updateDateTime() {
   const now = new Date();
 
@@ -1433,10 +1303,6 @@ function updateDateTime() {
     });
   }
 }
-
-/* =========================================================
-   REFRESH
-========================================================= */
 
 function setupRefreshButton() {
   const refreshButton = document.querySelector(".btn-refresh-pill");
@@ -1484,10 +1350,6 @@ async function refreshDashboardData() {
   });
 }
 
-/* =========================================================
-   QUICK ACTIONS
-========================================================= */
-
 function setupQuickActions() {
   const quickActionButtons = document.querySelectorAll(".qa-btn, .qa-btn-pill");
 
@@ -1509,10 +1371,6 @@ function navigateTo(target) {
 
   window.location.href = target;
 }
-
-/* =========================================================
-   APPOINTMENT CLICK
-========================================================= */
 
 function setupAppointmentInteractions() {
   document.addEventListener("click", (event) => {
@@ -1564,10 +1422,6 @@ function openAppointment(appointmentId) {
   window.location.href = url;
 }
 
-/* =========================================================
-   INVENTORY CLICK
-========================================================= */
-
 function setupInventoryInteractions() {
   document.addEventListener("click", (event) => {
     const item = event.target.closest(".inv-item");
@@ -1576,7 +1430,25 @@ function setupInventoryInteractions() {
       return;
     }
 
-    const inventoryId = Number(item.dataset.inventoryId);
+    const inventoryId = item.dataset.inventoryId;
+
+    openInventoryItem(inventoryId);
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+
+    const item = event.target.closest(".inv-item");
+
+    if (!item) {
+      return;
+    }
+
+    event.preventDefault();
+
+    const inventoryId = item.dataset.inventoryId;
 
     openInventoryItem(inventoryId);
   });
@@ -1584,7 +1456,7 @@ function setupInventoryInteractions() {
 
 function openInventoryItem(inventoryId) {
   const inventoryItem = dashboardData.inventory.find(
-    (item) => item.id === inventoryId,
+    (item) => String(item.id) === String(inventoryId),
   );
 
   if (!inventoryItem) {
@@ -1598,10 +1470,6 @@ function openInventoryItem(inventoryId) {
 
   window.location.href = url;
 }
-
-/* =========================================================
-   DENTIST
-========================================================= */
 
 function setupDentistInteractions() {
   document.addEventListener("click", (event) => {
@@ -1625,10 +1493,6 @@ function setupDentistInteractions() {
   });
 }
 
-/* =========================================================
-   EMPTY STATE
-========================================================= */
-
 function createEmptyState(icon, message) {
   return `
     <div class="empty-state">
@@ -1642,10 +1506,6 @@ function createEmptyState(icon, message) {
     </div>
   `;
 }
-
-/* =========================================================
-   NOTIFICATION
-========================================================= */
 
 function showDashboardNotification(message, type = "success") {
   const existing = document.querySelector(".dashboard-notification");
@@ -1683,10 +1543,6 @@ function showDashboardNotification(message, type = "success") {
   }, 2500);
 }
 
-/* =========================================================
-   HELPERS
-========================================================= */
-
 function setText(id, value) {
   const element = document.getElementById(id);
 
@@ -1706,10 +1562,6 @@ function formatCurrency(amount) {
     minimumFractionDigits: 2,
   });
 }
-
-/* =========================================================
-   DATE HELPERS
-========================================================= */
 
 function getTodayDate() {
   return formatDateForComparison(new Date());
@@ -1743,10 +1595,6 @@ function formatDateForComparison(date) {
   return `${year}-${month}-${day}`;
 }
 
-/* =========================================================
-   NORMALIZE DATE
-========================================================= */
-
 function normalizeAppointmentDate(value) {
   if (!value) {
     return "";
@@ -1773,10 +1621,6 @@ function normalizeAppointmentDate(value) {
   return formatDateForComparison(date);
 }
 
-/* =========================================================
-   NORMALIZE TIME
-========================================================= */
-
 function normalizeAppointmentTime(value) {
   if (!value) {
     return "";
@@ -1784,10 +1628,6 @@ function normalizeAppointmentTime(value) {
 
   return String(value).trim();
 }
-
-/* =========================================================
-   FORMAT APPOINTMENT DATE
-========================================================= */
 
 function formatAppointmentDate(dateString) {
   if (!dateString) {
@@ -1821,10 +1661,6 @@ function formatAppointmentDate(dateString) {
   });
 }
 
-/* =========================================================
-   SORT
-========================================================= */
-
 function compareAppointments(a, b) {
   const dateA = getAppointmentTimestamp(a);
 
@@ -1842,10 +1678,6 @@ function getAppointmentTimestamp(appointment) {
 
   return Number.isNaN(timestamp) ? Number.MAX_SAFE_INTEGER : timestamp;
 }
-
-/* =========================================================
-   CONVERT TIME
-========================================================= */
 
 function convertTimeTo24Hour(time) {
   if (!time) {
@@ -1881,10 +1713,6 @@ function convertTimeTo24Hour(time) {
   return `${String(hour).padStart(2, "0")}:${minute}`;
 }
 
-/* =========================================================
-   INITIALS
-========================================================= */
-
 function getInitials(name) {
   if (!name) {
     return "?";
@@ -1898,10 +1726,6 @@ function getInitials(name) {
 
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
-
-/* =========================================================
-   APPOINTMENT BADGE
-========================================================= */
 
 function getAppointmentBadgeClass(status) {
   switch (normalizeAppointmentStatus(status)) {
@@ -1931,10 +1755,6 @@ function getAppointmentBadgeClass(status) {
   }
 }
 
-/* =========================================================
-   SECURITY
-========================================================= */
-
 function escapeHTML(value) {
   if (value === null || value === undefined) {
     return "";
@@ -1947,10 +1767,6 @@ function escapeHTML(value) {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
 }
-
-/* =========================================================
-   GLOBAL DASHBOARD API
-========================================================= */
 
 window.DentalClinicDashboard = {
   data: dashboardData,

@@ -20,11 +20,6 @@
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
     />
 
-    <script
-      src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"
-      onerror="window.__chartLibFailed = true"
-    ></script>
-
     <link rel="stylesheet" href="../../navigation_bar/sidebar.css" />
 
     <link rel="stylesheet" href="inventory.css" />
@@ -70,7 +65,7 @@
                 </button>
               </div>
 
-              <span class="item-count" id="itemCount"> 0 items </span>
+              <span class="item-count" id="itemCount">0 items</span>
             </div>
           </div>
 
@@ -225,171 +220,15 @@
           </div>
 
           <!-- =====================================================
-               PAGE 3 - DEMAND FORECASTING (inventory_chart.js)
+               PAGE 3 - DEMAND FORECASTING
+               Connected later to demand_forecasting.js
                ===================================================== -->
 
           <div
             class="inventory-page-section"
             id="inventoryPage3"
             data-page-section="3"
-          >
-            <section class="forecasting-panel">
-              <div class="forecasting-top">
-                <div class="forecasting-icon">
-                  <i class="fa-solid fa-chart-line"></i>
-                </div>
-
-                <div class="forecasting-content">
-                  <span class="forecasting-label"> DEMAND FORECASTING </span>
-
-                  <h2>Inventory Demand Forecasting</h2>
-
-                  <p>
-                    Historical stock movements are recorded and analyzed to
-                    prepare the inventory data for future demand forecasting.
-                  </p>
-                </div>
-
-                <div class="forecasting-status">
-                  <span class="forecasting-status-dot"></span>
-
-                  <span> Ready for ML Integration </span>
-                </div>
-              </div>
-
-              <!-- FORECAST INFORMATION -->
-
-              <div class="forecasting-info">
-                <div class="forecast-info-card">
-                  <div class="forecast-info-icon">
-                    <i class="fa-solid fa-database"></i>
-                  </div>
-
-                  <div>
-                    <span> Historical Records </span>
-
-                    <strong id="forecastMovementCount"> 0 </strong>
-                  </div>
-                </div>
-
-                <div class="forecast-info-card">
-                  <div class="forecast-info-icon">
-                    <i class="fa-solid fa-arrow-down"></i>
-                  </div>
-
-                  <div>
-                    <span> Usage Records </span>
-
-                    <strong id="forecastUsageCount"> 0 </strong>
-                  </div>
-                </div>
-
-                <div class="forecast-info-card">
-                  <div class="forecast-info-icon">
-                    <i class="fa-solid fa-chart-simple"></i>
-                  </div>
-
-                  <div>
-                    <span> Items With Data </span>
-
-                    <strong id="forecastItemsWithData"> 0 </strong>
-                  </div>
-                </div>
-
-                <div class="forecast-info-card">
-                  <div class="forecast-info-icon">
-                    <i class="fa-solid fa-calendar-days"></i>
-                  </div>
-
-                  <div>
-                    <span> Forecast Method </span>
-
-                    <strong> Moving Average </strong>
-                  </div>
-                </div>
-              </div>
-
-              <!-- =================================================
-                   VISUAL BASIS
-                   ================================================= -->
-
-              <div class="forecast-chart-card">
-                <div class="prototype-header">
-                  <div>
-                    <span class="prototype-label"> VISUAL BASIS </span>
-
-                    <h3>Average Usage vs. Estimated Next Period</h3>
-
-                    <p>
-                      This chart plots the same numbers shown in the table
-                      below, so you can see visually why each estimate came out
-                      the way it did.
-                    </p>
-                  </div>
-
-                  <div class="chart-toggle" id="chartToggle">
-                    <button
-                      type="button"
-                      class="chart-toggle-btn active"
-                      data-chart-mode="bar"
-                    >
-                      <i class="fa-solid fa-chart-column"></i>
-
-                      Bar
-                    </button>
-
-                    <button
-                      type="button"
-                      class="chart-toggle-btn"
-                      data-chart-mode="line"
-                    >
-                      <i class="fa-solid fa-chart-line"></i>
-
-                      Trend
-                    </button>
-                  </div>
-                </div>
-
-                <div class="chart-canvas-wrapper">
-                  <canvas id="forecastChart" height="110"></canvas>
-
-                  <div class="forecast-empty" id="chartEmpty" hidden>
-                    <i class="fa-solid fa-chart-simple" id="chartEmptyIcon"></i>
-
-                    <h3 id="chartEmptyTitle">No chart data yet</h3>
-
-                    <p id="chartEmptyText">
-                      Record at least one stock-out movement so the chart has
-                      something to plot.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <!-- =================================================
-                   FUTURE MACHINE LEARNING
-                   ================================================= -->
-
-              <div class="ml-integration-note">
-                <div class="ml-note-icon">
-                  <i class="fa-solid fa-microchip"></i>
-                </div>
-
-                <div class="ml-note-content">
-                  <strong> Future Machine Learning Integration </strong>
-
-                  <p>
-                    The current system collects historical inventory movement
-                    data. In the future, this data can be processed by a machine
-                    learning model to generate demand forecasts and support
-                    inventory planning.
-                  </p>
-                </div>
-
-                <span class="ml-note-status"> Future Feature </span>
-              </div>
-            </section>
-          </div>
+          ></div>
         </section>
 
         <!-- =====================================================
@@ -460,7 +299,7 @@
 
           <div class="form-grid">
             <div class="form-group form-full">
-              <label for="itemName"> Item Name </label>
+              <label for="itemName">Item Name</label>
 
               <input
                 type="text"
@@ -471,7 +310,7 @@
             </div>
 
             <div class="form-group">
-              <label for="itemCategory"> Category </label>
+              <label for="itemCategory">Category</label>
 
               <select id="itemCategory" required>
                 <option value="">Select category</option>
@@ -493,7 +332,7 @@
             </div>
 
             <div class="form-group">
-              <label for="itemUnit"> Unit </label>
+              <label for="itemUnit">Unit</label>
 
               <input
                 type="text"
@@ -504,7 +343,7 @@
             </div>
 
             <div class="form-group">
-              <label for="itemStock"> Current Stock </label>
+              <label for="itemStock">Current Stock</label>
 
               <input
                 type="number"
@@ -517,7 +356,7 @@
             </div>
 
             <div class="form-group">
-              <label for="itemMinimum"> Minimum Stock </label>
+              <label for="itemMinimum">Minimum Stock</label>
 
               <input
                 type="number"
@@ -530,7 +369,7 @@
             </div>
 
             <div class="form-group">
-              <label for="itemSupplier"> Supplier </label>
+              <label for="itemSupplier">Supplier</label>
 
               <input
                 type="text"
@@ -540,7 +379,7 @@
             </div>
 
             <div class="form-group">
-              <label for="itemExpiry"> Expiry Date </label>
+              <label for="itemExpiry">Expiry Date</label>
 
               <input type="date" id="itemExpiry" />
             </div>
@@ -587,7 +426,7 @@
         <form id="movementForm">
           <div class="form-grid">
             <div class="form-group form-full">
-              <label for="movementItem"> Inventory Item </label>
+              <label for="movementItem">Inventory Item</label>
 
               <select id="movementItem" required>
                 <option value="">Select item</option>
@@ -595,7 +434,7 @@
             </div>
 
             <div class="form-group">
-              <label for="movementType"> Movement Type </label>
+              <label for="movementType">Movement Type</label>
 
               <select id="movementType" required>
                 <option value="stock-in">Stock In</option>
@@ -605,7 +444,7 @@
             </div>
 
             <div class="form-group">
-              <label for="movementQuantity"> Quantity </label>
+              <label for="movementQuantity">Quantity</label>
 
               <input
                 type="number"
@@ -618,7 +457,7 @@
             </div>
 
             <div class="form-group form-full">
-              <label for="movementReason"> Reason </label>
+              <label for="movementReason">Reason</label>
 
               <input
                 type="text"
@@ -670,9 +509,13 @@
         Delete Item
       </button>
     </div>
+
     <script src="../../navigation_bar/sidebar.js"></script>
+
     <script src="inventory.js"></script>
+
     <script src="moving_average.js"></script>
-    <script src="inventory_chart.js"></script>
+
+    <script src="demand_forecasting.js"></script>
   </body>
 </html>

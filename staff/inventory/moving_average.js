@@ -15,21 +15,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const refreshForecastBtn = document.getElementById("refreshForecastBtn");
 
-  /*
-   * =========================================================
-   * REMOVE REFRESH BUTTON
-   * =========================================================
-   */
-
   if (refreshForecastBtn) {
     refreshForecastBtn.remove();
   }
-
-  /*
-   * =========================================================
-   * PAGE 2 HEADER UPDATE
-   * =========================================================
-   */
 
   const forecastingPrototype = document.querySelector(
     "#inventoryPage2 .forecasting-prototype",
@@ -124,12 +112,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  /*
-   * =========================================================
-   * TABLE HEADER UPDATES
-   * =========================================================
-   */
-
   const forecastTable = document.querySelector(
     "#inventoryPage2 .forecast-table",
   );
@@ -176,12 +158,6 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
   }
-
-  /*
-   * =========================================================
-   * DATE HELPERS
-   * =========================================================
-   */
 
   function getValidDate(dateValue) {
     if (!dateValue) {
@@ -238,31 +214,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  /*
-   * =========================================================
-   * GET LATEST 3 CALENDAR MONTHS
-   * =========================================================
-   *
-   * Example:
-   *
-   * August 2026
-   *
-   * June 2026
-   * July 2026
-   * August 2026
-   *
-   * These 3 months are used to forecast September 2026.
-   *
-   * When September arrives:
-   *
-   * July 2026
-   * August 2026
-   * September 2026
-   *
-   * These 3 months are then used to forecast October 2026.
-   * =========================================================
-   */
-
   function getLatestThreeMonthKeys() {
     const now = new Date();
 
@@ -280,12 +231,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     return monthKeys;
   }
-
-  /*
-   * =========================================================
-   * BUILD MONTHLY HISTORICAL DATA
-   * =========================================================
-   */
 
   function buildHistoricalData() {
     const items = shared.getItems();
@@ -344,11 +289,6 @@ document.addEventListener("DOMContentLoaded", () => {
         return latestThreeMonths.includes(monthKey);
       }).length;
 
-      /*
-       * The forecast becomes available only when all 3 months
-       * contain actual usage data.
-       */
-
       const hasThreeMonthsOfData = monthsWithUsage === latestThreeMonths.length;
 
       return {
@@ -367,12 +307,6 @@ document.addEventListener("DOMContentLoaded", () => {
       };
     });
   }
-
-  /*
-   * =========================================================
-   * DYNAMIC PAGE 2 STYLES
-   * =========================================================
-   */
 
   if (!document.getElementById("historicalUsagePageStyles")) {
     const style = document.createElement("style");
@@ -893,12 +827,6 @@ document.addEventListener("DOMContentLoaded", () => {
     document.head.appendChild(style);
   }
 
-  /*
-   * =========================================================
-   * HISTORY MODAL
-   * =========================================================
-   */
-
   let historyModal = null;
 
   let activeHistoryItemId = null;
@@ -990,12 +918,6 @@ document.addEventListener("DOMContentLoaded", () => {
     return historyModal;
   }
 
-  /*
-   * =========================================================
-   * FORMAT HISTORY DATE
-   * =========================================================
-   */
-
   function formatHistoryDate(dateString) {
     const date = getValidDate(dateString);
 
@@ -1011,12 +933,6 @@ document.addEventListener("DOMContentLoaded", () => {
       minute: "2-digit",
     });
   }
-
-  /*
-   * =========================================================
-   * OPEN HISTORY MODAL
-   * =========================================================
-   */
 
   function openHistoryModal(itemId) {
     const item = shared
@@ -1292,12 +1208,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 50);
   }
 
-  /*
-   * =========================================================
-   * CLOSE HISTORY MODAL
-   * =========================================================
-   */
-
   function closeHistoryModal() {
     if (!historyModal) {
       return;
@@ -1309,12 +1219,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     activeHistoryItemId = null;
   }
-
-  /*
-   * =========================================================
-   * RENDER FORECAST
-   * =========================================================
-   */
 
   function renderForecast() {
     const historicalData = buildHistoricalData();
@@ -1450,12 +1354,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  /*
-   * =========================================================
-   * HISTORY BUTTON CLICK
-   * =========================================================
-   */
-
   if (forecastTableBody) {
     forecastTableBody.addEventListener("click", (event) => {
       const historyButton = event.target.closest(".forecast-history-btn");
@@ -1474,12 +1372,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  /*
-   * =========================================================
-   * CROSS-TAB UPDATES
-   * =========================================================
-   */
-
   window.addEventListener("storage", (event) => {
     if (event.key === shared.ITEMS_KEY || event.key === shared.MOVEMENTS_KEY) {
       renderForecast();
@@ -1494,12 +1386,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  /*
-   * =========================================================
-   * SAME-TAB UPDATES
-   * =========================================================
-   */
-
   window.addEventListener(shared.DATA_CHANGED_EVENT, () => {
     renderForecast();
 
@@ -1512,23 +1398,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  /*
-   * =========================================================
-   * ESCAPE KEY
-   * =========================================================
-   */
-
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       closeHistoryModal();
     }
   });
-
-  /*
-   * =========================================================
-   * INITIAL RENDER
-   * =========================================================
-   */
 
   renderForecast();
 });

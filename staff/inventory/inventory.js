@@ -253,12 +253,6 @@ window.InventoryShared = (function () {
       );
   }
 
-  /*
-   * Dispatched every time items or movements are added, edited,
-   * or deleted on Page 1. moving_average.js and inventory_chart.js
-   * both listen for this so Page 2 and Page 3 stay in sync even
-   * though their code now lives in separate files.
-   */
   function notifyDataChanged() {
     window.dispatchEvent(new CustomEvent(DATA_CHANGED_EVENT));
   }
@@ -290,20 +284,6 @@ window.InventoryShared = (function () {
   };
 })();
 
-/* =============================================================
-   PAGE NAVIGATION (1 / 2 / 3)
-   -------------------------------------------------------------
-   Shared across all three inventory pages. Lives here because
-   it controls which of the three sections (defined in
-   inventory.html) is visible, regardless of which file owns
-   that section's data.
-
-   NOTE: The ".panel-header" (Inventory Items title, description,
-   item count, Stock Movement button, Add Item button) is only
-   meant to be shown on Page 1. It is now hidden automatically
-   whenever Page 2 or Page 3 is active, and shown again when the
-   user goes back to Page 1.
-   ============================================================= */
 document.addEventListener("DOMContentLoaded", () => {
   const navButtons = document.querySelectorAll(".inventory-page-btn");
   const pageSections = document.querySelectorAll("[data-page-section]");
@@ -341,9 +321,6 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-/* =============================================================
-   PAGE 1 — INVENTORY ITEMS
-   ============================================================= */
 document.addEventListener("DOMContentLoaded", () => {
   const shared = window.InventoryShared;
 
@@ -707,6 +684,16 @@ document.addEventListener("DOMContentLoaded", () => {
   const itemSupplier = document.getElementById("itemSupplier");
   const itemExpiry = document.getElementById("itemExpiry");
 
+  if (itemSupplier) {
+    itemSupplier.removeAttribute("required");
+    itemSupplier.setAttribute("aria-required", "false");
+  }
+
+  if (itemExpiry) {
+    itemExpiry.removeAttribute("required");
+    itemExpiry.setAttribute("aria-required", "false");
+  }
+
   const movementModal = document.getElementById("movementModal");
 
   const movementModalClose = document.getElementById("movementModalClose");
@@ -725,12 +712,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const actionMenu = document.getElementById("actionMenu");
 
-  /*
-   * Added only for the requested Item Details feature.
-   * The modal itself is generated through JavaScript so your
-   * existing inventory.html and inventory.css do not need to
-   * be changed.
-   */
   let itemDetailsModal = null;
 
   let selectedActionItemId = null;
@@ -1243,9 +1224,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
       itemMinimum.value = item.minimum;
 
-      itemSupplier.value = item.supplier || "";
+      if (itemSupplier) {
+        itemSupplier.value = item.supplier || "";
+      }
 
-      itemExpiry.value = item.expiry || "";
+      if (itemExpiry) {
+        itemExpiry.value = item.expiry || "";
+      }
     } else {
       itemModalTitle.textContent = "Add Inventory Item";
 
@@ -1330,9 +1315,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const minimum = Number(itemMinimum.value);
 
-    const supplier = itemSupplier.value.trim();
+    const supplier = itemSupplier ? itemSupplier.value.trim() : "";
 
-    const expiry = itemExpiry.value;
+    const expiry = itemExpiry ? itemExpiry.value : "";
 
     if (!name) {
       alert("Please enter the item name.");
@@ -1616,17 +1601,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     selectedActionItemId = null;
   }
-
-  /*
-   * =========================================================
-   * ITEM DETAILS MODAL
-   * =========================================================
-   *
-   * This is the only new major feature.
-   *
-   * It is generated dynamically so the existing HTML does
-   * not have to be changed.
-   */
 
   function injectItemDetailsStyles() {
     if (document.getElementById("inventoryItemDetailsStyles")) {
