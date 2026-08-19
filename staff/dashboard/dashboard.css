@@ -28,8 +28,8 @@
   --purple-500: #7440c9;
   --purple-100: #f1e9fd;
 
-  --radius-lg: 20px;
-  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-md: 11px;
   --radius-sm: 8px;
 
   --shadow-card: 0 2px 10px rgba(20, 40, 30, 0.05);
@@ -68,6 +68,12 @@ button {
   background: none;
 }
 
+button:focus-visible,
+a:focus-visible {
+  outline: 3px solid rgba(22, 128, 61, 0.16);
+  outline-offset: 2px;
+}
+
 .dashboard-layout {
   display: flex;
   width: 100%;
@@ -81,7 +87,7 @@ button {
   width: 100%;
   max-width: 1440px;
   margin: 0 auto;
-  padding: 32px 36px 48px;
+  padding: 30px 34px 46px;
 }
 
 /* =========================================================
@@ -93,7 +99,7 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  margin-bottom: 28px;
+  margin-bottom: 25px;
 }
 
 .dash-header-left {
@@ -111,26 +117,26 @@ button {
 .page-eyebrow {
   display: inline-block;
   margin-bottom: 6px;
-  font-size: 10.5px;
+  font-size: 10px;
   line-height: 1;
   font-weight: 700;
-  letter-spacing: 1.3px;
+  letter-spacing: 1.2px;
   color: var(--green-700);
 }
 
 .dashboard-title {
   font-family: var(--font-display);
-  font-size: 28px;
+  font-size: 27px;
   line-height: 1.25;
   font-weight: 700;
   color: var(--ink-900);
-  letter-spacing: -0.3px;
+  letter-spacing: -0.35px;
 }
 
 .dashboard-subtitle {
   margin-top: 5px;
   color: var(--ink-500);
-  font-size: 13px;
+  font-size: 12.5px;
   line-height: 1.5;
   font-weight: 500;
 }
@@ -144,7 +150,7 @@ button {
 .header-action-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 9px;
   flex-wrap: wrap;
 }
 
@@ -154,19 +160,19 @@ button {
   background: var(--white);
   border: 1px solid var(--ink-100);
   border-radius: 999px;
-  padding: 6px 11px;
+  padding: 5px 10px 5px 6px;
   box-shadow: var(--shadow-card);
 }
 
 .datetime-pill-content {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
 }
 
 .datetime-icon-wrap {
-  width: 30px;
-  height: 30px;
+  width: 29px;
+  height: 29px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -174,15 +180,15 @@ button {
   border-radius: 50%;
   background: var(--green-50);
   color: var(--green-700);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .datetime-text-group {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
   white-space: nowrap;
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--ink-900);
 }
@@ -199,20 +205,21 @@ button {
 .header-quick-actions {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
 }
 
 .qa-btn-pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  padding: 9px 13px;
-  border-radius: 999px;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 9px;
   background: var(--white);
   border: 1px solid var(--green-100);
   color: var(--green-700);
-  font-size: 11.5px;
+  font-size: 10.5px;
   font-weight: 600;
   white-space: nowrap;
   box-shadow: var(--shadow-card);
@@ -224,53 +231,53 @@ button {
 }
 
 .qa-btn-pill i {
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .qa-btn-pill:hover {
   background: var(--green-50);
-  border-color: var(--green-100);
+  border-color: #cfe6d6;
   transform: translateY(-1px);
   box-shadow: var(--shadow-hover);
 }
 
 /* =========================================================
    STAT CARDS
-   ONLY THIS SECTION WAS CHANGED
 ========================================================= */
 
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
-  margin-bottom: 22px;
+  gap: 14px;
+  margin-bottom: 20px;
 }
 
 .stat-card {
   display: flex;
   align-items: flex-start;
   min-width: 0;
-  padding: 19px;
+  min-height: 112px;
+  padding: 17px 18px;
   background: var(--white);
   border: 1px solid var(--ink-100);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card);
   transition:
     transform 0.18s ease,
-    box-shadow 0.18s ease;
+    box-shadow 0.18s ease,
+    border-color 0.18s ease;
 }
 
 .stat-card:hover {
   transform: translateY(-2px);
+  border-color: #dbe6df;
   box-shadow: var(--shadow-hover);
 }
 
-/* Icons are intentionally removed from the four stat cards */
 .stat-icon {
   display: none;
 }
 
-/* Stat content */
 .stat-body {
   display: flex;
   flex-direction: column;
@@ -278,27 +285,24 @@ button {
   gap: 2px;
 }
 
-/* Keep the main labels unchanged */
 .stat-label {
   color: var(--ink-500);
-  font-size: 11.5px;
+  font-size: 10.5px;
+  line-height: 1.4;
   font-weight: 600;
 }
 
-/* Keep the values unchanged */
 .stat-value {
+  margin-top: 2px;
   font-family: var(--font-display);
-  font-size: 23px;
+  font-size: 22px;
   line-height: 1.25;
   font-weight: 600;
   color: var(--ink-900);
   white-space: nowrap;
+  letter-spacing: -0.2px;
 }
 
-/*
-   ALL FOUR SMALL TEXTS ARE NOW
-   CONSISTENT GREEN
-*/
 .stat-trend,
 .stat-trend.up,
 .stat-trend.neutral,
@@ -310,19 +314,19 @@ button {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  margin-top: 1px;
-  font-size: 10.5px;
+  margin-top: 2px;
+  font-size: 9.5px;
+  line-height: 1.4;
   font-weight: 500;
   color: var(--green-700) !important;
 }
 
-/* No icon is used in August revenue anymore */
 #statMonthlyRevenueTrend i {
   display: none;
 }
 
 /* =========================================================
-   TWO COLUMN
+   TWO COLUMN LAYOUT
 ========================================================= */
 
 .two-col-grid {
@@ -330,19 +334,19 @@ button {
   grid-template-columns:
     minmax(0, 1.15fr)
     minmax(0, 0.85fr);
-  gap: 18px;
+  gap: 16px;
   align-items: start;
 }
 
 .stacked-panel-column {
   display: grid;
   grid-template-rows: auto;
-  gap: 18px;
+  gap: 16px;
   min-width: 0;
 }
 
 /* =========================================================
-   PANEL
+   PANELS
 ========================================================= */
 
 .panel {
@@ -366,8 +370,10 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  padding: 18px 20px;
+  min-height: 69px;
+  padding: 16px 18px;
   border-bottom: 1px solid var(--ink-100);
+  background: #ffffff;
 }
 
 .panel-heading {
@@ -376,7 +382,7 @@ button {
 
 .panel-header h3 {
   font-family: var(--font-display);
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--ink-900);
   line-height: 1.3;
@@ -384,13 +390,14 @@ button {
 
 .panel-subtitle {
   margin-top: 3px;
-  font-size: 11px;
+  font-size: 10px;
+  line-height: 1.4;
   color: var(--ink-500);
   font-weight: 500;
 }
 
 .panel-body {
-  padding: 16px 20px;
+  padding: 14px 18px 17px;
 }
 
 .btn-link {
@@ -399,7 +406,7 @@ button {
   gap: 5px;
   flex-shrink: 0;
   color: var(--green-700);
-  font-size: 11.5px;
+  font-size: 10.5px;
   font-weight: 600;
   transition:
     color 0.15s ease,
@@ -418,8 +425,8 @@ button {
 .appt-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px;
+  gap: 11px;
+  padding: 10px 11px;
   background: var(--white);
   border: 1px solid var(--ink-100);
   border-radius: var(--radius-md);
@@ -431,7 +438,7 @@ button {
 }
 
 .appt-item + .appt-item {
-  margin-top: 8px;
+  margin-top: 7px;
 }
 
 .appt-item:hover {
@@ -441,8 +448,8 @@ button {
 }
 
 .appt-avatar {
-  width: 40px;
-  height: 40px;
+  width: 38px;
+  height: 38px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -450,7 +457,7 @@ button {
   border-radius: 50%;
   background: var(--green-100);
   color: var(--green-700);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
 }
 
@@ -462,7 +469,8 @@ button {
 .appt-name {
   overflow: hidden;
   color: var(--ink-900);
-  font-size: 12.5px;
+  font-size: 11.5px;
+  line-height: 1.35;
   font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -471,7 +479,8 @@ button {
 .appt-meta {
   margin-top: 3px;
   color: var(--ink-500);
-  font-size: 10.5px;
+  font-size: 9.5px;
+  line-height: 1.4;
 }
 
 .appt-meta strong {
@@ -481,7 +490,8 @@ button {
 .appt-service {
   margin-top: 2px;
   color: var(--ink-500);
-  font-size: 10.5px;
+  font-size: 9.5px;
+  line-height: 1.4;
 }
 
 /* =========================================================
@@ -492,10 +502,12 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 4px 8px;
+  min-height: 22px;
+  padding: 3px 7px;
   border-radius: 999px;
   white-space: nowrap;
-  font-size: 9.5px;
+  font-size: 8.5px;
+  line-height: 1;
   font-weight: 700;
 }
 
@@ -535,20 +547,20 @@ button {
 }
 
 /* =========================================================
-   DENTIST
+   DENTIST AVAILABILITY
 ========================================================= */
 
 .dentist-item {
   display: flex;
   align-items: center;
-  gap: 11px;
-  padding: 10px 11px;
+  gap: 10px;
+  padding: 9px 10px;
   border-radius: var(--radius-md);
   transition: background 0.15s ease;
 }
 
 .dentist-item + .dentist-item {
-  margin-top: 5px;
+  margin-top: 4px;
 }
 
 .dentist-item:hover {
@@ -556,8 +568,8 @@ button {
 }
 
 .dentist-avatar {
-  width: 40px;
-  height: 40px;
+  width: 38px;
+  height: 38px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -565,7 +577,7 @@ button {
   border-radius: 50%;
   background: var(--green-700);
   color: var(--white);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
 }
 
@@ -577,7 +589,8 @@ button {
 .dentist-name {
   overflow: hidden;
   color: var(--ink-900);
-  font-size: 12.5px;
+  font-size: 11.5px;
+  line-height: 1.35;
   font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -586,16 +599,19 @@ button {
 .dentist-spec {
   margin-top: 2px;
   color: var(--ink-500);
-  font-size: 10.5px;
+  font-size: 9.5px;
+  line-height: 1.4;
 }
 
 .dentist-status {
   display: inline-flex;
   align-items: center;
-  padding: 4px 8px;
+  min-height: 22px;
+  padding: 3px 7px;
   border-radius: 999px;
   white-space: nowrap;
-  font-size: 9.5px;
+  font-size: 8.5px;
+  line-height: 1;
   font-weight: 700;
 }
 
@@ -643,7 +659,7 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 11px 12px;
+  padding: 10px 11px;
   background: var(--white);
   border: 1px solid var(--ink-100);
   border-radius: var(--radius-md);
@@ -653,7 +669,7 @@ button {
 }
 
 .inv-item + .inv-item {
-  margin-top: 8px;
+  margin-top: 7px;
 }
 
 .inv-item:hover {
@@ -664,13 +680,13 @@ button {
 .inv-left {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 9px;
   min-width: 0;
 }
 
 .inv-icon {
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -678,7 +694,7 @@ button {
   border-radius: var(--radius-sm);
   background: var(--amber-100);
   color: var(--amber-500);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .inv-info {
@@ -688,7 +704,8 @@ button {
 .inv-name {
   overflow: hidden;
   color: var(--ink-900);
-  font-size: 12px;
+  font-size: 11px;
+  line-height: 1.35;
   font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -697,7 +714,8 @@ button {
 .inv-sub {
   margin-top: 2px;
   color: var(--ink-500);
-  font-size: 10.5px;
+  font-size: 9.5px;
+  line-height: 1.4;
 }
 
 .status-low {
@@ -722,13 +740,15 @@ button {
 .clinic-summary-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 9px;
 }
+
 .summary-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px;
+  gap: 9px;
+  min-height: 66px;
+  padding: 10px;
   background: var(--bg);
   border: 1px solid var(--ink-100);
   border-radius: var(--radius-md);
@@ -737,32 +757,38 @@ button {
     transform 0.15s ease,
     border-color 0.15s ease;
 }
+
 .summary-item:hover {
   background: var(--green-50);
   transform: translateY(-1px);
   border-color: var(--green-100);
 }
+
 .summary-clickable {
   cursor: pointer;
 }
+
 .summary-icon {
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  border-radius: 10px;
-  font-size: 13px;
+  border-radius: 9px;
+  font-size: 12px;
 }
+
 .summary-waiting {
   background: var(--amber-100);
   color: var(--amber-500);
 }
+
 .summary-checkin {
   background: var(--blue-100);
   color: var(--blue-500);
 }
+
 .summary-consultation {
   background: var(--green-100);
   color: var(--green-700);
@@ -772,57 +798,77 @@ button {
   background: var(--purple-100);
   color: var(--purple-500);
 }
+
 .summary-content {
   min-width: 0;
 }
+
 .summary-label {
   display: block;
   margin-bottom: 2px;
   color: var(--ink-500);
-  font-size: 10px;
+  font-size: 9px;
+  line-height: 1.3;
   font-weight: 600;
 }
+
 .summary-value {
   display: block;
   color: var(--ink-900);
   font-family: var(--font-display);
-  font-size: 17px;
-  font-weight: 700;
+  font-size: 16px;
   line-height: 1.2;
+  font-weight: 700;
 }
+
+/* =========================================================
+   EMPTY STATE
+========================================================= */
+
 .empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 32px 18px;
+  padding: 30px 18px;
   color: var(--ink-500);
 }
+
 .empty-state i {
-  margin-bottom: 9px;
+  margin-bottom: 8px;
   color: var(--green-400);
-  font-size: 24px;
+  font-size: 22px;
 }
+
 .empty-state p {
-  font-size: 12px;
+  font-size: 11px;
+  line-height: 1.5;
   font-weight: 500;
 }
+
+/* =========================================================
+   DASHBOARD NOTIFICATION
+========================================================= */
+
 .dashboard-notification {
   position: fixed;
-  right: 24px;
-  bottom: 24px;
+  right: 22px;
+  bottom: 22px;
   z-index: 9999;
   display: flex;
   align-items: center;
   gap: 9px;
-  padding: 12px 16px;
-  border-radius: 12px;
+  min-width: 220px;
+  max-width: 360px;
+  padding: 11px 14px;
+  border-radius: 11px;
   background: var(--white);
   border: 1px solid var(--ink-100);
   box-shadow: 0 12px 30px rgba(20, 40, 30, 0.14);
   color: var(--ink-900);
-  font-size: 12px;
+  font-size: 11px;
+  line-height: 1.4;
   font-weight: 600;
   opacity: 0;
   transform: translateY(10px);
@@ -831,73 +877,95 @@ button {
     opacity 0.2s ease,
     transform 0.2s ease;
 }
+
 .dashboard-notification.show {
   opacity: 1;
   transform: translateY(0);
 }
+
 .dashboard-notification.success i {
   color: var(--green-700);
 }
+
 .dashboard-notification.error i {
   color: var(--red-500);
 }
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
 @media (max-width: 1180px) {
   .main-content {
-    padding: 28px 28px 44px;
+    padding: 27px 28px 42px;
   }
+
   .stats-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
   .two-col-grid {
     grid-template-columns: 1fr;
   }
 }
+
 @media (max-width: 900px) {
   .main-content {
     padding: 24px 20px 40px;
   }
+
   .dash-header {
     align-items: flex-start;
     flex-direction: column;
-    gap: 16px;
+    gap: 15px;
   }
+
   .dash-header-right {
     width: 100%;
   }
+
   .header-action-row {
     width: 100%;
     justify-content: space-between;
   }
 }
+
 @media (max-width: 640px) {
   .dashboard-layout {
     flex-direction: column;
     width: 100%;
   }
+
   .main-content {
     width: 100%;
     max-width: 700px;
     margin: 0 auto;
     padding: 20px 15px 32px;
   }
+
   .stats-grid {
     grid-template-columns: 1fr;
-    gap: 12px;
+    gap: 10px;
   }
+
   .dash-header {
-    margin-bottom: 22px;
+    margin-bottom: 20px;
   }
+
   .dashboard-title {
-    font-size: 24px;
+    font-size: 23px;
   }
+
   .dashboard-subtitle {
-    font-size: 12px;
+    font-size: 11.5px;
   }
+
   .header-action-row {
     flex-direction: column;
     align-items: stretch;
-    gap: 9px;
+    gap: 8px;
   }
+
   .datetime-pill-widget {
     width: 100%;
     justify-content: flex-start;
@@ -906,117 +974,190 @@ button {
     border: none;
     box-shadow: none;
   }
+
   .datetime-icon-wrap {
     display: none;
   }
+
   .datetime-text-group {
-    font-size: 11px;
+    font-size: 10.5px;
   }
+
   .header-quick-actions {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     width: 100%;
     gap: 7px;
   }
+
   .qa-btn-pill {
     width: 100%;
-    padding: 9px 7px;
-    font-size: 10.5px;
+    min-height: 34px;
+    padding: 0 7px;
+    font-size: 10px;
   }
+
   .panel-header {
-    padding: 16px;
+    min-height: 65px;
+    padding: 15px;
     align-items: flex-start;
   }
+
   .panel-body {
-    padding: 14px;
+    padding: 13px 14px 15px;
   }
+
   .clinic-summary-grid {
     grid-template-columns: 1fr;
   }
 }
+
 @media (max-width: 480px) {
   .main-content {
     padding: 17px 12px 28px;
   }
+
   .dashboard-title {
-    font-size: 22px;
-  }
-  .dashboard-subtitle {
-    font-size: 11.5px;
-  }
-  .stats-grid {
-    gap: 10px;
-  }
-  .stat-card {
-    padding: 16px;
-  }
-  .stat-value {
     font-size: 21px;
   }
-  .panel-header {
-    padding: 15px;
-  }
-  .panel-body {
-    padding: 12px;
-  }
-  .panel-header h3 {
-    font-size: 14px;
-  }
-  .panel-subtitle {
-    font-size: 10.5px;
-  }
-  .appt-item {
-    padding: 11px;
-    gap: 9px;
-  }
-  .appt-avatar {
-    width: 36px;
-    height: 36px;
+
+  .dashboard-subtitle {
     font-size: 11px;
   }
-  .appt-name {
-    font-size: 11.5px;
-  }
-  .appt-meta,
-  .appt-service {
-    font-size: 10px;
-  }
-  .badge {
-    font-size: 9px;
-    padding: 4px 6px;
-  }
-  .dentist-item {
-    padding: 9px;
+
+  .stats-grid {
     gap: 9px;
   }
-  .dentist-avatar {
-    width: 36px;
-    height: 36px;
+
+  .stat-card {
+    min-height: 105px;
+    padding: 15px;
   }
-  .dentist-name {
-    font-size: 11.5px;
-  }
-  .dentist-spec {
+
+  .stat-label {
     font-size: 10px;
   }
-  .dentist-status {
-    font-size: 9px;
-    padding: 4px 6px;
+
+  .stat-value {
+    font-size: 20px;
   }
+
+  .stat-trend,
+  .stat-trend.up,
+  .stat-trend.neutral,
+  .stat-trend.down,
+  #statPatientsTrend,
+  #statAppointmentsTrend,
+  #statTodayRevenueTrend,
+  #statMonthlyRevenueTrend {
+    font-size: 9px;
+  }
+
+  .panel-header {
+    padding: 14px;
+  }
+
+  .panel-body {
+    padding: 11px 12px 13px;
+  }
+
+  .panel-header h3 {
+    font-size: 13.5px;
+  }
+
+  .panel-subtitle {
+    font-size: 10px;
+  }
+
+  .appt-item {
+    padding: 10px;
+    gap: 9px;
+  }
+
+  .appt-avatar {
+    width: 35px;
+    height: 35px;
+    font-size: 10px;
+  }
+
+  .appt-name {
+    font-size: 11px;
+  }
+
+  .appt-meta,
+  .appt-service {
+    font-size: 9.5px;
+  }
+
+  .badge {
+    min-height: 21px;
+    font-size: 8px;
+    padding: 3px 6px;
+  }
+
+  .dentist-item {
+    padding: 8px;
+    gap: 9px;
+  }
+
+  .dentist-avatar {
+    width: 35px;
+    height: 35px;
+  }
+
+  .dentist-name {
+    font-size: 11px;
+  }
+
+  .dentist-spec {
+    font-size: 9.5px;
+  }
+
+  .dentist-status {
+    min-height: 21px;
+    font-size: 8px;
+    padding: 3px 6px;
+  }
+
   .inv-item {
+    padding: 9px;
+  }
+
+  .inv-icon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .inv-name {
+    font-size: 11px;
+  }
+
+  .inv-sub {
+    font-size: 9.5px;
+  }
+
+  .summary-item {
+    min-height: 62px;
     padding: 10px;
   }
-  .inv-icon {
-    width: 33px;
-    height: 33px;
+
+  .summary-icon {
+    width: 31px;
+    height: 31px;
   }
-  .inv-name {
-    font-size: 11.5px;
+
+  .summary-label {
+    font-size: 8.5px;
   }
-  .inv-sub {
-    font-size: 10px;
+
+  .summary-value {
+    font-size: 15px;
   }
-  .summary-item {
-    padding: 11px;
+
+  .dashboard-notification {
+    right: 12px;
+    bottom: 12px;
+    left: 12px;
+    max-width: none;
   }
 }

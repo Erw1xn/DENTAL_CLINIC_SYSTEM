@@ -31,7 +31,7 @@
       <div class="sms-page">
         <section class="notification-card">
           <div class="card-header">
-            <div>
+            <div class="card-header-left">
               <h2>Notification History</h2>
 
               <p>View and manage appointment-related SMS notifications.</p>
@@ -83,8 +83,14 @@
                   Appointment Reminder
                 </option>
 
+                <option value="Same-Day Reminder">Same-Day Reminder</option>
+
                 <option value="Appointment Reschedule">
                   Appointment Reschedule
+                </option>
+
+                <option value="Appointment Cancellation">
+                  Appointment Cancellation
                 </option>
               </select>
             </div>
@@ -129,12 +135,10 @@
       </div>
     </main>
 
-    <!-- VIEW NOTIFICATION MODAL -->
-
     <div class="modal-overlay" id="viewModal">
       <div class="modal view-modal">
         <div class="modal-header">
-          <div>
+          <div class="modal-header-content">
             <span class="modal-label">NOTIFICATION DETAILS</span>
 
             <h2>Notification Information</h2>
@@ -162,8 +166,6 @@
       </div>
     </div>
 
-    <!-- DELETE CONFIRMATION -->
-
     <div class="modal-overlay" id="deleteModal">
       <div class="modal delete-modal">
         <div class="delete-icon">
@@ -188,8 +190,6 @@
         </div>
       </div>
     </div>
-
-    <!-- TOAST -->
 
     <div class="toast" id="toast">
       <span id="toastIcon">

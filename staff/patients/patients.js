@@ -1240,13 +1240,38 @@ function renderAppointment(appointment) {
 
   const isToday = isAppointmentToday(appointment);
 
-  const statusDisplay = isCompleted
-    ? `
-        <div class="appointment-status appointment-status-completed">
-          Completed
-        </div>
-      `
-    : "";
+  const statusDisplay = `
+    <div
+      class="appointment-status-row"
+      style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-top:6px;"
+    >
+      ${
+        isToday
+          ? `
+            <div
+              class="appointment-status appointment-status-today"
+              style="display:inline-flex;align-items:center;justify-content:center;min-height:20px;padding:0 6px;border:1px solid #c8e7d4;border-radius:6px;background:#edf8f1;color:#19733f;font-size:10px;font-weight:600;line-height:1;box-sizing:border-box;"
+            >
+              <span>Today</span>
+            </div>
+          `
+          : ""
+      }
+
+      ${
+        isCompleted
+          ? `
+            <div
+              class="appointment-status appointment-status-completed"
+              style="display:inline-flex;align-items:center;justify-content:center;min-height:20px;padding:0 6px;border-radius:6px;box-sizing:border-box;font-size:10px;font-weight:600;line-height:1;"
+            >
+              <span>Completed</span>
+            </div>
+          `
+          : ""
+      }
+    </div>
+  `;
 
   return `
     <div class="appointment-date">
@@ -1256,16 +1281,6 @@ function renderAppointment(appointment) {
     <div class="appointment-time">
       ${escapeHTML(timeDisplay)}
     </div>
-
-    ${
-      isToday
-        ? `
-          <div class="appointment-day-label">
-            Today
-          </div>
-        `
-        : ""
-    }
 
     ${statusDisplay}
   `;
@@ -1303,19 +1318,23 @@ patientTableBody?.addEventListener("click", (event) => {
 
 function bindActionMenuEvents() {
   patientActionMenu?.addEventListener("click", (event) => {
-    const button = event.target.closest("button[data-action]");
+    const button = event.target.closest("[data-action]");
 
-    if (!button) {
+    if (!button || !patientActionMenu.contains(button)) {
       return;
     }
+
+    event.preventDefault();
+
+    event.stopPropagation();
 
     const action = button.dataset.action;
 
-    if (action === "medicalForm") {
+    if (!action || action === "medicalForm") {
       return;
     }
 
-    const patientId = currentActionPatientId;
+    const patientId = button.dataset.patientId || currentActionPatientId;
 
     closeActionMenu();
 

@@ -644,7 +644,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const addItemText = addItemBtn.querySelector("span");
 
     if (addItemText) {
-      addItemText.textContent = "Add Patient";
+      addItemText.textContent = "Add Item";
     } else {
       addItemBtn.innerHTML =
         '<i class="fa-solid fa-plus"></i><span>Add Patient</span>';

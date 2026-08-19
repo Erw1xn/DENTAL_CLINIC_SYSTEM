@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 
     <link
-      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap"
       rel="stylesheet"
     />
 
@@ -19,71 +19,72 @@
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
     />
 
-    <!-- KEEPING YOUR EXISTING SIDEBAR -->
     <link rel="stylesheet" href="../../navigation_bar/sidebar.css" />
-
-    <!-- APPOINTMENT PAGE CSS -->
     <link rel="stylesheet" href="appointment.css" />
   </head>
 
   <body>
     <div class="dashboard-wrapper">
-      <!-- SIDEBAR -->
       <aside id="sidebar-container"></aside>
 
-      <!-- MAIN CONTENT -->
       <main class="main-content">
-        <!-- ======================================================
-             APPOINTMENT PAGE HEADER
-        ======================================================= -->
+        <div class="appointments-layout">
+          <div class="left-col-stack">
+            <section class="panel schedule-panel">
+              <div class="schedule-main-header">
+                <div class="schedule-heading-group">
+                  <h3 id="scheduleTitle">Today's Schedule</h3>
 
-        <header class="page-header">
-          <div class="page-header-content">
-            <div class="page-header-text">
-              <span class="page-eyebrow"> APPOINTMENTS </span>
+                  <span
+                    id="scheduleDateLabel"
+                    class="schedule-date-label"
+                  ></span>
+                </div>
 
-              <h1 class="page-heading">Today's Appointments</h1>
+                <div class="schedule-header-actions">
+                  <div class="dentist-filter-wrapper">
+                    <i class="fa-solid fa-user-doctor dentist-filter-icon"></i>
 
-              <p class="page-description">
-                Manage and organize the clinic's appointments today.
-              </p>
-            </div>
+                    <select
+                      id="dentistFilter"
+                      class="dentist-filter"
+                      aria-label="Filter appointments by dentist"
+                    >
+                      <option value="all">All Dentists</option>
+                      <option value="santos">Dr. M. Santos</option>
+                      <option value="cruz">Dr. L. Cruz</option>
+                      <option value="ramos">Dr. J. Ramos</option>
+                    </select>
+                  </div>
 
-            <div class="page-header-actions">
-              <!-- SEARCH -->
-              <div class="search-box-wrapper">
-                <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                  <div class="search-box-wrapper">
+                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
 
-                <input
-                  id="searchInput"
-                  class="patient-search-input"
-                  type="text"
-                  placeholder="Search patient name..."
-                  autocomplete="off"
-                />
+                    <input
+                      id="searchInput"
+                      class="patient-search-input"
+                      type="text"
+                      placeholder="Search patient..."
+                      autocomplete="off"
+                    />
+                  </div>
+
+                  <button
+                    class="btn-new-appointment"
+                    type="button"
+                    onclick="openNewModal()"
+                  >
+                    <i class="fa-solid fa-plus"></i>
+                    <span> New Appointment </span>
+                  </button>
+                </div>
               </div>
 
-              <!-- NEW APPOINTMENT -->
-              <button
-                class="btn-new-appointment"
-                type="button"
-                onclick="openNewModal()"
-              >
-                <i class="fa-solid fa-plus"></i>
-                <span>New Appointment</span>
-              </button>
-            </div>
+              <div class="time-slots-container" id="timeline"></div>
+            </section>
           </div>
-        </header>
 
-        <!-- ======================================================
-             APPOINTMENTS LAYOUT
-        ======================================================= -->
-
-        <div class="appointments-layout">
-          <!-- LEFT COLUMN -->
-          <div class="left-col-stack">
-            <!-- CALENDAR -->
+          <div class="right-col-stack">
             <section class="panel calendar-panel">
               <div class="calendar-header">
                 <h4 id="calMonthLabel">—</h4>
@@ -110,51 +111,67 @@
               <div class="calendar-grid-days" id="calGrid"></div>
             </section>
 
-            <!-- DENTISTS ON DUTY -->
-            <section class="panel dentists-panel">
-              <div class="dentists-panel-header">
-                <h3>Dentists on Duty</h3>
+            <section class="panel side-content-panel">
+              <div class="side-content-header">
+                <div class="side-section-header active" id="waitingQueueHeader">
+                  <div class="side-section-title">
+                    <div class="side-section-text">
+                      <div class="side-section-title-line">
+                        <h3>Today's Appointments</h3>
+                      </div>
+
+                      <span class="side-section-description">
+                        Today's appointments and current status
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    class="side-switch-btn"
+                    id="showDentistsBtn"
+                    onclick="showAppointmentSideSection('dentists')"
+                  >
+                    <span> Dentists </span>
+                  </button>
+                </div>
+
+                <div class="side-section-header" id="dentistsHeader">
+                  <div class="side-section-title">
+                    <div class="side-section-text">
+                      <div class="side-section-title-line">
+                        <h3>Dentists &amp; Availability</h3>
+                      </div>
+
+                      <span class="side-section-description">
+                        Current dentist availability and schedule status
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    class="side-switch-btn"
+                    id="showWaitingBtn"
+                    onclick="showAppointmentSideSection('waiting')"
+                  >
+                    <span> Today's Appointments </span>
+                  </button>
+                </div>
               </div>
 
-              <div class="dentists-list" id="dentistsDutyList"></div>
-            </section>
-          </div>
-
-          <!-- ====================================================
-               MAIN SCHEDULE
-          ===================================================== -->
-
-          <section class="panel schedule-panel">
-            <div class="schedule-main-header">
-              <h3 id="scheduleTitle">Today's Schedule</h3>
-
-              <span id="scheduleDateLabel" class="schedule-date-label"></span>
-            </div>
-
-            <div class="time-slots-container" id="timeline"></div>
-          </section>
-
-          <!-- ====================================================
-               RIGHT COLUMN
-          ===================================================== -->
-
-          <div class="right-col-stack">
-            <!-- WAITING QUEUE -->
-            <section class="panel waiting-panel">
-              <div class="waiting-header">
-                <h3>Waiting Queue</h3>
+              <div class="side-content-body active" id="waitingQueuePage">
+                <div class="waiting-queue-list" id="waitingQueueList"></div>
               </div>
 
-              <div class="waiting-queue-list" id="waitingQueueList"></div>
+              <div class="side-content-body" id="dentistsAvailabilityPage">
+                <div class="dentists-list" id="dentistsDutyList"></div>
+              </div>
             </section>
           </div>
         </div>
       </main>
     </div>
-
-    <!-- ======================================================
-         APPOINTMENT MODAL
-    ======================================================= -->
 
     <div class="modal-overlay" id="overlay">
       <div class="modal-container">
@@ -176,20 +193,21 @@
         </div>
 
         <div class="modal-body">
-          <!-- PATIENT -->
           <div class="form-group">
-            <label for="f_patient"> Patient Name </label>
+            <label for="f_patient"> Patient </label>
 
-            <input
-              type="text"
-              id="f_patient"
-              class="form-control"
-              placeholder="e.g. Erwin Jacaba"
-              autocomplete="off"
-            />
+            <select id="f_patient" class="form-control">
+              <option value="" selected disabled>
+                Select an existing patient
+              </option>
+            </select>
+
+            <small class="field-help">
+              Only patients already registered in the Patients page can be
+              booked.
+            </small>
           </div>
 
-          <!-- DATE + TIME -->
           <div class="form-row-inline">
             <div class="form-group">
               <label for="f_date"> Date </label>
@@ -198,13 +216,16 @@
             </div>
 
             <div class="form-group">
-              <label for="f_time"> Time </label>
+              <label for="f_dentist"> Dentist </label>
 
-              <input type="time" id="f_time" class="form-control" />
+              <select id="f_dentist" class="form-control">
+                <option value="santos">Dr. M. Santos</option>
+                <option value="cruz">Dr. L. Cruz</option>
+                <option value="ramos">Dr. J. Ramos</option>
+              </select>
             </div>
           </div>
 
-          <!-- SERVICE TYPE -->
           <div class="form-group">
             <label for="f_type"> Service Type </label>
 
@@ -213,7 +234,7 @@
               id="f_type"
               class="form-control"
               list="serviceList"
-              placeholder="e.g. Consultation"
+              placeholder="e.g. Dental Cleaning"
               autocomplete="off"
             />
 
@@ -227,7 +248,6 @@
             </datalist>
           </div>
 
-          <!-- DURATION -->
           <div class="form-group">
             <label for="f_duration"> Duration </label>
 
@@ -239,32 +259,51 @@
                 min="5"
                 max="480"
                 step="5"
-                placeholder="e.g. 30"
+                placeholder="e.g. 45"
               />
 
               <span class="duration-unit"> minutes </span>
             </div>
 
             <small class="duration-help">
-              Duration is automatically suggested based on the selected service,
-              but staff can adjust it before saving.
+              Service selection automatically suggests the duration. Staff may
+              adjust it when necessary.
             </small>
           </div>
 
-          <!-- DENTIST -->
           <div class="form-group">
-            <label for="f_dentist"> Dentist </label>
+            <label for="f_time"> Available Time </label>
 
-            <select id="f_dentist" class="form-control">
-              <option value="santos">Dr. M. Santos</option>
-
-              <option value="cruz">Dr. L. Cruz</option>
-
-              <option value="ramos">Dr. J. Ramos</option>
+            <select id="f_time" class="form-control">
+              <option value="" selected disabled>
+                Select an available time
+              </option>
             </select>
+
+            <small
+              id="availableTimeSummary"
+              class="available-time-summary"
+            ></small>
           </div>
 
-          <!-- PAST RECORD NOTICE -->
+          <div id="customTimeWrapper" class="form-group custom-time-wrapper">
+            <label for="f_custom_time"> Custom Time </label>
+
+            <input
+              type="time"
+              id="f_custom_time"
+              class="form-control"
+              min="10:00"
+              max="20:00"
+              step="1800"
+            />
+
+            <small class="field-help">
+              Use a custom time only when needed. The existing conflict and
+              clinic-hours checks still apply.
+            </small>
+          </div>
+
           <div id="pastRecordNotice" class="past-record-notice">
             <i class="fa-solid fa-clock-rotate-left"></i>
 
@@ -278,7 +317,6 @@
             </div>
           </div>
 
-          <!-- VIEW ONLY NOTICE -->
           <div id="viewOnlyNotice" class="view-only-notice">
             <i class="fa-solid fa-lock"></i>
 
@@ -286,13 +324,12 @@
               <strong> View-only appointment </strong>
 
               <span>
-                This appointment has already been confirmed. Its schedule
+                This appointment is displayed as a record. Its schedule still
                 determines the dentist's occupied time.
               </span>
             </div>
           </div>
 
-          <!-- SCHEDULING CONFLICT -->
           <div id="scheduleConflictNotice" class="schedule-conflict-notice">
             <i class="fa-solid fa-circle-exclamation"></i>
 
@@ -307,7 +344,6 @@
           </div>
         </div>
 
-        <!-- MODAL ACTIONS -->
         <div class="modal-actions">
           <button
             id="deleteBtn"
@@ -343,10 +379,6 @@
       </div>
     </div>
 
-    <!-- ======================================================
-         DELETE CONFIRMATION MODAL
-    ======================================================= -->
-
     <div class="delete-confirm-overlay" id="deleteConfirmOverlay">
       <div class="delete-confirm-box">
         <div class="delete-warning-icon">
@@ -380,10 +412,6 @@
       </div>
     </div>
 
-    <!-- ======================================================
-         STATUS CONFIRMATION MODAL
-    ======================================================= -->
-
     <div class="status-confirm-overlay" id="statusConfirmOverlay">
       <div class="status-confirm-box">
         <div class="status-confirm-icon" id="statusConfirmIcon">
@@ -415,13 +443,88 @@
       </div>
     </div>
 
-    <!-- TOAST -->
     <div class="toast" id="toast"></div>
 
-    <!-- SIDEBAR -->
     <script src="../../navigation_bar/sidebar.js"></script>
 
-    <!-- APPOINTMENT JS -->
     <script src="appointment.js"></script>
+
+    <script>
+      function showAppointmentSideSection(section) {
+        const waitingHeader = document.getElementById("waitingQueueHeader");
+
+        const dentistsHeader = document.getElementById("dentistsHeader");
+
+        const waitingPage = document.getElementById("waitingQueuePage");
+
+        const dentistsPage = document.getElementById(
+          "dentistsAvailabilityPage",
+        );
+
+        if (
+          !waitingHeader ||
+          !dentistsHeader ||
+          !waitingPage ||
+          !dentistsPage
+        ) {
+          return;
+        }
+
+        if (section === "dentists") {
+          waitingHeader.classList.remove("active");
+
+          dentistsHeader.classList.add("active");
+
+          waitingPage.classList.remove("active");
+
+          dentistsPage.classList.add("active");
+
+          return;
+        }
+
+        dentistsHeader.classList.remove("active");
+
+        waitingHeader.classList.add("active");
+
+        dentistsPage.classList.remove("active");
+
+        waitingPage.classList.add("active");
+      }
+
+      function limitWaitingQueueDisplay() {
+        const queueList = document.getElementById("waitingQueueList");
+
+        if (!queueList) {
+          return;
+        }
+
+        const appointmentItems = Array.from(queueList.children);
+
+        appointmentItems.forEach((item) => {
+          item.style.display = "";
+        });
+      }
+
+      document.addEventListener("DOMContentLoaded", function () {
+        const queueList = document.getElementById("waitingQueueList");
+
+        if (!queueList) {
+          return;
+        }
+
+        limitWaitingQueueDisplay();
+
+        const queueObserver = new MutationObserver(function () {
+          limitWaitingQueueDisplay();
+        });
+
+        queueObserver.observe(queueList, {
+          childList: true,
+          subtree: true,
+        });
+
+        setInterval(limitWaitingQueueDisplay, 30000);
+      });
+    </script>
   </body>
 </html>
