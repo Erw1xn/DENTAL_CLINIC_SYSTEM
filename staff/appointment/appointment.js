@@ -15,7 +15,28 @@ const SERVICE_DURATIONS = {
   "Tooth Extraction": 60,
   "Root Canal": 90,
   "Braces Adjustment": 30,
+  "Teeth Whitening": 60,
+  "Dental X-Ray": 15,
+  "Scaling and Polishing": 45,
+  "Denture Fitting": 60,
+  "Wisdom Tooth Extraction": 75,
+  "Dental Implant Consultation": 30,
+  "Oral Prophylaxis": 45,
+  "Retainer Fitting": 30,
 };
+// A short list of the most commonly booked services. These are the
+// suggestions shown in the Service Type dropdown before the staff types
+// anything (same "default options" pattern used on the Inventory page).
+// Once the staff starts typing, ALL services in SERVICE_DURATIONS that
+// match what was typed are shown instead, so nothing gets forgotten.
+const DEFAULT_SERVICE_SUGGESTIONS = [
+  "Consultation",
+  "Dental Cleaning",
+  "Tooth Filling / Pasta",
+  "Tooth Extraction",
+  "Root Canal",
+  "Braces Adjustment",
+];
 const dentists = {
   santos: {
     name: "Dr. M. Santos",
@@ -128,8 +149,30 @@ function setupEvents() {
   }
   const serviceInput = document.getElementById("f_type");
   if (serviceInput) {
-    serviceInput.addEventListener("input", handleServiceChange);
+    serviceInput.addEventListener("input", () => {
+      handleServiceChange();
+      renderServiceDropdown(serviceInput.value);
+      openServiceDropdown();
+    });
     serviceInput.addEventListener("change", handleServiceChange);
+    serviceInput.addEventListener("focus", () => {
+      openServiceDropdown();
+    });
+  }
+  const serviceArrow = document.querySelector(".service-select-arrow");
+  if (serviceArrow) {
+    serviceArrow.addEventListener("click", () => {
+      const wrapper = document.getElementById("serviceSelectWrapper");
+      if (!wrapper) {
+        return;
+      }
+      if (wrapper.classList.contains("open")) {
+        closeServiceDropdown();
+      } else {
+        serviceInput?.focus();
+        openServiceDropdown();
+      }
+    });
   }
   const dateInput = document.getElementById("f_date");
   if (dateInput) {
@@ -580,6 +623,9 @@ function isPastDate(dateOrKey) {
   date.setHours(0, 0, 0, 0);
   return date < today;
 }
+function isFutureDate(dateOrKey) {
+  return !isToday(dateOrKey) && !isPastDate(dateOrKey);
+}
 function timeToMinutes(time) {
   if (!time) {
     return 0;
@@ -709,6 +755,74 @@ function handleServiceChange() {
   }
   updateAvailableTimeSlots();
   checkCurrentFormConflict();
+}
+// ---- Service Type searchable dropdown (mirrors the Inventory item-name
+// pattern: a few default suggestions shown up front, then every matching
+// service shown once the staff starts typing). ----
+function getServiceMatches(query) {
+  const allServices = Object.keys(SERVICE_DURATIONS);
+  const trimmed = (query || "").trim().toLowerCase();
+  if (!trimmed) {
+    return DEFAULT_SERVICE_SUGGESTIONS.filter((name) =>
+      allServices.includes(name),
+    );
+  }
+  return allServices.filter((name) => name.toLowerCase().includes(trimmed));
+}
+function renderServiceDropdown(query) {
+  const dropdown = document.getElementById("serviceDropdown");
+  if (!dropdown) {
+    return;
+  }
+  const matches = getServiceMatches(query);
+  dropdown.innerHTML = "";
+  if (!matches.length) {
+    const empty = document.createElement("div");
+    empty.className = "service-dropdown-empty";
+    empty.textContent =
+      "No matching service. You can keep this as a custom service name.";
+    dropdown.appendChild(empty);
+    return;
+  }
+  matches.forEach((name) => {
+    const item = document.createElement("div");
+    item.className = "service-dropdown-item";
+    item.innerHTML = `
+        <span class="service-dropdown-name">${escapeHtml(name)}</span>
+        <span class="service-dropdown-duration">${SERVICE_DURATIONS[name]} min</span>
+      `;
+    item.addEventListener("mousedown", (event) => {
+      event.preventDefault();
+      selectServiceOption(name);
+    });
+    dropdown.appendChild(item);
+  });
+}
+function openServiceDropdown() {
+  const wrapper = document.getElementById("serviceSelectWrapper");
+  const input = document.getElementById("f_type");
+  if (!wrapper || !input || input.disabled) {
+    return;
+  }
+  renderServiceDropdown(input.value);
+  wrapper.classList.add("open");
+}
+function closeServiceDropdown() {
+  const wrapper = document.getElementById("serviceSelectWrapper");
+  if (!wrapper) {
+    return;
+  }
+  wrapper.classList.remove("open");
+}
+function selectServiceOption(name) {
+  const input = document.getElementById("f_type");
+  if (!input) {
+    return;
+  }
+  input.value = name;
+  closeServiceDropdown();
+  handleServiceChange();
+  input.focus();
 }
 function handleModalDateChange() {
   const date = document.getElementById("f_date").value;
@@ -927,6 +1041,7 @@ function openNewModal(date = null, time = null) {
   } else {
     pastNotice.classList.remove("show");
   }
+  closeServiceDropdown();
   overlay.classList.add("show");
   handleServiceChange();
 }
@@ -991,6 +1106,7 @@ function openViewModal(id) {
   } else {
     pastNotice.classList.remove("show");
   }
+  closeServiceDropdown();
   overlay.classList.add("show");
 }
 function setFormReadOnly(readOnly) {
@@ -1021,6 +1137,7 @@ function closeModal() {
   editingId = null;
   modalMode = "new";
   resetFormEditable();
+  closeServiceDropdown();
 }
 function checkCurrentFormConflict() {
   if (modalMode !== "new") {
@@ -1417,6 +1534,13 @@ function createAppointmentStatusButton(appt) {
   const wrapper = document.createElement("div");
   wrapper.className = "appt-status-area";
   if (appt.status === APPOINTMENT_STATUS.SCHEDULED) {
+    if (isFutureDate(appt.date)) {
+      const badge = document.createElement("span");
+      badge.className = "appt-status-badge scheduled";
+      badge.textContent = "Scheduled";
+      wrapper.appendChild(badge);
+      return wrapper;
+    }
     const checkInBtn = document.createElement("button");
     checkInBtn.type = "button";
     checkInBtn.className = "appt-status-btn status-checkin";
@@ -2013,6 +2137,7 @@ document.addEventListener("click", (event) => {
   const overlay = document.getElementById("overlay");
   const deleteOverlay = document.getElementById("deleteConfirmOverlay");
   const statusOverlay = document.getElementById("statusConfirmOverlay");
+  const serviceWrapper = document.getElementById("serviceSelectWrapper");
   if (event.target === overlay) {
     closeModal();
   }
@@ -2021,6 +2146,9 @@ document.addEventListener("click", (event) => {
   }
   if (event.target === statusOverlay) {
     closeStatusConfirmation();
+  }
+  if (serviceWrapper && !serviceWrapper.contains(event.target)) {
+    closeServiceDropdown();
   }
 });
 document.addEventListener("keydown", (event) => {

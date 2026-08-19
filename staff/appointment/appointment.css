@@ -2041,3 +2041,106 @@ select:focus-visible {
     font-size: 7px;
   }
 }
+/* ===== Service Type searchable dropdown (added) =====
+   Same visual language as the Inventory item-name suggestion list:
+   dark floating panel, a handful of default suggestions shown up
+   front, full match list shown while typing. */
+
+.service-select-wrapper {
+  position: relative;
+}
+
+.service-select-input {
+  padding-right: 34px;
+  cursor: text;
+}
+
+.service-select-arrow {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  color: #929d96;
+  font-size: 9px;
+  cursor: pointer;
+  transition:
+    transform 0.18s ease,
+    color 0.18s ease;
+}
+
+.service-select-wrapper.open .service-select-arrow {
+  transform: translateY(-50%) rotate(180deg);
+  color: var(--green-700);
+}
+
+.service-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  max-height: 220px;
+  overflow-y: auto;
+  background: #1d2a22;
+  border-radius: var(--radius-md);
+  box-shadow: 0 14px 34px rgba(10, 35, 20, 0.28);
+  padding: 6px;
+  z-index: 40;
+  display: none;
+}
+
+.service-select-wrapper.open .service-dropdown {
+  display: block;
+}
+
+.service-dropdown::-webkit-scrollbar {
+  width: 5px;
+}
+
+.service-dropdown::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.service-dropdown::-webkit-scrollbar-thumb {
+  background: #3a4a3f;
+  border-radius: 10px;
+}
+
+.service-dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 7px;
+  color: #f2f6f3;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.service-dropdown-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.service-dropdown-name {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.service-dropdown-duration {
+  flex-shrink: 0;
+  color: #9fb0a5;
+  font-size: 8.5px;
+  font-weight: 500;
+}
+
+.service-dropdown-empty {
+  padding: 10px;
+  color: #b7c2bb;
+  font-size: 9px;
+  font-style: italic;
+  text-align: center;
+}

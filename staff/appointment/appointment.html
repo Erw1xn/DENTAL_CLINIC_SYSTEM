@@ -229,23 +229,19 @@
           <div class="form-group">
             <label for="f_type"> Service Type </label>
 
-            <input
-              type="text"
-              id="f_type"
-              class="form-control"
-              list="serviceList"
-              placeholder="e.g. Dental Cleaning"
-              autocomplete="off"
-            />
+            <div class="service-select-wrapper" id="serviceSelectWrapper">
+              <input
+                type="text"
+                id="f_type"
+                class="form-control service-select-input"
+                placeholder="e.g. Dental Cleaning"
+                autocomplete="off"
+              />
 
-            <datalist id="serviceList">
-              <option value="Consultation"></option>
-              <option value="Dental Cleaning"></option>
-              <option value="Tooth Filling / Pasta"></option>
-              <option value="Tooth Extraction"></option>
-              <option value="Root Canal"></option>
-              <option value="Braces Adjustment"></option>
-            </datalist>
+              <i class="fa-solid fa-chevron-down service-select-arrow"></i>
+
+              <div class="service-dropdown" id="serviceDropdown"></div>
+            </div>
           </div>
 
           <div class="form-group">
