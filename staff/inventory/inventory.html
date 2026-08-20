@@ -35,6 +35,7 @@
             <div class="panel-header-left">
               <div>
                 <h2>Inventory Items</h2>
+
                 <p>View and manage your dental supplies.</p>
               </div>
             </div>
@@ -47,11 +48,13 @@
                   id="stockMovementBtn"
                 >
                   <i class="fa-solid fa-right-left"></i>
+
                   <span>Stock Movement</span>
                 </button>
 
                 <button type="button" class="btn-primary" id="addItemBtn">
                   <i class="fa-solid fa-plus"></i>
+
                   <span>Add Item</span>
                 </button>
               </div>
@@ -83,16 +86,23 @@
 
               <select id="statusFilter" class="filter-select">
                 <option value="all">All Stock Status</option>
+
                 <option value="normal">Normal</option>
+
                 <option value="low">Low Stock</option>
+
                 <option value="out">Out of Stock</option>
               </select>
 
               <select id="sortFilter" class="filter-select">
                 <option value="name-asc">Name A–Z</option>
+
                 <option value="name-desc">Name Z–A</option>
+
                 <option value="stock-low">Stock Low–High</option>
+
                 <option value="stock-high">Stock High–Low</option>
+
                 <option value="expiry">Expiry Soonest</option>
               </select>
             </div>
@@ -102,12 +112,19 @@
                 <thead>
                   <tr>
                     <th>ITEM</th>
+
                     <th>CATEGORY</th>
+
                     <th>STOCK</th>
+
                     <th>MINIMUM</th>
+
                     <th>UNIT</th>
+
                     <th>EXPIRY</th>
+
                     <th>STATUS</th>
+
                     <th>ACTION</th>
                   </tr>
                 </thead>
@@ -129,6 +146,7 @@
 
                 <button type="button" class="btn-primary" id="emptyAddItemBtn">
                   <i class="fa-solid fa-plus"></i>
+
                   Add Item
                 </button>
               </div>
@@ -159,6 +177,7 @@
                   id="refreshForecastBtn"
                 >
                   <i class="fa-solid fa-rotate"></i>
+
                   Refresh
                 </button>
               </div>
@@ -168,10 +187,15 @@
                   <thead>
                     <tr>
                       <th>ITEM</th>
+
                       <th>USAGE RECORDS</th>
+
                       <th>TOTAL USED</th>
+
                       <th>AVG. USAGE</th>
+
                       <th>EST. NEXT PERIOD</th>
+
                       <th>DATA STATUS</th>
                     </tr>
                   </thead>
@@ -353,6 +377,7 @@
 
             <button type="submit" class="btn-primary">
               <i class="fa-solid fa-check"></i>
+
               Save Item
             </button>
           </div>
@@ -434,6 +459,7 @@
 
             <button type="submit" class="btn-primary">
               <i class="fa-solid fa-right-left"></i>
+
               Record Movement
             </button>
           </div>
@@ -444,16 +470,19 @@
     <div class="action-menu" id="actionMenu">
       <button type="button" data-action="edit">
         <i class="fa-solid fa-pen"></i>
+
         Edit Item
       </button>
 
       <button type="button" data-action="movement">
         <i class="fa-solid fa-right-left"></i>
+
         Stock Movement
       </button>
 
       <button type="button" class="danger-action" data-action="delete">
         <i class="fa-solid fa-trash"></i>
+
         Delete Item
       </button>
     </div>

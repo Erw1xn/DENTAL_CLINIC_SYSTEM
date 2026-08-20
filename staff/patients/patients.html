@@ -3,43 +3,55 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
     <title>Patients | DentaNueva Dental Clinic</title>
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
+
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
     />
+
     <link rel="stylesheet" href="../../navigation_bar/sidebar.css" />
     <link rel="stylesheet" href="patients.css" />
   </head>
+
   <body>
     <div class="patients-layout">
       <aside id="sidebar-container"></aside>
+
       <main class="patients-main">
         <div class="patients-content">
           <section class="patient-list-card">
             <div class="patient-card-header">
               <div class="patient-card-title">
                 <h1>Patients</h1>
+
                 <p>
                   Manage patient information and keep track of their clinic
                   records.
                 </p>
               </div>
+
               <div class="patient-card-header-right">
                 <span
                   class="patient-count-label"
                   id="patientCount"
                   aria-live="polite"
-                  >0 patients</span
                 >
+                  0 patients
+                </span>
+
                 <div class="patient-search">
                   <i class="fa-solid fa-magnifying-glass"></i>
+
                   <input
                     type="search"
                     id="patientSearch"
@@ -48,6 +60,7 @@
                     placeholder="Search patient..."
                   />
                 </div>
+
                 <select
                   id="sortPatients"
                   name="sortPatients"
@@ -58,6 +71,7 @@
                   <option value="nameAsc">Name A-Z</option>
                   <option value="nameDesc">Name Z-A</option>
                 </select>
+
                 <button
                   type="button"
                   class="btn-add-patient"
@@ -68,6 +82,7 @@
                 </button>
               </div>
             </div>
+
             <div class="patient-table-wrapper">
               <table class="patient-table">
                 <thead>
@@ -80,13 +95,17 @@
                     <th class="action-column">ACTION</th>
                   </tr>
                 </thead>
+
                 <tbody id="patientTableBody"></tbody>
               </table>
+
               <div class="patient-empty-state" id="patientEmptyState" hidden>
                 <div class="empty-icon">
                   <i class="fa-solid fa-user-group"></i>
                 </div>
+
                 <h3>No patients found</h3>
+
                 <p>Try changing your search or add a new patient.</p>
               </div>
             </div>
@@ -94,6 +113,7 @@
         </div>
       </main>
     </div>
+
     <div
       class="patient-modal-backdrop"
       id="patientModalBackdrop"
@@ -110,6 +130,7 @@
             <span class="modal-eyebrow">PATIENT RECORD</span>
             <h2 id="patientModalTitle">Add Patient</h2>
           </div>
+
           <button
             type="button"
             class="modal-close-btn"
@@ -119,8 +140,10 @@
             <i class="fa-solid fa-xmark"></i>
           </button>
         </div>
+
         <form id="patientForm" autocomplete="off">
           <input type="hidden" id="patientId" name="patientId" />
+
           <div class="profile-form-body">
             <div class="form-grid">
               <div class="form-field">
@@ -134,6 +157,7 @@
                   required
                 />
               </div>
+
               <div class="form-field">
                 <label for="lastName">Last Name</label>
                 <input
@@ -145,6 +169,7 @@
                   required
                 />
               </div>
+
               <div class="form-field">
                 <label for="dateOfBirth">Date of Birth</label>
                 <input
@@ -154,6 +179,7 @@
                   required
                 />
               </div>
+
               <div class="form-field">
                 <label for="patientGender">Gender</label>
                 <select id="patientGender" name="patientGender" required>
@@ -163,6 +189,7 @@
                   <option value="Other">Other</option>
                 </select>
               </div>
+
               <div class="form-field">
                 <label for="phone">Phone Number</label>
                 <input
@@ -173,6 +200,7 @@
                   placeholder="09XXXXXXXXX"
                 />
               </div>
+
               <div class="form-field">
                 <label for="email">Email</label>
                 <input
@@ -183,6 +211,7 @@
                   placeholder="patient@example.com"
                 />
               </div>
+
               <div class="form-field form-field-full">
                 <label for="address">Address</label>
                 <input
@@ -193,6 +222,7 @@
                   placeholder="Enter complete address"
                 />
               </div>
+
               <div class="form-field">
                 <label for="emergencyName">Emergency Contact Name</label>
                 <input
@@ -202,6 +232,7 @@
                   placeholder="Full name"
                 />
               </div>
+
               <div class="form-field">
                 <label for="emergencyContact">Emergency Contact No.</label>
                 <input
@@ -212,11 +243,13 @@
                 />
               </div>
             </div>
+
             <p class="form-hint">
               Patient profile information is stored once and shared with the
               patient's Medical &amp; Dental History and appointment records.
             </p>
           </div>
+
           <div class="patient-modal-actions">
             <button
               type="button"
@@ -225,6 +258,7 @@
             >
               Cancel
             </button>
+
             <button type="submit" class="btn-modal-primary">
               Save Patient
             </button>
@@ -232,6 +266,7 @@
         </form>
       </div>
     </div>
+
     <div
       class="patient-modal-backdrop"
       id="medicalFormModalBackdrop"
@@ -249,6 +284,7 @@
             <h2 id="medicalFormModalTitle">Fill Out Medical Form</h2>
             <p class="medical-last-updated" id="medicalLastUpdated" hidden></p>
           </div>
+
           <button
             type="button"
             class="modal-close-btn"
@@ -258,35 +294,43 @@
             <i class="fa-solid fa-xmark"></i>
           </button>
         </div>
+
         <div class="medform-progress" id="medformProgress">
           <div class="medform-progress-track">
             <div class="medform-progress-fill" id="medformProgressFill"></div>
           </div>
+
           <div class="medform-progress-steps" id="medformProgressSteps">
             <span class="medform-progress-step active" data-step="1">
               <i class="fa-solid fa-user"></i>
               <em>Patient</em>
             </span>
+
             <span class="medform-progress-step" data-step="2">
               <i class="fa-solid fa-tooth"></i>
               <em>Dental Concern</em>
             </span>
+
             <span class="medform-progress-step" data-step="3">
               <i class="fa-solid fa-notes-medical"></i>
               <em>Dental History</em>
             </span>
+
             <span class="medform-progress-step" data-step="4">
               <i class="fa-solid fa-briefcase-medical"></i>
               <em>Medical &amp; Allergies</em>
             </span>
+
             <span class="medform-progress-step" data-step="5">
               <i class="fa-solid fa-signature"></i>
               <em>Consent</em>
             </span>
           </div>
         </div>
+
         <form id="medicalForm" autocomplete="off">
           <input type="hidden" id="medFormPatientId" name="medFormPatientId" />
+
           <div class="medform-step-viewport" id="medformStepViewport">
             <div class="medform-step active" data-step="1">
               <section class="medform-section">
@@ -298,65 +342,80 @@
                       change it, use <strong>Edit Patient</strong>.
                     </p>
                   </div>
+
                   <span class="readonly-badge">
                     <i class="fa-solid fa-lock"></i>
                     Profile Information
                   </span>
                 </div>
+
                 <div class="medform-grid medform-grid-2">
                   <div class="form-field">
                     <label>Patient</label>
                     <input type="text" id="medPatientName" readonly />
                   </div>
+
                   <div class="form-field">
                     <label>Patient ID</label>
                     <input type="text" id="medPatientIdDisplay" readonly />
                   </div>
+
                   <div class="form-field">
                     <label>Date of Birth</label>
                     <input type="text" id="medDateOfBirth" readonly />
                   </div>
+
                   <div class="form-field">
                     <label>Age</label>
                     <input type="text" id="medAge" readonly />
                   </div>
+
                   <div class="form-field">
                     <label>Gender</label>
                     <input type="text" id="medGender" readonly />
                   </div>
+
                   <div class="form-field">
                     <label>Contact No.</label>
                     <input type="text" id="medContact" readonly />
                   </div>
+
                   <div class="form-field form-field-full">
                     <label>Address</label>
                     <input type="text" id="medAddress" readonly />
                   </div>
+
                   <div class="form-field">
                     <label>Emergency Contact Name</label>
                     <input type="text" id="medEmergencyName" readonly />
                   </div>
+
                   <div class="form-field">
                     <label>Emergency Contact No.</label>
                     <input type="text" id="medEmergencyContact" readonly />
                   </div>
                 </div>
+
                 <div class="medform-profile-note">
                   <i class="fa-solid fa-circle-info"></i>
-                  <span
-                    >These details are managed from the patient's profile. Use
+
+                  <span>
+                    These details are managed from the patient's profile. Use
                     <strong>Edit Patient</strong> from the Actions menu to
-                    update them.</span
-                  >
+                    update them.
+                  </span>
                 </div>
               </section>
             </div>
+
             <div class="medform-step" data-step="2">
               <section class="medform-section">
                 <h3>Dental Concern</h3>
+
                 <p class="medform-subtext">
                   Please check the reason for the visit:
                 </p>
+
                 <div class="medform-checkbox-grid">
                   <label class="medform-checkbox">
                     <input
@@ -366,6 +425,7 @@
                     />
                     Toothache
                   </label>
+
                   <label class="medform-checkbox">
                     <input
                       type="checkbox"
@@ -374,6 +434,7 @@
                     />
                     Dentures
                   </label>
+
                   <label class="medform-checkbox">
                     <input
                       type="checkbox"
@@ -382,6 +443,7 @@
                     />
                     Cleaning
                   </label>
+
                   <label class="medform-checkbox">
                     <input
                       type="checkbox"
@@ -390,6 +452,7 @@
                     />
                     Whitening
                   </label>
+
                   <label class="medform-checkbox">
                     <input
                       type="checkbox"
@@ -398,6 +461,7 @@
                     />
                     Filling
                   </label>
+
                   <label class="medform-checkbox">
                     <input
                       type="checkbox"
@@ -406,6 +470,7 @@
                     />
                     Tooth Extraction
                   </label>
+
                   <label class="medform-checkbox">
                     <input
                       type="checkbox"
@@ -414,9 +479,12 @@
                     />
                     Braces Consultation
                   </label>
+
                   <label class="medform-checkbox medform-checkbox-other">
                     <input type="checkbox" id="dentalConcernOtherCheck" />
+
                     <span>Others:</span>
+
                     <input
                       type="text"
                       id="dentalConcernOther"
@@ -425,11 +493,13 @@
                     />
                   </label>
                 </div>
+
                 <div class="medform-question-block">
                   <p class="medform-question">
                     Have you ever had a negative experience during dental
                     treatment?
                   </p>
+
                   <div class="medform-radio-row">
                     <label class="medform-radio">
                       <input
@@ -439,6 +509,7 @@
                       />
                       Yes
                     </label>
+
                     <label class="medform-radio">
                       <input
                         type="radio"
@@ -450,10 +521,12 @@
                     </label>
                   </div>
                 </div>
+
                 <div class="form-field">
-                  <label for="negativeExperienceNote"
-                    >If yes, please explain</label
-                  >
+                  <label for="negativeExperienceNote">
+                    If yes, please explain
+                  </label>
+
                   <textarea
                     id="negativeExperienceNote"
                     name="negativeExperienceNote"
@@ -463,17 +536,22 @@
                 </div>
               </section>
             </div>
+
             <div class="medform-step" data-step="3">
               <section class="medform-section">
                 <h3>Dental History</h3>
+
                 <div class="form-field">
-                  <label for="medLastVisit">Date of last dental visit</label>
+                  <label for="medLastVisit"> Date of last dental visit </label>
+
                   <input type="date" id="medLastVisit" name="medLastVisit" />
                 </div>
+
                 <div class="form-field">
-                  <label for="medLastTreatment"
-                    >What treatment was received during the last visit?</label
-                  >
+                  <label for="medLastTreatment">
+                    What treatment was received during the last visit?
+                  </label>
+
                   <textarea
                     id="medLastTreatment"
                     name="medLastTreatment"
@@ -482,17 +560,21 @@
                   ></textarea>
                 </div>
               </section>
+
               <section class="medform-section">
                 <h3>Current Medications</h3>
+
                 <p class="medform-question">
                   Is the patient currently taking any medications or
                   supplements?
                 </p>
+
                 <div class="medform-radio-row">
                   <label class="medform-radio">
                     <input type="radio" name="currentMedications" value="Yes" />
                     Yes
                   </label>
+
                   <label class="medform-radio">
                     <input
                       type="radio"
@@ -503,10 +585,12 @@
                     No
                   </label>
                 </div>
+
                 <div class="form-field">
-                  <label for="currentMedicationsList"
-                    >If yes, please list them</label
-                  >
+                  <label for="currentMedicationsList">
+                    If yes, please list them
+                  </label>
+
                   <textarea
                     id="currentMedicationsList"
                     name="currentMedicationsList"
@@ -516,9 +600,11 @@
                 </div>
               </section>
             </div>
+
             <div class="medform-step" data-step="4">
               <section class="medform-section">
                 <h3>Medical History</h3>
+
                 <div class="medform-checkbox-grid medform-checkbox-grid-1col">
                   <label class="medform-checkbox">
                     <input
@@ -528,6 +614,7 @@
                     />
                     High Blood Pressure (Hypertension)
                   </label>
+
                   <label class="medform-checkbox">
                     <input
                       type="checkbox"
@@ -536,6 +623,7 @@
                     />
                     Diabetes
                   </label>
+
                   <label class="medform-checkbox">
                     <input
                       type="checkbox"
@@ -544,6 +632,7 @@
                     />
                     Asthma
                   </label>
+
                   <label class="medform-checkbox">
                     <input
                       type="checkbox"
@@ -552,6 +641,7 @@
                     />
                     Heart Disease
                   </label>
+
                   <label class="medform-checkbox">
                     <input
                       type="checkbox"
@@ -560,6 +650,7 @@
                     />
                     Epilepsy / Seizures
                   </label>
+
                   <label class="medform-checkbox">
                     <input
                       type="checkbox"
@@ -568,9 +659,12 @@
                     />
                     Hepatitis
                   </label>
+
                   <label class="medform-checkbox medform-checkbox-other">
                     <input type="checkbox" id="medicalOtherCheck" />
+
                     <span>Other Medical Condition:</span>
+
                     <input
                       type="text"
                       id="medicalOther"
@@ -580,11 +674,14 @@
                   </label>
                 </div>
               </section>
+
               <section class="medform-section">
                 <h3>Allergies</h3>
+
                 <p class="medform-subtext">
                   Is the patient allergic to any of the following?
                 </p>
+
                 <div class="medform-checkbox-grid medform-checkbox-grid-1col">
                   <label class="medform-checkbox">
                     <input
@@ -594,6 +691,7 @@
                     />
                     Penicillin
                   </label>
+
                   <label class="medform-checkbox">
                     <input
                       type="checkbox"
@@ -602,17 +700,22 @@
                     />
                     Local Anesthetic
                   </label>
+
                   <label class="medform-checkbox">
                     <input type="checkbox" name="allergies" value="Latex" />
                     Latex
                   </label>
+
                   <label class="medform-checkbox">
                     <input type="checkbox" name="allergies" value="Food" />
                     Food
                   </label>
+
                   <label class="medform-checkbox medform-checkbox-other">
                     <input type="checkbox" id="allergyOtherCheck" />
+
                     <span>Other Medication / Allergy:</span>
+
                     <input
                       type="text"
                       id="allergyOther"
@@ -620,6 +723,7 @@
                       placeholder="Specify"
                     />
                   </label>
+
                   <label class="medform-checkbox">
                     <input
                       type="checkbox"
@@ -631,15 +735,19 @@
                 </div>
               </section>
             </div>
+
             <div class="medform-step" data-step="5">
               <section class="medform-section">
                 <h3>Review &amp; Consent</h3>
+
                 <p class="medform-subtext">
                   Please review the information below before saving. You can go
                   back and update any medical information.
                 </p>
+
                 <div class="medform-review" id="medformReview"></div>
               </section>
+
               <div class="medform-consent">
                 <label class="medform-checkbox">
                   <input
@@ -648,16 +756,17 @@
                     name="medConsent"
                     required
                   />
-                  <span
-                    >By checking this, you confirm that the information provided
+
+                  <span>
+                    By checking this, you confirm that the information provided
                     is accurate and agree to DentaNueva's
-                    <a href="#" target="_blank" rel="noopener">Consent</a
-                    >.</span
-                  >
+                    <a href="#" target="_blank" rel="noopener"> Consent </a>.
+                  </span>
                 </label>
               </div>
             </div>
           </div>
+
           <div class="patient-modal-actions medform-step-actions">
             <button
               type="button"
@@ -666,6 +775,7 @@
             >
               Cancel
             </button>
+
             <div class="medform-step-nav-right">
               <button
                 type="button"
@@ -676,6 +786,7 @@
                 <i class="fa-solid fa-arrow-left"></i>
                 Back
               </button>
+
               <button
                 type="button"
                 class="btn-modal-primary medform-next-btn"
@@ -684,6 +795,7 @@
                 Next
                 <i class="fa-solid fa-arrow-right"></i>
               </button>
+
               <button
                 type="submit"
                 class="btn-modal-primary medform-submit-btn"
@@ -697,6 +809,7 @@
         </form>
       </div>
     </div>
+
     <div
       class="patient-modal-backdrop"
       id="patientDetailsModalBackdrop"
@@ -713,6 +826,7 @@
             <span class="modal-eyebrow">PATIENT RECORD</span>
             <h2 id="patientDetailsTitle">Patient Details</h2>
           </div>
+
           <button
             type="button"
             class="modal-close-btn"
@@ -722,9 +836,11 @@
             <i class="fa-solid fa-xmark"></i>
           </button>
         </div>
+
         <div class="patient-details-body" id="patientDetailsBody"></div>
       </div>
     </div>
+
     <div
       class="patient-modal-backdrop"
       id="medicalResultModalBackdrop"
@@ -742,6 +858,7 @@
             <h2 id="medicalResultTitle">Medical Form Record</h2>
             <p class="medical-result-updated" id="medicalResultUpdated"></p>
           </div>
+
           <button
             type="button"
             class="modal-close-btn"
@@ -751,7 +868,9 @@
             <i class="fa-solid fa-xmark"></i>
           </button>
         </div>
+
         <div class="medical-result-body" id="medicalResultBody"></div>
+
         <div class="patient-modal-actions">
           <button
             type="button"
@@ -760,6 +879,7 @@
           >
             Close
           </button>
+
           <button
             type="button"
             class="btn-modal-primary"
@@ -770,24 +890,29 @@
         </div>
       </div>
     </div>
+
     <div class="patient-action-menu" id="patientActionMenu">
       <button type="button" data-action="view">
         <i class="fa-regular fa-eye"></i>
         <span>View Patient</span>
       </button>
+
       <button type="button" data-action="edit">
         <i class="fa-regular fa-pen-to-square"></i>
         <span>Edit Patient</span>
       </button>
+
       <button type="button" data-action="medicalForm">
         <i class="fa-regular fa-file-lines"></i>
         <span>Medical Form</span>
       </button>
+
       <button type="button" data-action="delete" class="danger-action">
         <i class="fa-regular fa-trash-can"></i>
         <span>Delete Patient</span>
       </button>
     </div>
+
     <script src="patients.js"></script>
     <script src="../../navigation_bar/sidebar.js"></script>
   </body>

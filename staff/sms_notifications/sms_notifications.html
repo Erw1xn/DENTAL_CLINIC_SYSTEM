@@ -7,6 +7,7 @@
     <title>SMS Notifications | DentaNueva Dental Clinic</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
+
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 
     <link
@@ -30,6 +31,7 @@
     <main class="sms-main">
       <div class="sms-page">
         <section class="notification-card">
+          <!-- ==================== CARD HEADER ==================== -->
           <div class="card-header">
             <div class="card-header-left">
               <h2>Notification History</h2>
@@ -45,6 +47,7 @@
             </div>
           </div>
 
+          <!-- ==================== FILTERS ==================== -->
           <div class="filters">
             <div class="search-wrapper">
               <span class="search-icon">
@@ -62,11 +65,8 @@
             <div class="filter-wrapper">
               <select id="statusFilter">
                 <option value="all">All Status</option>
-
                 <option value="Sent">Sent</option>
-
                 <option value="Pending">Pending</option>
-
                 <option value="Failed">Failed</option>
               </select>
             </div>
@@ -96,22 +96,17 @@
             </div>
           </div>
 
+          <!-- ==================== NOTIFICATION TABLE ==================== -->
           <div class="table-container">
             <table class="notification-table">
               <thead>
                 <tr>
                   <th>PATIENT</th>
-
                   <th>PHONE NUMBER</th>
-
                   <th>MESSAGE</th>
-
                   <th>TYPE</th>
-
                   <th>DATE</th>
-
                   <th>STATUS</th>
-
                   <th>ACTION</th>
                 </tr>
               </thead>
@@ -119,6 +114,7 @@
               <tbody id="notificationTableBody"></tbody>
             </table>
 
+            <!-- ==================== EMPTY STATE ==================== -->
             <div class="empty-state" id="emptyState">
               <div class="empty-icon">
                 <i class="fa-regular fa-message"></i>
@@ -135,11 +131,12 @@
       </div>
     </main>
 
+    <!-- ==================== VIEW MODAL ==================== -->
     <div class="modal-overlay" id="viewModal">
       <div class="modal view-modal">
         <div class="modal-header">
           <div class="modal-header-content">
-            <span class="modal-label">NOTIFICATION DETAILS</span>
+            <span class="modal-label"> NOTIFICATION DETAILS </span>
 
             <h2>Notification Information</h2>
 
@@ -166,6 +163,7 @@
       </div>
     </div>
 
+    <!-- ==================== DELETE MODAL ==================== -->
     <div class="modal-overlay" id="deleteModal">
       <div class="modal delete-modal">
         <div class="delete-icon">
@@ -191,16 +189,17 @@
       </div>
     </div>
 
+    <!-- ==================== TOAST ==================== -->
     <div class="toast" id="toast">
       <span id="toastIcon">
         <i class="fa-solid fa-check"></i>
       </span>
 
-      <span id="toastMessage">Notification updated.</span>
+      <span id="toastMessage"> Notification updated. </span>
     </div>
 
+    <!-- ==================== SCRIPTS ==================== -->
     <script src="sms_notifications.js"></script>
-
     <script src="../../navigation_bar/sidebar.js"></script>
   </body>
 </html>

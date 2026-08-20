@@ -42,11 +42,11 @@
             </div>
 
             <div class="summary-content">
-              <span class="summary-title">Today's Revenue</span>
+              <span class="summary-title"> Today's Revenue </span>
 
-              <strong id="todayRevenue">₱0.00</strong>
+              <strong id="todayRevenue"> ₱0.00 </strong>
 
-              <small>Today's collection</small>
+              <small> Today's collection </small>
             </div>
           </div>
 
@@ -56,11 +56,11 @@
             </div>
 
             <div class="summary-content">
-              <span class="summary-title">Monthly Revenue</span>
+              <span class="summary-title"> Monthly Revenue </span>
 
-              <strong id="monthlyRevenue">₱0.00</strong>
+              <strong id="monthlyRevenue"> ₱0.00 </strong>
 
-              <small id="currentMonthLabel">Current month</small>
+              <small id="currentMonthLabel"> Current month </small>
             </div>
           </div>
 
@@ -70,17 +70,18 @@
             </div>
 
             <div class="summary-content">
-              <span class="summary-title">Paid Transactions</span>
+              <span class="summary-title"> Paid Transactions </span>
 
-              <strong id="paidTransactions">0</strong>
+              <strong id="paidTransactions"> 0 </strong>
 
-              <small>This month</small>
+              <small> This month </small>
             </div>
           </div>
         </section>
 
         <!-- MAIN FINANCE CONTENT -->
         <section class="finance-content-grid">
+          <!-- TRANSACTIONS -->
           <div class="transactions-card">
             <div class="card-header">
               <div>
@@ -105,6 +106,7 @@
               </div>
             </div>
 
+            <!-- FILTERS -->
             <div class="filters">
               <div class="search-box">
                 <i data-lucide="search"></i>
@@ -138,6 +140,7 @@
               </select>
             </div>
 
+            <!-- TABLE -->
             <div class="table-wrapper">
               <table class="transactions-table">
                 <thead>
@@ -155,6 +158,7 @@
                 <tbody id="transactionsTableBody"></tbody>
               </table>
 
+              <!-- EMPTY STATE -->
               <div class="empty-state" id="emptyState">
                 <div class="empty-icon">
                   <i data-lucide="receipt"></i>
@@ -184,11 +188,13 @@
                   id="showMonthlyCollectionBtn"
                 >
                   Next
+
                   <i data-lucide="chevron-right"></i>
                 </button>
               </div>
 
               <div class="payment-method-list">
+                <!-- CASH -->
                 <div class="payment-method-item">
                   <div class="method-left">
                     <div class="method-icon cash">
@@ -202,9 +208,10 @@
                     </div>
                   </div>
 
-                  <strong id="todayCashAmount">₱0.00</strong>
+                  <strong id="todayCashAmount"> ₱0.00 </strong>
                 </div>
 
+                <!-- GCASH -->
                 <div class="payment-method-item">
                   <div class="method-left">
                     <div class="method-icon gcash">
@@ -218,9 +225,10 @@
                     </div>
                   </div>
 
-                  <strong id="todayGcashAmount">₱0.00</strong>
+                  <strong id="todayGcashAmount"> ₱0.00 </strong>
                 </div>
 
+                <!-- BANK -->
                 <div class="payment-method-item">
                   <div class="method-left">
                     <div class="method-icon bank">
@@ -234,9 +242,10 @@
                     </div>
                   </div>
 
-                  <strong id="todayBankAmount">₱0.00</strong>
+                  <strong id="todayBankAmount"> ₱0.00 </strong>
                 </div>
 
+                <!-- CARD -->
                 <div class="payment-method-item">
                   <div class="method-left">
                     <div class="method-icon card">
@@ -250,12 +259,12 @@
                     </div>
                   </div>
 
-                  <strong id="todayCardAmount">₱0.00</strong>
+                  <strong id="todayCardAmount"> ₱0.00 </strong>
                 </div>
               </div>
 
               <div class="payment-total">
-                <span>Total Collected Today</span>
+                <span> Total Collected Today </span>
 
                 <strong id="todayPaymentMethodTotal"> ₱0.00 </strong>
               </div>
@@ -283,6 +292,7 @@
               </div>
 
               <div class="payment-method-list">
+                <!-- CASH -->
                 <div class="payment-method-item">
                   <div class="method-left">
                     <div class="method-icon cash">
@@ -296,9 +306,10 @@
                     </div>
                   </div>
 
-                  <strong id="monthlyCashAmount">₱0.00</strong>
+                  <strong id="monthlyCashAmount"> ₱0.00 </strong>
                 </div>
 
+                <!-- GCASH -->
                 <div class="payment-method-item">
                   <div class="method-left">
                     <div class="method-icon gcash">
@@ -312,9 +323,10 @@
                     </div>
                   </div>
 
-                  <strong id="monthlyGcashAmount">₱0.00</strong>
+                  <strong id="monthlyGcashAmount"> ₱0.00 </strong>
                 </div>
 
+                <!-- BANK -->
                 <div class="payment-method-item">
                   <div class="method-left">
                     <div class="method-icon bank">
@@ -328,9 +340,10 @@
                     </div>
                   </div>
 
-                  <strong id="monthlyBankAmount">₱0.00</strong>
+                  <strong id="monthlyBankAmount"> ₱0.00 </strong>
                 </div>
 
+                <!-- CARD -->
                 <div class="payment-method-item">
                   <div class="method-left">
                     <div class="method-icon card">
@@ -344,12 +357,12 @@
                     </div>
                   </div>
 
-                  <strong id="monthlyCardAmount">₱0.00</strong>
+                  <strong id="monthlyCardAmount"> ₱0.00 </strong>
                 </div>
               </div>
 
               <div class="payment-total">
-                <span>Total Collected This Month</span>
+                <span> Total Collected This Month </span>
 
                 <strong id="monthlyPaymentMethodTotal"> ₱0.00 </strong>
               </div>
@@ -360,7 +373,6 @@
     </div>
 
     <!-- RECORD PAYMENT MODAL -->
-
     <div class="modal-overlay" id="paymentModal">
       <div class="payment-modal">
         <div class="modal-header">
@@ -496,7 +508,6 @@
     </div>
 
     <!-- PAYMENT DETAILS MODAL -->
-
     <div class="modal-overlay" id="detailsModal">
       <div class="details-modal">
         <div class="modal-header">
@@ -557,7 +568,7 @@
           </div>
 
           <div class="details-note">
-            <span>Notes</span>
+            <span> Notes </span>
 
             <p id="detailNotes">No notes.</p>
           </div>

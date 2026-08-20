@@ -1,3 +1,7 @@
+/* =========================================================
+   GLOBAL
+========================================================= */
+
 * {
   box-sizing: border-box;
 }
@@ -44,44 +48,78 @@ html {
 
 body {
   font-family: "Poppins", sans-serif;
+
   background: var(--background);
+
   color: var(--text-dark);
+
   overflow-x: hidden;
 }
 
+button,
+input,
+select,
+textarea {
+  font-family: "Poppins", sans-serif;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* =========================================================
+   DASHBOARD WRAPPER
+========================================================= */
+
 .dashboard-wrapper {
   display: flex;
+
   min-height: 100vh;
+
   width: 100%;
 }
 
 #sidebar-container {
   display: flex;
+
   flex-shrink: 0;
 }
 
+/* =========================================================
+   FINANCE PAGE
+========================================================= */
+
 .finance-page {
   flex: 1;
+
   min-width: 0;
+
   display: flex;
+
   flex-direction: column;
+
   animation: pageTransition 0.35s ease-in-out forwards;
+
   padding: 26px 36px 28px;
 }
 
 @keyframes pageTransition {
   from {
     opacity: 0;
+
     transform: translateY(8px);
   }
 
   to {
     opacity: 1;
+
     transform: translateY(0);
   }
 }
 
-/* SUMMARY CARDS */
+/* =========================================================
+   SUMMARY CARDS
+========================================================= */
 
 .summary-grid {
   width: 100%;
@@ -96,20 +134,21 @@ body {
 }
 
 .summary-card {
-  background: white;
+  min-height: 112px;
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 14px;
+
+  padding: 18px;
 
   border: 1px solid var(--border);
 
   border-radius: 17px;
 
-  padding: 18px;
-
-  min-height: 112px;
-
-  display: flex;
-  align-items: center;
-
-  gap: 14px;
+  background: var(--white);
 
   box-shadow: var(--shadow);
 }
@@ -120,11 +159,12 @@ body {
 
   flex-shrink: 0;
 
-  border-radius: 12px;
-
   display: flex;
+
   align-items: center;
   justify-content: center;
+
+  border-radius: 12px;
 }
 
 .summary-icon svg {
@@ -134,16 +174,19 @@ body {
 
 .revenue-icon {
   color: var(--primary-green);
+
   background: var(--light-green);
 }
 
 .monthly-icon {
   color: var(--blue);
+
   background: var(--blue-bg);
 }
 
 .paid-icon {
   color: var(--purple);
+
   background: var(--purple-bg);
 }
 
@@ -154,12 +197,13 @@ body {
 .summary-title {
   display: block;
 
+  margin-bottom: 4px;
+
   color: var(--text-medium);
 
   font-size: 12px;
-  font-weight: 600;
 
-  margin-bottom: 4px;
+  font-weight: 600;
 }
 
 .summary-content strong {
@@ -168,10 +212,12 @@ body {
   color: #111814;
 
   font-family: "Poppins", sans-serif;
+
   font-size: 21px;
-  line-height: 1.25;
 
   font-weight: 600;
+
+  line-height: 1.25;
 
   letter-spacing: -0.3px;
 }
@@ -179,14 +225,16 @@ body {
 .summary-content small {
   display: block;
 
+  margin-top: 4px;
+
   color: #8a938e;
 
   font-size: 10.5px;
-
-  margin-top: 4px;
 }
 
-/* MAIN FINANCE CONTENT */
+/* =========================================================
+   MAIN FINANCE CONTENT
+========================================================= */
 
 .finance-content-grid {
   width: 100%;
@@ -206,46 +254,58 @@ body {
 
 .transactions-card,
 .payment-method-card {
-  background: white;
+  overflow: hidden;
 
   border: 1px solid var(--border);
 
   border-radius: 17px;
 
-  box-shadow: var(--shadow);
+  background: var(--white);
 
-  overflow: hidden;
+  box-shadow: var(--shadow);
 }
+
+/* =========================================================
+   CARD HEADER
+========================================================= */
 
 .card-header {
   min-height: 70px;
 
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  gap: 16px;
+
   padding: 17px 19px;
 
   border-bottom: 1px solid var(--border);
-
-  display: flex;
-
-  justify-content: space-between;
-  align-items: center;
 }
 
 .card-header h2 {
   margin: 0;
 
-  font-size: 15px;
-  font-weight: 800;
-
   color: #202822;
+
+  font-size: 15px;
+
+  font-weight: 800;
 }
 
 .card-header p {
   margin: 4px 0 0;
 
-  font-size: 11px;
-
   color: var(--text-light);
+
+  font-size: 11px;
 }
+
+/* =========================================================
+   TRANSACTION HEADER ACTIONS
+========================================================= */
 
 .transactions-header-actions {
   display: flex;
@@ -260,62 +320,48 @@ body {
 }
 
 .transaction-count {
-  color: var(--primary-green);
-
-  background: var(--soft-green);
+  padding: 6px 9px;
 
   border-radius: 12px;
 
-  padding: 6px 9px;
+  background: var(--soft-green);
+
+  color: var(--primary-green);
 
   font-size: 10px;
+
   font-weight: 700;
 
   white-space: nowrap;
 }
 
-.record-payment-header-button {
-  min-height: 31px;
-
-  height: 31px;
-
-  padding: 6px 10px;
-
-  border-radius: 16px;
-
-  gap: 5px;
-
-  font-size: 9.5px;
-
-  font-weight: 700;
-
-  box-shadow: 0 3px 8px rgba(8, 120, 63, 0.1);
-}
-
-.record-payment-header-button svg {
-  width: 12px;
-  height: 12px;
-}
+/* =========================================================
+   BUTTONS
+========================================================= */
 
 .primary-button {
-  border: none;
-
-  background: var(--primary-green);
-  color: white;
-
-  border-radius: 22px;
-
-  padding: 11px 17px;
-
   min-height: 42px;
 
   display: inline-flex;
+
   align-items: center;
+
   justify-content: center;
 
   gap: 8px;
 
+  padding: 11px 17px;
+
+  border: none;
+
+  border-radius: 22px;
+
+  background: var(--primary-green);
+
+  color: var(--white);
+
   font-size: 13px;
+
   font-weight: 700;
 
   box-shadow: 0 4px 12px rgba(8, 120, 63, 0.14);
@@ -329,6 +375,7 @@ body {
 
 .primary-button:hover {
   background: var(--dark-green);
+
   transform: translateY(-1px);
 }
 
@@ -337,19 +384,44 @@ body {
   height: 16px;
 }
 
+.record-payment-header-button {
+  min-height: 31px;
+
+  height: 31px;
+
+  gap: 5px;
+
+  padding: 6px 10px;
+
+  border-radius: 16px;
+
+  font-size: 9.5px;
+
+  font-weight: 700;
+
+  box-shadow: 0 3px 8px rgba(8, 120, 63, 0.1);
+}
+
+.record-payment-header-button svg {
+  width: 12px;
+  height: 12px;
+}
+
 .secondary-button {
-  border: 1px solid var(--border);
-
-  background: white;
-  color: #4f5a54;
-
-  border-radius: 21px;
+  min-height: 40px;
 
   padding: 10px 18px;
 
-  min-height: 40px;
+  border: 1px solid var(--border);
+
+  border-radius: 21px;
+
+  background: var(--white);
+
+  color: #4f5a54;
 
   font-size: 13px;
+
   font-weight: 600;
 
   transition: 0.2s ease;
@@ -361,9 +433,11 @@ body {
   background: #f6f8f7;
 }
 
-.filters {
-  padding: 13px 18px;
+/* =========================================================
+   FILTERS
+========================================================= */
 
+.filters {
   display: grid;
 
   grid-template-columns:
@@ -373,46 +447,50 @@ body {
 
   gap: 9px;
 
+  padding: 13px 18px;
+
   border-bottom: 1px solid var(--border);
 }
 
 .search-box {
   height: 39px;
 
-  border: 1px solid #e4e8e5;
-
-  border-radius: 9px;
-
   display: flex;
+
   align-items: center;
 
   padding: 0 11px;
 
-  background: white;
+  border: 1px solid #e4e8e5;
+
+  border-radius: 9px;
+
+  background: var(--white);
 }
 
 .search-box svg {
   width: 16px;
   height: 16px;
 
-  color: #8c9690;
-
   flex-shrink: 0;
+
+  color: #8c9690;
 }
 
 .search-box input {
   width: 100%;
 
+  padding-left: 8px;
+
   border: none;
+
   outline: none;
 
-  padding-left: 8px;
+  background: transparent;
 
   color: #333b36;
 
   font-size: 11.5px;
-
-  background: transparent;
 }
 
 .search-box input::placeholder {
@@ -423,31 +501,51 @@ body {
   width: 100%;
   height: 39px;
 
+  padding: 0 10px;
+
   border: 1px solid #e4e8e5;
 
   border-radius: 9px;
 
   outline: none;
 
-  background: white;
+  background: var(--white);
 
   color: #4f5953;
 
-  padding: 0 10px;
-
   font-size: 11px;
+
+  cursor: pointer;
 }
+
+.filters select:focus {
+  border-color: #6db28b;
+
+  box-shadow: 0 0 0 3px rgba(8, 120, 63, 0.07);
+}
+
+/* =========================================================
+   TRANSACTIONS TABLE
+========================================================= */
 
 .table-wrapper {
   position: relative;
 
   min-height: 230px;
+
+  width: 100%;
+
+  overflow-x: auto;
+
+  -webkit-overflow-scrolling: touch;
 }
 
 .transactions-table {
   width: 100%;
 
   border-collapse: collapse;
+
+  min-width: 850px;
 }
 
 .transactions-table thead {
@@ -459,16 +557,17 @@ body {
 
   padding: 0 13px;
 
-  text-align: left;
+  border-bottom: 1px solid var(--border);
+
+  color: #818b85;
 
   font-size: 9px;
+
   font-weight: 800;
 
   letter-spacing: 0.5px;
 
-  color: #818b85;
-
-  border-bottom: 1px solid var(--border);
+  text-align: left;
 
   white-space: nowrap;
 }
@@ -480,30 +579,45 @@ body {
 
   border-bottom: 1px solid #f0f2f1;
 
-  font-size: 11px;
-
   color: #48534d;
 
+  font-size: 11px;
+
   vertical-align: middle;
+}
+
+.transactions-table tbody tr {
+  transition: background-color 0.15s ease;
 }
 
 .transactions-table tbody tr:hover {
   background: #fbfdfc;
 }
 
+/* =========================================================
+   PATIENT CELL
+========================================================= */
+
 .patient-cell {
+  min-width: 135px;
+
   display: flex;
 
   align-items: center;
 
   gap: 9px;
-
-  min-width: 135px;
 }
 
 .patient-avatar {
   width: 32px;
   height: 32px;
+
+  flex-shrink: 0;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
 
   border-radius: 50%;
 
@@ -511,14 +625,9 @@ body {
 
   color: var(--primary-green);
 
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
   font-size: 9px;
-  font-weight: 800;
 
-  flex-shrink: 0;
+  font-weight: 800;
 }
 
 .patient-info strong {
@@ -527,18 +636,23 @@ body {
   color: #27312b;
 
   font-size: 11px;
+
   font-weight: 700;
 }
 
 .patient-info span {
   display: block;
 
+  margin-top: 2px;
+
   color: #9aa29e;
 
   font-size: 9px;
-
-  margin-top: 2px;
 }
+
+/* =========================================================
+   SERVICE
+========================================================= */
 
 .service-name {
   color: #4e5852;
@@ -546,12 +660,16 @@ body {
   font-weight: 500;
 }
 
+/* =========================================================
+   DATE
+========================================================= */
+
 .date-cell strong {
   display: block;
 
-  font-size: 10.5px;
-
   color: #4d5751;
+
+  font-size: 10.5px;
 
   font-weight: 600;
 }
@@ -559,22 +677,32 @@ body {
 .date-cell span {
   display: block;
 
-  font-size: 9px;
+  margin-top: 2px;
 
   color: #9aa19d;
 
-  margin-top: 2px;
+  font-size: 9px;
 }
+
+/* =========================================================
+   AMOUNT
+========================================================= */
 
 .amount-cell {
   color: #1d2821 !important;
 
   font-family: "Poppins", sans-serif;
+
   font-size: 11px !important;
+
   font-weight: 600 !important;
 
   white-space: nowrap;
 }
+
+/* =========================================================
+   PAYMENT METHOD
+========================================================= */
 
 .method-badge {
   display: inline-flex;
@@ -583,15 +711,16 @@ body {
 
   gap: 5px;
 
+  padding: 5px 8px;
+
+  border-radius: 12px;
+
   background: #f5f7f6;
 
   color: #59635d;
 
-  border-radius: 12px;
-
-  padding: 5px 8px;
-
   font-size: 9px;
+
   font-weight: 600;
 
   white-space: nowrap;
@@ -606,6 +735,10 @@ body {
   background: #7d8781;
 }
 
+/* =========================================================
+   STATUS
+========================================================= */
+
 .status-badge {
   display: inline-flex;
 
@@ -613,11 +746,12 @@ body {
 
   gap: 5px;
 
-  border-radius: 12px;
-
   padding: 5px 9px;
 
+  border-radius: 12px;
+
   font-size: 9px;
+
   font-weight: 700;
 
   white-space: nowrap;
@@ -635,10 +769,14 @@ body {
 }
 
 .status-paid {
-  color: #16814b;
-
   background: #eaf7ef;
+
+  color: #16814b;
 }
+
+/* =========================================================
+   ACTION
+========================================================= */
 
 .action-cell {
   text-align: center;
@@ -650,24 +788,26 @@ body {
   width: 31px;
   height: 31px;
 
-  border: 1px solid #e6eae7;
-
-  background: white;
-
-  color: #7b8580;
-
-  border-radius: 8px;
-
   display: inline-flex;
 
   align-items: center;
   justify-content: center;
 
-  transition: 0.15s ease;
+  margin: 0 2px;
+
+  padding: 0;
+
+  border: 1px solid #e6eae7;
+
+  border-radius: 8px;
+
+  background: var(--white);
+
+  color: #7b8580;
 
   cursor: pointer;
 
-  margin: 0 2px;
+  transition: 0.15s ease;
 }
 
 .action-button:hover {
@@ -682,43 +822,49 @@ body {
 }
 
 .delete-action-button:hover {
+  border-color: #f0cccc;
+
   background: #fff0f0;
 
   color: #d94b4b;
-
-  border-color: #f0cccc;
 }
 
-.empty-state {
-  display: none;
+/* =========================================================
+   EMPTY STATE
+========================================================= */
 
+.empty-state {
   min-height: 230px;
 
+  display: none;
+
   align-items: center;
+
   justify-content: center;
 
   flex-direction: column;
 
-  text-align: center;
-
   padding: 30px;
+
+  text-align: center;
 }
 
 .empty-icon {
   width: 45px;
   height: 45px;
 
-  background: #f3f6f4;
-
-  color: #99a29d;
-
-  border-radius: 50%;
-
   display: flex;
+
   align-items: center;
   justify-content: center;
 
   margin-bottom: 10px;
+
+  border-radius: 50%;
+
+  background: #f3f6f4;
+
+  color: #99a29d;
 }
 
 .empty-icon svg {
@@ -742,6 +888,10 @@ body {
   font-size: 10.5px;
 }
 
+/* =========================================================
+   PAYMENT METHOD CARD
+========================================================= */
+
 .payment-method-card {
   padding-bottom: 0;
 }
@@ -755,28 +905,30 @@ body {
 }
 
 .collection-page-button {
+  min-height: 31px;
+
+  display: inline-flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  gap: 3px;
+
+  padding: 6px 9px;
+
   border: 1px solid #e4e9e6;
+
+  border-radius: 9px;
 
   background: #f8faf9;
 
   color: var(--primary-green);
 
-  border-radius: 9px;
-
-  min-height: 31px;
-
-  padding: 6px 9px;
-
-  display: inline-flex;
-
-  align-items: center;
-  justify-content: center;
-
-  gap: 3px;
-
   font-family: "Poppins", sans-serif;
 
   font-size: 9px;
+
   font-weight: 700;
 
   white-space: nowrap;
@@ -790,17 +942,21 @@ body {
 }
 
 .collection-page-button:hover {
+  border-color: #d6e9dc;
+
   background: var(--light-green);
 
   color: var(--dark-green);
-
-  border-color: #d6e9dc;
 }
 
 .collection-page-button svg {
   width: 13px;
   height: 13px;
 }
+
+/* =========================================================
+   PAYMENT METHOD LIST
+========================================================= */
 
 .payment-method-list {
   padding: 5px 18px 8px;
@@ -812,11 +968,12 @@ body {
   display: flex;
 
   align-items: center;
+
   justify-content: space-between;
 
-  border-bottom: 1px solid #f0f2f1;
-
   gap: 10px;
+
+  border-bottom: 1px solid #f0f2f1;
 }
 
 .payment-method-item:last-child {
@@ -824,27 +981,27 @@ body {
 }
 
 .method-left {
+  min-width: 0;
+
   display: flex;
 
   align-items: center;
 
   gap: 10px;
-
-  min-width: 0;
 }
 
 .method-icon {
   width: 34px;
   height: 34px;
 
-  border-radius: 9px;
+  flex-shrink: 0;
 
   display: flex;
 
   align-items: center;
   justify-content: center;
 
-  flex-shrink: 0;
+  border-radius: 9px;
 }
 
 .method-icon svg {
@@ -853,35 +1010,35 @@ body {
 }
 
 .method-icon.cash {
-  color: var(--primary-green);
-
   background: var(--light-green);
+
+  color: var(--primary-green);
 }
 
 .method-icon.gcash {
-  color: #4877ca;
-
   background: var(--blue-bg);
+
+  color: #4877ca;
 }
 
 .method-icon.bank {
-  color: #8061bd;
-
   background: var(--purple-bg);
+
+  color: #8061bd;
 }
 
 .method-icon.card {
-  color: #c17d08;
-
   background: var(--yellow-bg);
+
+  color: #c17d08;
 }
 
 .method-left strong {
   display: block;
 
-  font-size: 11px;
-
   color: #333d37;
+
+  font-size: 11px;
 }
 
 .method-left span {
@@ -889,67 +1046,79 @@ body {
 
   margin-top: 3px;
 
-  font-size: 9px;
-
   color: #9aa19d;
+
+  font-size: 9px;
 }
 
 .payment-method-item > strong {
   color: #28322c;
 
   font-family: "Poppins", sans-serif;
+
   font-size: 11px;
+
   font-weight: 600;
 
   white-space: nowrap;
 }
 
+/* =========================================================
+   PAYMENT TOTAL
+========================================================= */
+
 .payment-total {
-  border-top: 1px solid var(--border);
-
-  background: #fbfcfb;
-
-  padding: 15px 18px;
-
   display: flex;
 
   align-items: center;
+
   justify-content: space-between;
+
+  padding: 15px 18px;
+
+  border-top: 1px solid var(--border);
+
+  background: #fbfcfb;
 }
 
 .payment-total span {
-  font-size: 11px;
-
   color: #69736d;
+
+  font-size: 11px;
 
   font-weight: 600;
 }
 
 .payment-total strong {
+  color: var(--primary-green);
+
   font-family: "Poppins", sans-serif;
 
   font-size: 15px;
 
   font-weight: 600;
-
-  color: var(--primary-green);
 }
+
+/* =========================================================
+   MODAL OVERLAY
+========================================================= */
 
 .modal-overlay {
   position: fixed;
 
   inset: 0;
 
-  background: rgba(20, 30, 25, 0.42);
+  z-index: 9999;
 
   display: none;
 
   align-items: center;
+
   justify-content: center;
 
-  z-index: 9999;
-
   padding: 20px;
+
+  background: rgba(20, 30, 25, 0.42);
 
   backdrop-filter: blur(2px);
 }
@@ -957,6 +1126,10 @@ body {
 .modal-overlay.active {
   display: flex;
 }
+
+/* =========================================================
+   MODALS
+========================================================= */
 
 .payment-modal,
 .details-modal {
@@ -966,9 +1139,9 @@ body {
 
   overflow-y: auto;
 
-  background: white;
-
   border-radius: 18px;
+
+  background: var(--white);
 
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
 
@@ -982,37 +1155,47 @@ body {
 @keyframes modalIn {
   from {
     opacity: 0;
+
     transform: translateY(8px);
   }
 
   to {
     opacity: 1;
+
     transform: translateY(0);
   }
 }
 
+/* =========================================================
+   MODAL HEADER
+========================================================= */
+
 .modal-header {
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  gap: 16px;
+
   padding: 20px 22px;
 
   border-bottom: 1px solid var(--border);
-
-  display: flex;
-
-  justify-content: space-between;
-  align-items: center;
 }
 
 .modal-label {
   display: block;
 
+  margin-bottom: 3px;
+
   color: var(--primary-green);
 
   font-size: 9px;
+
   font-weight: 800;
 
   letter-spacing: 1.2px;
-
-  margin-bottom: 3px;
 }
 
 .modal-header h2 {
@@ -1025,9 +1208,18 @@ body {
   font-weight: 800;
 }
 
+/* =========================================================
+   CLOSE BUTTON
+========================================================= */
+
 .close-button {
   width: 34px;
   height: 34px;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
 
   border: none;
 
@@ -1037,12 +1229,11 @@ body {
 
   color: #727d76;
 
-  display: flex;
-
-  align-items: center;
-  justify-content: center;
-
   cursor: pointer;
+
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
 }
 
 .close-button:hover {
@@ -1055,6 +1246,10 @@ body {
   width: 17px;
   height: 17px;
 }
+
+/* =========================================================
+   PAYMENT FORM
+========================================================= */
 
 #paymentForm {
   padding: 20px 22px 22px;
@@ -1079,13 +1274,13 @@ body {
 .form-group label {
   display: block;
 
+  margin-bottom: 7px;
+
   color: #47524c;
 
   font-size: 11px;
 
   font-weight: 700;
-
-  margin-bottom: 7px;
 }
 
 .form-group label span {
@@ -1103,13 +1298,11 @@ body {
 
   outline: none;
 
-  background: white;
+  background: var(--white);
 
   color: #333c36;
 
   font-size: 11px;
-
-  padding: 0 11px;
 
   transition:
     border-color 0.15s ease,
@@ -1119,15 +1312,16 @@ body {
 .form-group input,
 .form-group select {
   height: 40px;
+
+  padding: 0 11px;
 }
 
 .form-group textarea {
-  resize: vertical;
-
   min-height: 80px;
 
-  padding-top: 10px;
-  padding-bottom: 10px;
+  padding: 10px 11px;
+
+  resize: vertical;
 }
 
 .form-group input:focus,
@@ -1138,18 +1332,22 @@ body {
   box-shadow: 0 0 0 3px rgba(8, 120, 63, 0.07);
 }
 
+/* =========================================================
+   AMOUNT INPUT
+========================================================= */
+
 .amount-input {
   height: 40px;
-
-  border: 1px solid #e0e5e2;
-
-  border-radius: 9px;
 
   display: flex;
 
   align-items: center;
 
   overflow: hidden;
+
+  border: 1px solid #e0e5e2;
+
+  border-radius: 9px;
 }
 
 .amount-input > span {
@@ -1163,53 +1361,61 @@ body {
 }
 
 .amount-input input {
+  height: 38px;
+
   border: none;
 
   box-shadow: none !important;
 
-  height: 38px;
-
   font-family: "Poppins", sans-serif;
 }
 
+/* =========================================================
+   MODAL ACTIONS
+========================================================= */
+
 .modal-actions {
-  border-top: 1px solid var(--border);
-
-  margin-top: 5px;
-
-  padding-top: 17px;
-
   display: flex;
 
   justify-content: flex-end;
 
   gap: 9px;
+
+  margin-top: 5px;
+
+  padding-top: 17px;
+
+  border-top: 1px solid var(--border);
 }
+
+/* =========================================================
+   DETAILS MODAL
+========================================================= */
 
 .details-content {
   padding: 20px 22px;
 }
 
 .transaction-reference {
-  background: #f6faf7;
+  margin-bottom: 16px;
+
+  padding: 12px 13px;
 
   border: 1px solid #e7f0ea;
 
   border-radius: 10px;
 
-  padding: 12px 13px;
-
-  margin-bottom: 16px;
+  background: #f6faf7;
 }
 
 .transaction-reference span {
   display: block;
 
+  margin-bottom: 3px;
+
   color: #89938d;
 
   font-size: 9px;
-
-  margin-bottom: 3px;
 }
 
 .transaction-reference strong {
@@ -1227,20 +1433,20 @@ body {
 }
 
 .details-grid > div {
-  border-bottom: 1px solid #f0f2f1;
-
   padding-bottom: 11px;
+
+  border-bottom: 1px solid #f0f2f1;
 }
 
 .details-grid span,
 .details-note > span {
   display: block;
 
+  margin-bottom: 4px;
+
   color: #89928d;
 
   font-size: 9px;
-
-  margin-bottom: 4px;
 }
 
 .details-grid strong {
@@ -1253,6 +1459,7 @@ body {
 
 #detailAmount {
   font-family: "Poppins", sans-serif;
+
   font-weight: 600;
 }
 
@@ -1265,9 +1472,9 @@ body {
 
   padding: 11px;
 
-  background: #f8faf9;
-
   border-radius: 8px;
+
+  background: #f8faf9;
 
   color: #626c66;
 
@@ -1277,14 +1484,18 @@ body {
 }
 
 .details-actions {
-  border-top: 1px solid var(--border);
-
-  padding: 14px 22px;
-
   display: flex;
 
   justify-content: flex-end;
+
+  padding: 14px 22px;
+
+  border-top: 1px solid var(--border);
 }
+
+/* =========================================================
+   FINANCE TOAST
+========================================================= */
 
 .finance-toast {
   position: fixed;
@@ -1294,13 +1505,13 @@ body {
 
   z-index: 10000;
 
-  background: #1f2b24;
-
-  color: white;
+  padding: 12px 15px;
 
   border-radius: 10px;
 
-  padding: 12px 15px;
+  background: #1f2b24;
+
+  color: var(--white);
 
   font-size: 11px;
 
@@ -1323,9 +1534,13 @@ body {
   transform: translateY(0);
 }
 
+/* =========================================================
+   RESPONSIVE — 1200px
+========================================================= */
+
 @media (max-width: 1200px) {
   .summary-grid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .finance-content-grid {
@@ -1336,6 +1551,10 @@ body {
     width: 100%;
   }
 }
+
+/* =========================================================
+   RESPONSIVE — 900px
+========================================================= */
 
 @media (max-width: 900px) {
   .finance-page {
@@ -1355,9 +1574,14 @@ body {
   }
 }
 
+/* =========================================================
+   RESPONSIVE — 650px
+========================================================= */
+
 @media (max-width: 650px) {
   .finance-page {
     width: 100%;
+
     padding: 20px 15px 35px;
   }
 
@@ -1380,11 +1604,11 @@ body {
 
     height: 29px;
 
+    gap: 4px;
+
     padding: 5px 8px;
 
     font-size: 9px;
-
-    gap: 4px;
   }
 
   .record-payment-header-button svg {

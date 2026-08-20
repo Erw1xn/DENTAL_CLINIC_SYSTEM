@@ -90,9 +90,7 @@ a:focus-visible {
   padding: 30px 34px 46px;
 }
 
-/* =========================================================
-   HEADER
-========================================================= */
+/* HEADER */
 
 .dash-header {
   display: flex;
@@ -241,9 +239,7 @@ a:focus-visible {
   box-shadow: var(--shadow-hover);
 }
 
-/* =========================================================
-   STAT CARDS
-========================================================= */
+/* STAT CARDS */
 
 .stats-grid {
   display: grid;
@@ -325,9 +321,7 @@ a:focus-visible {
   display: none;
 }
 
-/* =========================================================
-   TWO COLUMN LAYOUT
-========================================================= */
+/* TWO COLUMN LAYOUT */
 
 .two-col-grid {
   display: grid;
@@ -345,9 +339,7 @@ a:focus-visible {
   min-width: 0;
 }
 
-/* =========================================================
-   PANELS
-========================================================= */
+/* PANELS */
 
 .panel {
   overflow: hidden;
@@ -418,9 +410,7 @@ a:focus-visible {
   color: var(--green-900);
 }
 
-/* =========================================================
-   APPOINTMENTS
-========================================================= */
+/* APPOINTMENTS */
 
 .appt-item {
   display: flex;
@@ -428,12 +418,11 @@ a:focus-visible {
   gap: 11px;
   padding: 10px 11px;
   background: var(--white);
-  border: 1px solid var(--ink-100);
+  border: none;
   border-radius: var(--radius-md);
   cursor: pointer;
   transition:
     background 0.18s ease,
-    border-color 0.18s ease,
     transform 0.18s ease;
 }
 
@@ -443,7 +432,6 @@ a:focus-visible {
 
 .appt-item:hover {
   background: var(--green-50);
-  border-color: var(--green-100);
   transform: translateX(2px);
 }
 
@@ -494,9 +482,7 @@ a:focus-visible {
   line-height: 1.4;
 }
 
-/* =========================================================
-   BADGES
-========================================================= */
+/* BADGES */
 
 .badge {
   display: inline-flex;
@@ -546,9 +532,7 @@ a:focus-visible {
   color: var(--red-500);
 }
 
-/* =========================================================
-   DENTIST AVAILABILITY
-========================================================= */
+/* DENTIST AVAILABILITY */
 
 .dentist-item {
   display: flex;
@@ -650,9 +634,7 @@ a:focus-visible {
   background: var(--ink-300);
 }
 
-/* =========================================================
-   INVENTORY
-========================================================= */
+/* INVENTORY */
 
 .inv-item {
   display: flex;
@@ -661,11 +643,11 @@ a:focus-visible {
   gap: 12px;
   padding: 10px 11px;
   background: var(--white);
-  border: 1px solid var(--ink-100);
+  border: none;
   border-radius: var(--radius-md);
   transition:
     background 0.18s ease,
-    border-color 0.18s ease;
+    transform 0.18s ease;
 }
 
 .inv-item + .inv-item {
@@ -674,7 +656,7 @@ a:focus-visible {
 
 .inv-item:hover {
   background: var(--green-50);
-  border-color: var(--green-100);
+  transform: translateX(2px);
 }
 
 .inv-left {
@@ -733,9 +715,7 @@ a:focus-visible {
   color: var(--white);
 }
 
-/* =========================================================
-   CLINIC SUMMARY
-========================================================= */
+/* CLINIC SUMMARY */
 
 .clinic-summary-grid {
   display: grid;
@@ -821,9 +801,7 @@ a:focus-visible {
   font-weight: 700;
 }
 
-/* =========================================================
-   EMPTY STATE
-========================================================= */
+/* EMPTY STATE */
 
 .empty-state {
   display: flex;
@@ -847,9 +825,7 @@ a:focus-visible {
   font-weight: 500;
 }
 
-/* =========================================================
-   DASHBOARD NOTIFICATION
-========================================================= */
+/* DASHBOARD NOTIFICATION */
 
 .dashboard-notification {
   position: fixed;
@@ -891,9 +867,7 @@ a:focus-visible {
   color: var(--red-500);
 }
 
-/* =========================================================
-   RESPONSIVE
-========================================================= */
+/* RESPONSIVE */
 
 @media (max-width: 1180px) {
   .main-content {

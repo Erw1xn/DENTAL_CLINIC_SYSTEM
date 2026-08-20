@@ -40,7 +40,190 @@ document.addEventListener("DOMContentLoaded", () => {
   updateTotalPatientCount();
 
   startAppointmentRealtimeRefresh();
+
+  setupModalLayout();
 });
+
+function setupModalLayout() {
+  if (document.getElementById("dentaNuevaModalLayout")) {
+    return;
+  }
+
+  const style = document.createElement("style");
+  style.id = "dentaNuevaModalLayout";
+  style.textContent = `
+    #patientModalBackdrop,
+    #patientDetailsModalBackdrop,
+    #medicalFormModalBackdrop,
+    #medicalResultModalBackdrop {
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      box-sizing: border-box;
+      overflow: hidden;
+    }
+
+    #patientModalBackdrop > *,
+    #patientDetailsModalBackdrop > *,
+    #medicalFormModalBackdrop > *,
+    #medicalResultModalBackdrop > * {
+      width: min(100%, 760px);
+      max-width: 760px;
+      max-height: calc(100vh - 40px);
+      margin: 0;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #patientDetailsModalBackdrop > *,
+    #medicalResultModalBackdrop > * {
+      width: min(100%, 820px);
+      max-width: 820px;
+    }
+
+    #medicalFormModalBackdrop > * {
+      width: min(100%, 920px);
+      max-width: 920px;
+    }
+
+    #patientModalBackdrop .modal-body,
+    #patientDetailsModalBackdrop .modal-body,
+    #medicalFormModalBackdrop .modal-body,
+    #medicalResultModalBackdrop .modal-body,
+    #patientModalBackdrop .modal-content,
+    #patientDetailsModalBackdrop .modal-content,
+    #medicalFormModalBackdrop .modal-content,
+    #medicalResultModalBackdrop .modal-content {
+      min-height: 0;
+    }
+
+    #patientModalBackdrop .modal-body,
+    #patientDetailsModalBackdrop .modal-body,
+    #medicalFormModalBackdrop .modal-body,
+    #medicalResultModalBackdrop .modal-body {
+      overflow-y: auto;
+      overflow-x: hidden;
+      scrollbar-width: thin;
+    }
+
+    #patientDetailsModalBackdrop .details-profile,
+    #medicalResultModalBackdrop .medical-result-profile {
+      margin: 0;
+    }
+
+    #patientDetailsModalBackdrop .details-profile-header {
+      margin-bottom: 16px;
+      padding-bottom: 14px;
+    }
+
+    #patientDetailsModalBackdrop .details-grid,
+    #medicalResultModalBackdrop .medical-result-grid {
+      gap: 12px;
+      margin: 0;
+    }
+
+    #patientDetailsModalBackdrop .details-item,
+    #medicalResultModalBackdrop .medical-result-item {
+      min-width: 0;
+      box-sizing: border-box;
+    }
+
+    #medicalResultModalBackdrop .medical-result-section {
+      margin: 0 0 14px;
+      padding: 14px;
+    }
+
+    #medicalResultModalBackdrop .medical-result-section:last-of-type {
+      margin-bottom: 0;
+    }
+
+    #medicalResultModalBackdrop .medical-result-profile {
+      margin-bottom: 14px;
+      padding: 14px 16px;
+    }
+
+    #medicalResultModalBackdrop .medical-result-consent {
+      margin-top: 14px;
+      padding: 12px 14px;
+    }
+
+    #medicalResultModalBackdrop .medical-result-list {
+      gap: 6px;
+    }
+
+    #medicalFormModalBackdrop .medform-step,
+    #medicalFormModalBackdrop .review-card {
+      box-sizing: border-box;
+    }
+
+    #medicalFormModalBackdrop #medformStepViewport {
+      min-height: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    #medicalFormModalBackdrop #medformReview {
+      display: grid;
+      gap: 12px;
+    }
+
+    #medicalFormModalBackdrop .review-card {
+      margin: 0;
+      padding: 14px;
+    }
+
+    #medicalFormModalBackdrop .review-row {
+      gap: 10px;
+      padding: 8px 0;
+    }
+
+    #patientModalBackdrop form,
+    #medicalFormModalBackdrop form {
+      min-height: 0;
+    }
+
+    #patientModalBackdrop .modal-header,
+    #patientDetailsModalBackdrop .modal-header,
+    #medicalFormModalBackdrop .modal-header,
+    #medicalResultModalBackdrop .modal-header {
+      flex-shrink: 0;
+    }
+
+    #patientModalBackdrop .modal-footer,
+    #patientDetailsModalBackdrop .modal-footer,
+    #medicalFormModalBackdrop .modal-footer,
+    #medicalResultModalBackdrop .modal-footer,
+    #medformStepActions {
+      flex-shrink: 0;
+    }
+
+    @media (max-width: 700px) {
+      #patientModalBackdrop,
+      #patientDetailsModalBackdrop,
+      #medicalFormModalBackdrop,
+      #medicalResultModalBackdrop {
+        padding: 10px;
+      }
+
+      #patientModalBackdrop > *,
+      #patientDetailsModalBackdrop > *,
+      #medicalFormModalBackdrop > *,
+      #medicalResultModalBackdrop > * {
+        max-height: calc(100vh - 20px);
+        border-radius: 14px;
+      }
+
+      #patientDetailsModalBackdrop .details-grid,
+      #medicalResultModalBackdrop .medical-result-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  `;
+
+  document.head.appendChild(style);
+}
 
 function startAppointmentRealtimeRefresh() {
   if (appointmentRefreshInterval) {
@@ -962,7 +1145,6 @@ function createPatientRow(patient) {
     </td>
   `;
 }
-
 function getLocalDateString(date = new Date()) {
   const year = date.getFullYear();
 
@@ -1250,7 +1432,7 @@ function renderAppointment(appointment) {
           ? `
             <div
               class="appointment-status appointment-status-today"
-              style="display:inline-flex;align-items:center;justify-content:center;min-height:20px;padding:0 6px;border:1px solid #c8e7d4;border-radius:6px;background:#edf8f1;color:#19733f;font-size:10px;font-weight:600;line-height:1;box-sizing:border-box;"
+              style="display:inline-flex;align-items:center;justify-content:center;min-height:20px;padding:0 6px;border:1px solid #c8e7d4;border-radius:6px;background:#edf8f1;color:#19733f;font-size:8px;font-weight:600;line-height:1;box-sizing:border-box;"
             >
               <span>Today</span>
             </div>
@@ -1263,7 +1445,7 @@ function renderAppointment(appointment) {
           ? `
             <div
               class="appointment-status appointment-status-completed"
-              style="display:inline-flex;align-items:center;justify-content:center;min-height:20px;padding:0 6px;border-radius:6px;box-sizing:border-box;font-size:10px;font-weight:600;line-height:1;"
+              style="display:inline-flex;align-items:center;justify-content:center;min-height:20px;padding:0 6px;border-radius:6px;box-sizing:border-box;font-size:8px;font-weight:600;line-height:1;"
             >
               <span>Completed</span>
             </div>
@@ -1724,7 +1906,6 @@ function populateExistingMedicalForm(medical) {
     )}`;
   }
 }
-
 function setCheckboxValues(name, values) {
   const normalized = arrayValue(values);
 
@@ -2303,7 +2484,6 @@ function renderResultTags(values) {
     </div>
   `;
 }
-
 $("closeMedicalResultModal")?.addEventListener("click", closeMedicalResult);
 
 $("closeMedicalResultBtn")?.addEventListener("click", closeMedicalResult);

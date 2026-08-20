@@ -50,8 +50,7 @@
                       class="dentist-filter"
                       aria-label="Filter appointments by dentist"
                     >
-                      <option value="all">All Dentists</option>
-                      <option value="santos">Dr. M. Santos</option>
+                      <option value="santos" selected>Dr. M. Santos</option>
                       <option value="cruz">Dr. L. Cruz</option>
                       <option value="ramos">Dr. J. Ramos</option>
                     </select>
@@ -80,7 +79,11 @@
                 </div>
               </div>
 
-              <div class="time-slots-container" id="timeline"></div>
+              <div
+                class="time-slots-container"
+                id="timeline"
+                data-view="single"
+              ></div>
             </section>
           </div>
 
@@ -196,11 +199,25 @@
           <div class="form-group">
             <label for="f_patient"> Patient </label>
 
-            <select id="f_patient" class="form-control">
-              <option value="" selected disabled>
-                Select an existing patient
-              </option>
-            </select>
+            <div class="patient-select-wrapper" id="patientSelectWrapper">
+              <input
+                type="text"
+                id="f_patient"
+                class="form-control patient-select-input"
+                placeholder="Type patient name or patient ID"
+                autocomplete="off"
+                aria-autocomplete="list"
+                aria-expanded="false"
+              />
+
+              <i class="fa-solid fa-chevron-down patient-select-arrow"></i>
+
+              <div
+                class="patient-dropdown"
+                id="patientDropdown"
+                role="listbox"
+              ></div>
+            </div>
 
             <small class="field-help">
               Only patients already registered in the Patients page can be
@@ -267,14 +284,26 @@
             </small>
           </div>
 
-          <div class="form-group">
+          <div class="form-group available-time-group">
             <label for="f_time"> Available Time </label>
 
-            <select id="f_time" class="form-control">
-              <option value="" selected disabled>
-                Select an available time
-              </option>
-            </select>
+            <div class="available-time-control">
+              <div class="available-time-icon">
+                <i class="fa-regular fa-clock"></i>
+              </div>
+
+              <div class="available-time-select-wrapper">
+                <select
+                  id="f_time"
+                  class="form-control available-time-select"
+                  aria-label="Available appointment time"
+                >
+                  <option value="" selected disabled>Select a time</option>
+                </select>
+
+                <i class="fa-solid fa-chevron-down available-time-arrow"></i>
+              </div>
+            </div>
 
             <small
               id="availableTimeSummary"
@@ -468,22 +497,15 @@
 
         if (section === "dentists") {
           waitingHeader.classList.remove("active");
-
           dentistsHeader.classList.add("active");
-
           waitingPage.classList.remove("active");
-
           dentistsPage.classList.add("active");
-
           return;
         }
 
         dentistsHeader.classList.remove("active");
-
         waitingHeader.classList.add("active");
-
         dentistsPage.classList.remove("active");
-
         waitingPage.classList.add("active");
       }
 
@@ -502,6 +524,12 @@
       }
 
       document.addEventListener("DOMContentLoaded", function () {
+        const dentistFilter = document.getElementById("dentistFilter");
+
+        if (dentistFilter) {
+          dentistFilter.value = "santos";
+        }
+
         const queueList = document.getElementById("waitingQueueList");
 
         if (!queueList) {
