@@ -5,57 +5,37 @@ document.addEventListener("DOMContentLoaded", () => {
 const SMS_STORAGE_KEY = "sms_notifications";
 const APPOINTMENTS_STORAGE_KEY = "appointments";
 const PATIENTS_STORAGE_KEY = "dentanueva_patients";
-const SMS_RESET_KEY = "sms_notifications_reset_v1";
+const SMS_RESET_KEY = "sms_notifications_reset_v3";
 
 let smsNotifications = [];
 let patients = [];
 let appointments = [];
-
 let deleteNotificationId = null;
 let toastTimeout = null;
-
-/* =========================================================
-   INITIALIZE
-   ========================================================= */
+let smsProcessingIds = new Set();
+let simulateNextSMSFailureFlag = false;
 
 function initializeSMSPage() {
   resetSMSDataOnce();
-
   loadPatients();
   loadAppointments();
-
   loadSMSNotifications();
-
   cleanupOrphanedNotifications();
-
   syncAppointmentNotifications();
-
   setupSMSPageSorting();
-
   bindEvents();
-
   renderPage();
+  processPendingSMSNotifications();
 }
-
-/* =========================================================
-   RESET SMS DATA
-   ========================================================= */
 
 function resetSMSDataOnce() {
   const hasBeenReset = localStorage.getItem(SMS_RESET_KEY);
 
-  if (hasBeenReset) {
-    return;
-  }
+  if (hasBeenReset) return;
 
   localStorage.removeItem(SMS_STORAGE_KEY);
-
   localStorage.setItem(SMS_RESET_KEY, "true");
 }
-
-/* =========================================================
-   PATIENTS
-   ========================================================= */
 
 function loadPatients() {
   const storedPatients = localStorage.getItem(PATIENTS_STORAGE_KEY);
@@ -67,11 +47,9 @@ function loadPatients() {
 
   try {
     const parsed = JSON.parse(storedPatients);
-
     patients = Array.isArray(parsed) ? parsed : [];
   } catch (error) {
     console.error("Unable to load patients:", error);
-
     patients = [];
   }
 }
@@ -88,25 +66,15 @@ function getPatientId(patient) {
 }
 
 function getPatientName(patient) {
-  if (!patient) {
-    return "";
-  }
+  if (!patient) return "";
 
-  if (patient.fullName) {
-    return patient.fullName;
-  }
+  if (patient.fullName) return patient.fullName;
 
-  if (patient.full_name) {
-    return patient.full_name;
-  }
+  if (patient.full_name) return patient.full_name;
 
-  if (patient.patientName) {
-    return patient.patientName;
-  }
+  if (patient.patientName) return patient.patientName;
 
-  if (patient.name) {
-    return patient.name;
-  }
+  if (patient.name) return patient.name;
 
   return [patient.firstName, patient.middleName, patient.lastName]
     .filter(Boolean)
@@ -126,10 +94,6 @@ function getPatientPhone(patient) {
   );
 }
 
-/* =========================================================
-   APPOINTMENTS
-   ========================================================= */
-
 function loadAppointments() {
   const storedAppointments = localStorage.getItem(APPOINTMENTS_STORAGE_KEY);
 
@@ -140,18 +104,12 @@ function loadAppointments() {
 
   try {
     const parsed = JSON.parse(storedAppointments);
-
     appointments = Array.isArray(parsed) ? parsed : [];
   } catch (error) {
     console.error("Unable to load appointments:", error);
-
     appointments = [];
   }
 }
-
-/* =========================================================
-   SMS STORAGE
-   ========================================================= */
 
 function loadSMSNotifications() {
   const storedSMS = localStorage.getItem(SMS_STORAGE_KEY);
@@ -163,11 +121,9 @@ function loadSMSNotifications() {
 
   try {
     const parsed = JSON.parse(storedSMS);
-
     smsNotifications = Array.isArray(parsed) ? parsed : [];
   } catch (error) {
     console.error("Unable to load SMS notifications:", error);
-
     smsNotifications = [];
   }
 }
@@ -175,10 +131,6 @@ function loadSMSNotifications() {
 function saveSMSNotifications() {
   localStorage.setItem(SMS_STORAGE_KEY, JSON.stringify(smsNotifications));
 }
-
-/* =========================================================
-   SMS PAGE SORTING
-   ========================================================= */
 
 function setupSMSPageSorting() {
   return;
@@ -191,17 +143,13 @@ function getSortValue() {
 function sortSMSNotifications(notifications) {
   const sorted = [...notifications];
 
-  sorted.sort((a, b) => {
-    return getNotificationDate(b) - getNotificationDate(a);
-  });
+  sorted.sort((a, b) => getNotificationDate(b) - getNotificationDate(a));
 
   return sorted;
 }
 
 function getNotificationDate(notification) {
-  if (!notification) {
-    return 0;
-  }
+  if (!notification) return 0;
 
   const createdAt = notification.createdAt;
 
@@ -214,7 +162,6 @@ function getNotificationDate(notification) {
   }
 
   const appointmentDate = notification.appointmentDate || "";
-
   const appointmentTime = notification.appointmentTime || "00:00";
 
   if (appointmentDate) {
@@ -236,45 +183,28 @@ function getNotificationDate(notification) {
   return 0;
 }
 
-/* =========================================================
-   APPOINTMENT → SMS SYNCHRONIZATION
-   ========================================================= */
-
 function syncAppointmentNotifications() {
-  if (!Array.isArray(appointments) || !appointments.length) {
-    return;
-  }
+  if (!Array.isArray(appointments) || !appointments.length) return;
 
-  if (!Array.isArray(patients) || !patients.length) {
-    return;
-  }
+  if (!Array.isArray(patients) || !patients.length) return;
 
   let changed = false;
 
   appointments.forEach((appointment) => {
-    if (!appointment) {
-      return;
-    }
+    if (!appointment) return;
 
     const patient = findPatientForAppointment(appointment);
 
-    if (!patient) {
-      return;
-    }
+    if (!patient) return;
 
     const patientName = getPatientName(patient);
-
     const phone = getPatientPhone(patient);
 
-    if (!patientName || !phone) {
-      return;
-    }
+    if (!patientName || !phone) return;
 
     const appointmentId = getAppointmentId(appointment);
 
-    if (!appointmentId) {
-      return;
-    }
+    if (!appointmentId) return;
 
     const appointmentDate = normalizeDateForInput(
       appointment.date ||
@@ -291,6 +221,8 @@ function syncAppointmentNotifications() {
         appointment.scheduleTime ||
         "",
     );
+
+    if (!appointmentDate) return;
 
     const appointmentStatus = getAppointmentStatus(appointment);
 
@@ -322,7 +254,7 @@ function syncAppointmentNotifications() {
         appointmentStatus !== "cancelled" &&
         appointmentStatus !== "completed"
       ) {
-        const created = createAutomaticNotificationIfMissing(
+        const createdReschedule = createAutomaticNotificationIfMissing(
           appointment,
           patient,
           "Appointment Reschedule",
@@ -330,13 +262,19 @@ function syncAppointmentNotifications() {
           appointmentTime,
         );
 
-        if (created) {
-          changed = true;
-        }
+        if (createdReschedule) changed = true;
+
+        const removedReminder =
+          removeUndeliveredReminderNotifications(appointmentId);
+
+        if (removedReminder) changed = true;
       }
     }
 
-    if (appointmentStatus === "confirmed") {
+    if (
+      appointmentStatus === "scheduled" ||
+      appointmentStatus === "confirmed"
+    ) {
       const createdConfirmation = createAutomaticNotificationIfMissing(
         appointment,
         patient,
@@ -345,28 +283,40 @@ function syncAppointmentNotifications() {
         appointmentTime,
       );
 
-      if (createdConfirmation) {
-        changed = true;
-      }
+      if (createdConfirmation) changed = true;
 
-      const reminderType = getReminderTypeForAppointment(appointmentDate);
+      const reminderType = getReminderTypeForAppointment(
+        appointmentDate,
+        appointmentTime,
+      );
 
       if (reminderType) {
-        const createdReminder = createAutomaticNotificationIfMissing(
-          appointment,
-          patient,
-          reminderType,
+        const reminderDueAt = getReminderDueAt(
           appointmentDate,
           appointmentTime,
         );
 
-        if (createdReminder) {
-          changed = true;
+        if (reminderDueAt) {
+          const createdReminder = createAutomaticNotificationIfMissing(
+            appointment,
+            patient,
+            reminderType,
+            appointmentDate,
+            appointmentTime,
+            reminderDueAt.toISOString(),
+          );
+
+          if (createdReminder) changed = true;
         }
       }
     }
 
     if (appointmentStatus === "cancelled") {
+      const removedReminder =
+        removeUndeliveredReminderNotifications(appointmentId);
+
+      if (removedReminder) changed = true;
+
       const createdCancellation = createAutomaticNotificationIfMissing(
         appointment,
         patient,
@@ -375,9 +325,7 @@ function syncAppointmentNotifications() {
         appointmentTime,
       );
 
-      if (createdCancellation) {
-        changed = true;
-      }
+      if (createdCancellation) changed = true;
     }
 
     updateAppointmentNotificationSnapshots(
@@ -386,19 +334,11 @@ function syncAppointmentNotifications() {
     );
   });
 
-  if (changed) {
-    saveSMSNotifications();
-  }
+  if (changed) saveSMSNotifications();
 }
 
-/* =========================================================
-   APPOINTMENT STATUS
-   ========================================================= */
-
 function getAppointmentStatus(appointment) {
-  if (!appointment) {
-    return "";
-  }
+  if (!appointment) return "";
 
   const rawStatus =
     appointment.status ||
@@ -407,12 +347,45 @@ function getAppointmentStatus(appointment) {
     appointment.state ||
     "";
 
-  return String(rawStatus).trim().toLowerCase();
-}
+  const value = String(rawStatus)
+    .trim()
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ");
 
-/* =========================================================
-   APPOINTMENT ID
-   ========================================================= */
+  if (
+    value === "confirmed" ||
+    value === "confirm" ||
+    value === "scheduled" ||
+    value === "schedule" ||
+    value === "pending" ||
+    value === "waiting"
+  ) {
+    return "scheduled";
+  }
+
+  if (value === "cancelled" || value === "canceled" || value === "cancel") {
+    return "cancelled";
+  }
+
+  if (value === "completed" || value === "complete" || value === "done") {
+    return "completed";
+  }
+
+  if (value === "checked in" || value === "checkedin" || value === "check in") {
+    return "checkedin";
+  }
+
+  if (value === "in consultation" || value === "inconsultation") {
+    return "in consultation";
+  }
+
+  if (value === "no show" || value === "noshow") {
+    return "no-show";
+  }
+
+  return value;
+}
 
 function getAppointmentId(appointment) {
   return (
@@ -423,10 +396,6 @@ function getAppointmentId(appointment) {
     ""
   );
 }
-
-/* =========================================================
-   APPOINTMENT SNAPSHOT
-   ========================================================= */
 
 function getAppointmentSnapshot(date, time, status) {
   return {
@@ -441,15 +410,13 @@ function findLatestAppointmentSnapshot(notifications) {
     return null;
   }
 
-  const sorted = [...notifications].sort((a, b) => {
-    return getNotificationDate(b) - getNotificationDate(a);
-  });
+  const sorted = [...notifications].sort(
+    (a, b) => getNotificationDate(b) - getNotificationDate(a),
+  );
 
   const notification = sorted.find((item) => item.appointmentSnapshot);
 
-  if (!notification) {
-    return null;
-  }
+  if (!notification) return null;
 
   return notification.appointmentSnapshot;
 }
@@ -459,9 +426,7 @@ function hasAppointmentScheduleChanged(
   currentDate,
   currentTime,
 ) {
-  if (!previousSnapshot) {
-    return false;
-  }
+  if (!previousSnapshot) return false;
 
   const previousDate = normalizeDateForInput(previousSnapshot.date || "");
 
@@ -478,31 +443,34 @@ function updateAppointmentNotificationSnapshots(
   notifications,
   appointmentSnapshot,
 ) {
-  if (!Array.isArray(notifications)) {
-    return;
-  }
+  if (!Array.isArray(notifications)) return;
 
   notifications.forEach((notification) => {
     notification.appointmentSnapshot = appointmentSnapshot;
   });
 }
 
-/* =========================================================
-   REMINDER TYPE
-   ========================================================= */
-
-function getReminderTypeForAppointment(appointmentDate) {
+function getReminderTypeForAppointment(appointmentDate, appointmentTime) {
   const normalizedAppointmentDate = normalizeDateForInput(appointmentDate);
 
-  if (!normalizedAppointmentDate) {
+  if (!normalizedAppointmentDate) return null;
+
+  const appointmentDateTime = createLocalDateTimeFromDateAndTime(
+    normalizedAppointmentDate,
+    appointmentTime,
+  );
+
+  if (!appointmentDateTime || Number.isNaN(appointmentDateTime.getTime())) {
+    return null;
+  }
+
+  if (appointmentDateTime.getTime() <= Date.now()) {
     return null;
   }
 
   const today = getLocalDateOnly(new Date());
 
-  const appointmentDay = getLocalDateOnly(
-    createLocalDateFromDateString(normalizedAppointmentDate),
-  );
+  const appointmentDay = getLocalDateOnly(appointmentDateTime);
 
   const difference = getDateDifferenceInDays(today, appointmentDay);
 
@@ -510,27 +478,56 @@ function getReminderTypeForAppointment(appointmentDate) {
     return "Same-Day Reminder";
   }
 
-  if (difference === 1) {
+  if (difference > 0) {
     return "Appointment Reminder";
   }
 
   return null;
 }
 
-/* =========================================================
-   DATE HELPERS
-   ========================================================= */
+function getReminderDueAt(appointmentDate, appointmentTime) {
+  const normalizedDate = normalizeDateForInput(appointmentDate);
+
+  const normalizedTime = normalizeTimeForInput(appointmentTime);
+
+  if (!normalizedDate || !normalizedTime) {
+    return null;
+  }
+
+  const appointmentDateTime = createLocalDateTimeFromDateAndTime(
+    normalizedDate,
+    normalizedTime,
+  );
+
+  if (!appointmentDateTime || Number.isNaN(appointmentDateTime.getTime())) {
+    return null;
+  }
+
+  return new Date(appointmentDateTime.getTime() - 2 * 60 * 60 * 1000);
+}
 
 function createLocalDateFromDateString(dateString) {
   const normalized = normalizeDateForInput(dateString);
 
-  if (!normalized) {
-    return null;
-  }
+  if (!normalized) return null;
 
   const [year, month, day] = normalized.split("-").map(Number);
 
   return new Date(year, month - 1, day);
+}
+
+function createLocalDateTimeFromDateAndTime(dateString, timeString) {
+  const normalizedDate = normalizeDateForInput(dateString);
+
+  const normalizedTime = normalizeTimeForInput(timeString);
+
+  if (!normalizedDate) return null;
+
+  const [year, month, day] = normalizedDate.split("-").map(Number);
+
+  const [hour, minute] = (normalizedTime || "00:00").split(":").map(Number);
+
+  return new Date(year, month - 1, day, hour || 0, minute || 0, 0, 0);
 }
 
 function getLocalDateOnly(date) {
@@ -542,9 +539,7 @@ function getLocalDateOnly(date) {
 }
 
 function getDateDifferenceInDays(startDate, endDate) {
-  if (!startDate || !endDate) {
-    return null;
-  }
+  if (!startDate || !endDate) return null;
 
   const millisecondsPerDay = 24 * 60 * 60 * 1000;
 
@@ -553,22 +548,21 @@ function getDateDifferenceInDays(startDate, endDate) {
   );
 }
 
-/* =========================================================
-   CREATE AUTOMATIC NOTIFICATION
-   ========================================================= */
-
 function createAutomaticNotificationIfMissing(
   appointment,
   patient,
   notificationType,
   appointmentDate,
   appointmentTime,
+  scheduledFor = null,
 ) {
   const appointmentId = getAppointmentId(appointment);
 
-  if (!appointmentId) {
-    return false;
-  }
+  if (!appointmentId) return false;
+
+  const isReminder =
+    notificationType === "Appointment Reminder" ||
+    notificationType === "Same-Day Reminder";
 
   const alreadyExists = smsNotifications.some((notification) => {
     return (
@@ -578,9 +572,7 @@ function createAutomaticNotificationIfMissing(
     );
   });
 
-  if (alreadyExists) {
-    return false;
-  }
+  if (alreadyExists) return false;
 
   const patientName = getPatientName(patient);
 
@@ -595,39 +587,24 @@ function createAutomaticNotificationIfMissing(
 
   const notification = {
     id: createID(),
-
     appointmentId: appointmentId,
-
     patientId: getPatientId(patient),
-
     patientName: patientName,
-
     phone: phone,
-
     message: message,
-
     type: notificationType,
-
     appointmentType: notificationType,
-
     appointmentDate: appointmentDate,
-
     appointmentTime: appointmentTime,
-
     status: "Pending",
-
     deliveryStatus: "Pending",
-
     createdAt: new Date().toISOString(),
-
     sentAt: null,
-
     failedAt: null,
-
     failureReason: null,
-
     source: "appointment",
-
+    scheduledFor: isReminder && scheduledFor ? scheduledFor : null,
+    isScheduledReminder: isReminder,
     appointmentSnapshot: getAppointmentSnapshot(
       appointmentDate,
       appointmentTime,
@@ -640,9 +617,35 @@ function createAutomaticNotificationIfMissing(
   return true;
 }
 
-/* =========================================================
-   CLEANUP ORPHANED NOTIFICATIONS
-   ========================================================= */
+function removeUndeliveredReminderNotifications(appointmentId) {
+  let changed = false;
+
+  smsNotifications = smsNotifications.filter((notification) => {
+    const isSameAppointment =
+      notification.source === "appointment" &&
+      String(notification.appointmentId || "") === String(appointmentId);
+
+    const isReminder =
+      notification.type === "Appointment Reminder" ||
+      notification.type === "Same-Day Reminder";
+
+    const isUnsent =
+      notification.status === "Pending" || notification.status === "Failed";
+
+    if (isSameAppointment && isReminder && isUnsent) {
+      changed = true;
+      return false;
+    }
+
+    return true;
+  });
+
+  if (changed) {
+    saveSMSNotifications();
+  }
+
+  return changed;
+}
 
 function cleanupOrphanedNotifications() {
   if (!Array.isArray(smsNotifications) || !smsNotifications.length) {
@@ -654,7 +657,6 @@ function cleanupOrphanedNotifications() {
   smsNotifications = smsNotifications.filter((notification) => {
     if (!notification) {
       changed = true;
-
       return false;
     }
 
@@ -689,7 +691,6 @@ function cleanupOrphanedNotifications() {
 
     if (!matchedPatient) {
       changed = true;
-
       return false;
     }
 
@@ -702,7 +703,6 @@ function cleanupOrphanedNotifications() {
 
       if (!appointmentStillExists) {
         changed = true;
-
         return false;
       }
     }
@@ -715,14 +715,8 @@ function cleanupOrphanedNotifications() {
   }
 }
 
-/* =========================================================
-   FIND PATIENT FOR APPOINTMENT
-   ========================================================= */
-
 function findPatientForAppointment(appointment) {
-  if (!appointment) {
-    return null;
-  }
+  if (!appointment) return null;
 
   const appointmentPatientId =
     appointment.patientId ||
@@ -739,9 +733,10 @@ function findPatientForAppointment(appointment) {
     "";
 
   if (appointmentPatientId) {
-    const patientById = patients.find((patient) => {
-      return String(getPatientId(patient)) === String(appointmentPatientId);
-    });
+    const patientById = patients.find(
+      (patient) =>
+        String(getPatientId(patient)) === String(appointmentPatientId),
+    );
 
     if (patientById) {
       return patientById;
@@ -751,11 +746,10 @@ function findPatientForAppointment(appointment) {
   if (appointmentPatientName) {
     const normalizedName = String(appointmentPatientName).trim().toLowerCase();
 
-    const patientByName = patients.find((patient) => {
-      return (
-        String(getPatientName(patient)).trim().toLowerCase() === normalizedName
-      );
-    });
+    const patientByName = patients.find(
+      (patient) =>
+        String(getPatientName(patient)).trim().toLowerCase() === normalizedName,
+    );
 
     if (patientByName) {
       return patientByName;
@@ -764,10 +758,6 @@ function findPatientForAppointment(appointment) {
 
   return null;
 }
-
-/* =========================================================
-   AUTOMATIC MESSAGE
-   ========================================================= */
 
 function generateAutomaticAppointmentMessage(
   patientName,
@@ -794,11 +784,10 @@ function generateAutomaticAppointmentMessage(
       }
 
       message += ". Thank you!";
-
       break;
 
     case "Appointment Reminder":
-      message = `Hello ${patientName}, this is a reminder that your appointment at DentaNueva Dental Clinic is tomorrow`;
+      message = `Hello ${patientName}, this is a reminder that your appointment at DentaNueva Dental Clinic is scheduled for tomorrow`;
 
       if (formattedDate) {
         message += `, ${formattedDate}`;
@@ -809,7 +798,6 @@ function generateAutomaticAppointmentMessage(
       }
 
       message += ". Please arrive 10 minutes early. Thank you!";
-
       break;
 
     case "Same-Day Reminder":
@@ -820,7 +808,6 @@ function generateAutomaticAppointmentMessage(
       }
 
       message += ". Please arrive 10 minutes early. Thank you!";
-
       break;
 
     case "Appointment Reschedule":
@@ -836,7 +823,6 @@ function generateAutomaticAppointmentMessage(
 
       message +=
         ". Please take note of your new appointment schedule. Thank you!";
-
       break;
 
     case "Appointment Cancellation":
@@ -852,7 +838,6 @@ function generateAutomaticAppointmentMessage(
 
       message +=
         " has been cancelled. Please contact the clinic if you need further assistance. Thank you!";
-
       break;
 
     default:
@@ -862,18 +847,258 @@ function generateAutomaticAppointmentMessage(
   return message.substring(0, 320);
 }
 
-/* =========================================================
-   UPDATE SMS DELIVERY STATUS
-   ========================================================= */
+function processPendingSMSNotifications() {
+  syncDueReminderNotifications();
+
+  const currentTime = Date.now();
+
+  const pendingNotifications = smsNotifications.filter((notification) => {
+    if (!notification) return false;
+
+    if (String(notification.status || "").toLowerCase() !== "pending") {
+      return false;
+    }
+
+    if (
+      notification.type === "Appointment Reminder" ||
+      notification.type === "Same-Day Reminder"
+    ) {
+      if (!notification.scheduledFor) {
+        return false;
+      }
+
+      const scheduledTime = new Date(notification.scheduledFor).getTime();
+
+      if (Number.isNaN(scheduledTime) || currentTime < scheduledTime) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+
+  pendingNotifications.forEach((notification) => {
+    processSMSNotification(notification.id, false);
+  });
+}
+
+function syncDueReminderNotifications() {
+  if (!Array.isArray(appointments) || !appointments.length) {
+    return;
+  }
+
+  if (!Array.isArray(patients) || !patients.length) {
+    return;
+  }
+
+  let changed = false;
+
+  appointments.forEach((appointment) => {
+    if (!appointment) return;
+
+    const status = getAppointmentStatus(appointment);
+
+    if (status !== "scheduled") {
+      return;
+    }
+
+    const appointmentId = getAppointmentId(appointment);
+
+    if (!appointmentId) return;
+
+    const patient = findPatientForAppointment(appointment);
+
+    if (!patient) return;
+
+    const appointmentDate = normalizeDateForInput(
+      appointment.date ||
+        appointment.appointmentDate ||
+        appointment.scheduleDate ||
+        appointment.dateOfAppointment ||
+        "",
+    );
+
+    const appointmentTime = normalizeTimeForInput(
+      appointment.start ||
+        appointment.time ||
+        appointment.appointmentTime ||
+        appointment.scheduleTime ||
+        "",
+    );
+
+    if (!appointmentDate || !appointmentTime) {
+      return;
+    }
+
+    const reminderType = getReminderTypeForAppointment(
+      appointmentDate,
+      appointmentTime,
+    );
+
+    if (!reminderType) return;
+
+    const reminderDueAt = getReminderDueAt(appointmentDate, appointmentTime);
+
+    if (!reminderDueAt) return;
+
+    const existingReminder = smsNotifications.some(
+      (notification) =>
+        notification.source === "appointment" &&
+        String(notification.appointmentId || "") === String(appointmentId) &&
+        (notification.type === "Appointment Reminder" ||
+          notification.type === "Same-Day Reminder"),
+    );
+
+    if (!existingReminder) {
+      const created = createAutomaticNotificationIfMissing(
+        appointment,
+        patient,
+        reminderType,
+        appointmentDate,
+        appointmentTime,
+        reminderDueAt.toISOString(),
+      );
+
+      if (created) {
+        changed = true;
+      }
+    }
+  });
+
+  if (changed) {
+    saveSMSNotifications();
+  }
+}
+
+function processSMSNotification(notificationId, isRetry = false) {
+  const notification = smsNotifications.find(
+    (item) => String(item.id) === String(notificationId),
+  );
+
+  if (!notification) return;
+
+  if (notification.status !== "Pending" && !isRetry) {
+    return;
+  }
+
+  if (smsProcessingIds.has(String(notificationId))) {
+    return;
+  }
+
+  if (
+    notification.type === "Appointment Reminder" ||
+    notification.type === "Same-Day Reminder"
+  ) {
+    if (!notification.scheduledFor) {
+      return;
+    }
+
+    const scheduledTime = new Date(notification.scheduledFor).getTime();
+
+    if (Number.isNaN(scheduledTime) || Date.now() < scheduledTime) {
+      return;
+    }
+  }
+
+  smsProcessingIds.add(String(notificationId));
+
+  notification.status = "Pending";
+  notification.deliveryStatus = "Pending";
+  notification.failureReason = null;
+
+  saveSMSNotifications();
+  renderPage();
+
+  sendSMSNotification(notification)
+    .then(() => {
+      updateSMSDeliveryStatus(notification.id, "Sent");
+
+      showToast("SMS sent successfully.");
+    })
+    .catch((error) => {
+      const reason = error?.message || "SMS delivery failed.";
+
+      updateSMSDeliveryStatus(notification.id, "Failed", reason);
+
+      showToast("SMS failed to send.", "!");
+    })
+    .finally(() => {
+      smsProcessingIds.delete(String(notificationId));
+
+      renderPage();
+    });
+}
+
+function sendSMSNotification(notification) {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      if (simulateNextSMSFailureFlag) {
+        simulateNextSMSFailureFlag = false;
+
+        reject(new Error("Local SMS simulation failed."));
+
+        return;
+      }
+
+      if (!notification.phone || !String(notification.phone).trim()) {
+        reject(new Error("No phone number is available."));
+
+        return;
+      }
+
+      resolve({
+        success: true,
+        messageId: "LOCAL-" + Date.now(),
+      });
+    }, 1000);
+  });
+}
+
+function retrySMSNotification(notificationId) {
+  const notification = smsNotifications.find(
+    (item) => String(item.id) === String(notificationId),
+  );
+
+  if (!notification) return;
+
+  if (notification.status !== "Failed") {
+    return;
+  }
+
+  if (
+    notification.type === "Appointment Reminder" ||
+    notification.type === "Same-Day Reminder"
+  ) {
+    if (!notification.scheduledFor) {
+      return;
+    }
+
+    const scheduledTime = new Date(notification.scheduledFor).getTime();
+
+    if (Number.isNaN(scheduledTime) || Date.now() < scheduledTime) {
+      return;
+    }
+  }
+
+  notification.status = "Pending";
+  notification.deliveryStatus = "Pending";
+  notification.failedAt = null;
+  notification.failureReason = null;
+
+  saveSMSNotifications();
+  renderPage();
+
+  showToast("SMS retry started.");
+
+  processSMSNotification(notification.id, true);
+}
 
 function updateSMSDeliveryStatus(notificationId, status, failureReason = null) {
   const notification = smsNotifications.find(
     (item) => String(item.id) === String(notificationId),
   );
 
-  if (!notification) {
-    return false;
-  }
+  if (!notification) return false;
 
   const normalizedStatus = String(status || "")
     .trim()
@@ -881,46 +1106,29 @@ function updateSMSDeliveryStatus(notificationId, status, failureReason = null) {
 
   if (normalizedStatus === "sent") {
     notification.status = "Sent";
-
     notification.deliveryStatus = "Sent";
-
     notification.sentAt = new Date().toISOString();
-
     notification.failedAt = null;
-
     notification.failureReason = null;
   } else if (normalizedStatus === "failed") {
     notification.status = "Failed";
-
     notification.deliveryStatus = "Failed";
-
     notification.failedAt = new Date().toISOString();
-
     notification.sentAt = null;
-
     notification.failureReason = failureReason || "SMS delivery failed.";
   } else {
     notification.status = "Pending";
-
     notification.deliveryStatus = "Pending";
-
     notification.sentAt = null;
-
     notification.failedAt = null;
-
     notification.failureReason = null;
   }
 
   saveSMSNotifications();
-
   renderPage();
 
   return true;
 }
-
-/* =========================================================
-   RENDER
-   ========================================================= */
 
 function renderPage() {
   renderNotifications();
@@ -933,9 +1141,7 @@ function renderNotifications() {
 
   const recordCount = document.getElementById("recordCount");
 
-  if (!tableBody) {
-    return;
-  }
+  if (!tableBody) return;
 
   const filtered = getFilteredNotifications();
 
@@ -964,10 +1170,6 @@ function renderNotifications() {
   });
 }
 
-/* =========================================================
-   TABLE ROW
-   ========================================================= */
-
 function createNotificationRow(notification) {
   const initials = getInitials(notification.patientName);
 
@@ -988,24 +1190,24 @@ function createNotificationRow(notification) {
   const preview =
     message.length > 85 ? message.substring(0, 85) + "..." : message;
 
-  const actions = `
-    <button
-      class="action-btn"
-      type="button"
-      title="View"
-      data-action="view"
-      data-id="${escapeAttribute(notification.id)}"
-    >
+  const isProcessing = smsProcessingIds.has(String(notification.id));
+
+  let actions = `
+    <button class="action-btn" type="button" title="View" data-action="view" data-id="${escapeAttribute(notification.id)}">
       <i class="fa-solid fa-eye"></i>
     </button>
+  `;
 
-    <button
-      class="action-btn delete"
-      type="button"
-      title="Delete"
-      data-action="delete"
-      data-id="${escapeAttribute(notification.id)}"
-    >
+  if (notification.status === "Failed") {
+    actions += `
+      <button class="action-btn retry" type="button" title="Retry SMS" data-action="retry" data-id="${escapeAttribute(notification.id)}">
+        <i class="fa-solid fa-rotate-right"></i>
+      </button>
+    `;
+  }
+
+  actions += `
+    <button class="action-btn delete" type="button" title="Delete" data-action="delete" data-id="${escapeAttribute(notification.id)}">
       <i class="fa-solid fa-trash"></i>
     </button>
   `;
@@ -1013,72 +1215,63 @@ function createNotificationRow(notification) {
   return `
     <td>
       <div class="patient-cell">
-        <div class="patient-avatar">
-          ${escapeHTML(initials)}
-        </div>
-
+        <div class="patient-avatar">${escapeHTML(initials)}</div>
         <div class="patient-info">
-          <div class="patient-name">
-            ${escapeHTML(notification.patientName)}
-          </div>
-
-          <div class="patient-id">
-            ${escapeHTML(notification.patientId || "No ID")}
-          </div>
+          <div class="patient-name">${escapeHTML(notification.patientName)}</div>
+          <div class="patient-id">${escapeHTML(notification.patientId || "No ID")}</div>
         </div>
       </div>
     </td>
-
-    <td>
-      ${escapeHTML(notification.phone || "-")}
-    </td>
-
+    <td>${escapeHTML(notification.phone || "-")}</td>
     <td class="message-cell">
-      <div
-        class="message-preview"
-        title="${escapeAttribute(message)}"
-      >
-        ${escapeHTML(preview)}
-      </div>
+      <div class="message-preview" title="${escapeAttribute(message)}">${escapeHTML(preview)}</div>
     </td>
-
-    <td>
-      <span class="type-badge ${typeClass}">
-        ${escapeHTML(notification.type || "-")}
-      </span>
-    </td>
-
+    <td><span class="type-badge ${typeClass}">${escapeHTML(notification.type || "-")}</span></td>
     <td>
       <div class="appointment-cell">
-        <strong>
-          ${escapeHTML(appointmentDate)}
-        </strong>
-
-        <span>
-          ${escapeHTML(appointmentTime)}
-        </span>
+        <strong>${escapeHTML(appointmentDate)}</strong>
+        <span>${escapeHTML(appointmentTime)}</span>
       </div>
     </td>
-
     <td>
       <span class="status-badge ${statusClass}">
         <span class="status-dot"></span>
-
-        ${escapeHTML(notification.status)}
+        ${escapeHTML(isProcessing ? "Sending..." : notification.status)}
       </span>
     </td>
-
-    <td>
-      <div class="action-buttons">
-        ${actions}
-      </div>
-    </td>
+    <td><div class="action-buttons">${actions}</div></td>
   `;
 }
 
-/* =========================================================
-   FILTER
-   ========================================================= */
+function isFutureScheduledReminder(notification) {
+  if (!notification) {
+    return false;
+  }
+
+  const isReminder =
+    notification.type === "Appointment Reminder" ||
+    notification.type === "Same-Day Reminder";
+
+  if (!isReminder) {
+    return false;
+  }
+
+  if (notification.status === "Sent" || notification.status === "Failed") {
+    return false;
+  }
+
+  if (!notification.scheduledFor) {
+    return true;
+  }
+
+  const scheduledTime = new Date(notification.scheduledFor).getTime();
+
+  if (Number.isNaN(scheduledTime)) {
+    return true;
+  }
+
+  return Date.now() < scheduledTime;
+}
 
 function getFilteredNotifications() {
   const search =
@@ -1089,6 +1282,10 @@ function getFilteredNotifications() {
   const type = document.getElementById("typeFilter")?.value || "all";
 
   return smsNotifications.filter((notification) => {
+    if (isFutureScheduledReminder(notification)) {
+      return false;
+    }
+
     const patientName = String(notification.patientName || "").toLowerCase();
 
     const phone = String(notification.phone || "").toLowerCase();
@@ -1108,16 +1305,10 @@ function getFilteredNotifications() {
   });
 }
 
-/* =========================================================
-   TABLE ACTIONS
-   ========================================================= */
-
 function handleTableAction(event) {
   const button = event.target.closest("[data-action]");
 
-  if (!button) {
-    return;
-  }
+  if (!button) return;
 
   const action = button.dataset.action;
 
@@ -1127,83 +1318,51 @@ function handleTableAction(event) {
     viewNotification(id);
   }
 
+  if (action === "retry") {
+    retrySMSNotification(id);
+  }
+
   if (action === "delete") {
     openDeleteModal(id);
   }
 }
-
-/* =========================================================
-   VIEW
-   ========================================================= */
 
 function viewNotification(id) {
   const notification = smsNotifications.find(
     (item) => String(item.id) === String(id),
   );
 
-  if (!notification) {
-    return;
-  }
+  if (!notification) return;
 
   const details = document.getElementById("notificationDetails");
 
-  if (!details) {
-    return;
-  }
+  if (!details) return;
 
   details.innerHTML = `
     <div class="detail-row">
-      <div class="detail-label">
-        Patient
-      </div>
-
-      <div class="detail-value">
-        ${escapeHTML(notification.patientName)}
-      </div>
+      <div class="detail-label">Patient</div>
+      <div class="detail-value">${escapeHTML(notification.patientName)}</div>
     </div>
-
     <div class="detail-row">
-      <div class="detail-label">
-        Patient ID
-      </div>
-
-      <div class="detail-value">
-        ${escapeHTML(notification.patientId || "Not specified")}
-      </div>
+      <div class="detail-label">Patient ID</div>
+      <div class="detail-value">${escapeHTML(notification.patientId || "Not specified")}</div>
     </div>
-
     <div class="detail-row">
-      <div class="detail-label">
-        Phone Number
-      </div>
-
-      <div class="detail-value">
-        ${escapeHTML(notification.phone || "Not specified")}
-      </div>
+      <div class="detail-label">Phone Number</div>
+      <div class="detail-value">${escapeHTML(notification.phone || "Not specified")}</div>
     </div>
-
     <div class="detail-row">
-      <div class="detail-label">
-        Notification Type
-      </div>
-
-      <div class="detail-value">
-        ${escapeHTML(notification.type || "Not specified")}
-      </div>
+      <div class="detail-label">Notification Type</div>
+      <div class="detail-value">${escapeHTML(notification.type || "Not specified")}</div>
     </div>
-
     <div class="detail-row">
-      <div class="detail-label">
-        Appointment
-      </div>
-
+      <div class="detail-label">Appointment</div>
       <div class="detail-value">
         ${
           notification.appointmentDate
             ? escapeHTML(formatDate(notification.appointmentDate))
             : "Date not specified"
         }
-
         ${
           notification.appointmentTime
             ? " at " + escapeHTML(formatTime(notification.appointmentTime))
@@ -1211,104 +1370,60 @@ function viewNotification(id) {
         }
       </div>
     </div>
-
     <div class="detail-row">
-      <div class="detail-label">
-        Status
-      </div>
-
-      <div class="detail-value">
-        ${escapeHTML(notification.status)}
-      </div>
+      <div class="detail-label">Status</div>
+      <div class="detail-value">${escapeHTML(notification.status)}</div>
     </div>
-
     <div class="detail-row">
-      <div class="detail-label">
-        Source
-      </div>
-
-      <div class="detail-value">
-        ${
-          notification.source === "appointment"
-            ? "Automatic Appointment Workflow"
-            : "Manual"
-        }
-      </div>
+      <div class="detail-label">Source</div>
+      <div class="detail-value">${notification.source === "appointment" ? "Automatic Appointment Workflow" : "Manual"}</div>
     </div>
-
+    ${
+      notification.scheduledFor
+        ? `
+      <div class="detail-row">
+        <div class="detail-label">Scheduled For</div>
+        <div class="detail-value">${formatDateTime(notification.scheduledFor)}</div>
+      </div>
+    `
+        : ""
+    }
     <div class="detail-row">
-      <div class="detail-label">
-        Message
-      </div>
-
-      <div class="detail-value">
-        ${escapeHTML(notification.message || "")}
-      </div>
+      <div class="detail-label">Message</div>
+      <div class="detail-value">${escapeHTML(notification.message || "")}</div>
     </div>
-
     <div class="detail-row">
-      <div class="detail-label">
-        Created
-      </div>
-
-      <div class="detail-value">
-        ${formatDateTime(notification.createdAt)}
-      </div>
+      <div class="detail-label">Created</div>
+      <div class="detail-value">${formatDateTime(notification.createdAt)}</div>
     </div>
-
     <div class="detail-row">
-      <div class="detail-label">
-        Sent At
-      </div>
-
-      <div class="detail-value">
-        ${
-          notification.sentAt
-            ? formatDateTime(notification.sentAt)
-            : "Not processed"
-        }
-      </div>
+      <div class="detail-label">Sent At</div>
+      <div class="detail-value">${notification.sentAt ? formatDateTime(notification.sentAt) : "Not processed"}</div>
     </div>
-
     ${
       notification.failedAt
         ? `
-          <div class="detail-row">
-            <div class="detail-label">
-              Failed At
-            </div>
-
-            <div class="detail-value">
-              ${formatDateTime(notification.failedAt)}
-            </div>
-          </div>
-        `
+      <div class="detail-row">
+        <div class="detail-label">Failed At</div>
+        <div class="detail-value">${formatDateTime(notification.failedAt)}</div>
+      </div>
+    `
         : ""
     }
-
     ${
       notification.failureReason
         ? `
-          <div class="detail-row">
-            <div class="detail-label">
-              Failure Reason
-            </div>
-
-            <div class="detail-value">
-              ${escapeHTML(notification.failureReason)}
-            </div>
-          </div>
-        `
+      <div class="detail-row">
+        <div class="detail-label">Failure Reason</div>
+        <div class="detail-value">${escapeHTML(notification.failureReason)}</div>
+      </div>
+    `
         : ""
     }
   `;
 
   openModal("viewModal");
 }
-
-/* =========================================================
-   DELETE
-   ========================================================= */
 
 function openDeleteModal(id) {
   deleteNotificationId = id;
@@ -1336,16 +1451,10 @@ function confirmDelete() {
   showToast("Notification deleted.");
 }
 
-/* =========================================================
-   MODALS
-   ========================================================= */
-
 function openModal(id) {
   const modal = document.getElementById(id);
 
-  if (!modal) {
-    return;
-  }
+  if (!modal) return;
 
   modal.classList.add("show");
 }
@@ -1365,10 +1474,6 @@ function closeModal(id) {
     .querySelectorAll(".modal-overlay")
     .forEach((modal) => modal.classList.remove("show"));
 }
-
-/* =========================================================
-   EVENTS
-   ========================================================= */
 
 function bindEvents() {
   document
@@ -1420,49 +1525,33 @@ function bindEvents() {
   window.addEventListener("storage", handleStorageChange);
 }
 
-/* =========================================================
-   STORAGE CHANGE
-   ========================================================= */
-
 function handleStorageChange(event) {
   if (event.key === PATIENTS_STORAGE_KEY) {
     loadPatients();
-
     loadAppointments();
-
     cleanupOrphanedNotifications();
-
     syncAppointmentNotifications();
-
     renderPage();
-
+    processPendingSMSNotifications();
     return;
   }
 
   if (event.key === APPOINTMENTS_STORAGE_KEY) {
     loadAppointments();
-
     loadPatients();
-
     cleanupOrphanedNotifications();
-
     syncAppointmentNotifications();
-
     renderPage();
-
+    processPendingSMSNotifications();
     return;
   }
 
   if (event.key === SMS_STORAGE_KEY) {
     loadSMSNotifications();
-
     renderPage();
+    processPendingSMSNotifications();
   }
 }
-
-/* =========================================================
-   HELPERS
-   ========================================================= */
 
 function createID() {
   return "SMS-" + Date.now() + "-" + Math.random().toString(36).substring(2, 8);
@@ -1520,9 +1609,7 @@ function getTypeClass(type) {
 }
 
 function normalizeDateForInput(date) {
-  if (!date) {
-    return "";
-  }
+  if (!date) return "";
 
   const value = String(date).trim();
 
@@ -1546,9 +1633,7 @@ function normalizeDateForInput(date) {
 }
 
 function normalizeTimeForInput(time) {
-  if (!time) {
-    return "";
-  }
+  if (!time) return "";
 
   const value = String(time).trim();
 
@@ -1672,10 +1757,6 @@ function escapeAttribute(value) {
   return escapeHTML(value);
 }
 
-/* =========================================================
-   TOAST
-   ========================================================= */
-
 function showToast(message, icon = "✓") {
   const toast = document.getElementById("toast");
 
@@ -1705,3 +1786,35 @@ function showToast(message, icon = "✓") {
     toast.classList.remove("show");
   }, 3000);
 }
+
+window.simulateNextSMSFailure = function () {
+  simulateNextSMSFailureFlag = true;
+
+  const pendingNotification = smsNotifications.find(
+    (notification) =>
+      notification &&
+      notification.status === "Pending" &&
+      !smsProcessingIds.has(String(notification.id)) &&
+      (notification.type === "Appointment Confirmation" ||
+        notification.type === "Appointment Reschedule" ||
+        notification.type === "Appointment Cancellation" ||
+        ((notification.type === "Appointment Reminder" ||
+          notification.type === "Same-Day Reminder") &&
+          notification.scheduledFor &&
+          Date.now() >= new Date(notification.scheduledFor).getTime())),
+  );
+
+  if (pendingNotification) {
+    processSMSNotification(pendingNotification.id, false);
+  }
+};
+
+setInterval(() => {
+  loadAppointments();
+  loadPatients();
+  loadSMSNotifications();
+  cleanupOrphanedNotifications();
+  syncAppointmentNotifications();
+  processPendingSMSNotifications();
+  renderPage();
+}, 60000);

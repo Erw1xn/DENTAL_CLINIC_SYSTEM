@@ -90,8 +90,6 @@ a:focus-visible {
   padding: 30px 34px 46px;
 }
 
-/* HEADER */
-
 .dash-header {
   display: flex;
   align-items: center;
@@ -239,8 +237,6 @@ a:focus-visible {
   box-shadow: var(--shadow-hover);
 }
 
-/* STAT CARDS */
-
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -321,8 +317,6 @@ a:focus-visible {
   display: none;
 }
 
-/* TWO COLUMN LAYOUT */
-
 .two-col-grid {
   display: grid;
   grid-template-columns:
@@ -338,8 +332,6 @@ a:focus-visible {
   gap: 16px;
   min-width: 0;
 }
-
-/* PANELS */
 
 .panel {
   overflow: hidden;
@@ -409,8 +401,6 @@ a:focus-visible {
   gap: 8px;
   color: var(--green-900);
 }
-
-/* APPOINTMENTS */
 
 .appt-item {
   display: flex;
@@ -482,8 +472,6 @@ a:focus-visible {
   line-height: 1.4;
 }
 
-/* BADGES */
-
 .badge {
   display: inline-flex;
   align-items: center;
@@ -532,13 +520,11 @@ a:focus-visible {
   color: var(--red-500);
 }
 
-/* DENTIST AVAILABILITY */
-
 .dentist-item {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 9px 10px;
+  padding: 10px 10px;
   border-radius: var(--radius-md);
   transition: background 0.15s ease;
 }
@@ -590,11 +576,11 @@ a:focus-visible {
 .dentist-status {
   display: inline-flex;
   align-items: center;
-  min-height: 22px;
-  padding: 3px 7px;
+  min-height: 24px;
+  padding: 4px 8px;
   border-radius: 999px;
   white-space: nowrap;
-  font-size: 8.5px;
+  font-size: 9px;
   line-height: 1;
   font-weight: 700;
 }
@@ -634,14 +620,12 @@ a:focus-visible {
   background: var(--ink-300);
 }
 
-/* INVENTORY */
-
 .inv-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 11px;
+  padding: 11px 11px;
   background: var(--white);
   border: none;
   border-radius: var(--radius-md);
@@ -667,8 +651,8 @@ a:focus-visible {
 }
 
 .inv-icon {
-  width: 34px;
-  height: 34px;
+  width: 35px;
+  height: 35px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -686,7 +670,7 @@ a:focus-visible {
 .inv-name {
   overflow: hidden;
   color: var(--ink-900);
-  font-size: 11px;
+  font-size: 11.5px;
   line-height: 1.35;
   font-weight: 700;
   text-overflow: ellipsis;
@@ -694,7 +678,7 @@ a:focus-visible {
 }
 
 .inv-sub {
-  margin-top: 2px;
+  margin-top: 3px;
   color: var(--ink-500);
   font-size: 9.5px;
   line-height: 1.4;
@@ -715,20 +699,18 @@ a:focus-visible {
   color: var(--white);
 }
 
-/* CLINIC SUMMARY */
-
 .clinic-summary-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 9px;
+  gap: 10px;
 }
 
 .summary-item {
   display: flex;
   align-items: center;
-  gap: 9px;
-  min-height: 66px;
-  padding: 10px;
+  gap: 10px;
+  min-height: 70px;
+  padding: 11px;
   background: var(--bg);
   border: 1px solid var(--ink-100);
   border-radius: var(--radius-md);
@@ -749,8 +731,8 @@ a:focus-visible {
 }
 
 .summary-icon {
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -796,12 +778,10 @@ a:focus-visible {
   display: block;
   color: var(--ink-900);
   font-family: var(--font-display);
-  font-size: 16px;
+  font-size: 18px;
   line-height: 1.2;
   font-weight: 700;
 }
-
-/* EMPTY STATE */
 
 .empty-state {
   display: flex;
@@ -824,8 +804,6 @@ a:focus-visible {
   line-height: 1.5;
   font-weight: 500;
 }
-
-/* DASHBOARD NOTIFICATION */
 
 .dashboard-notification {
   position: fixed;
@@ -866,8 +844,6 @@ a:focus-visible {
 .dashboard-notification.error i {
   color: var(--red-500);
 }
-
-/* RESPONSIVE */
 
 @media (max-width: 1180px) {
   .main-content {
@@ -1070,7 +1046,7 @@ a:focus-visible {
   }
 
   .dentist-item {
-    padding: 8px;
+    padding: 9px;
     gap: 9px;
   }
 

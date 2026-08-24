@@ -3,7 +3,6 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
     <title>DentaNueva - Appointments</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -74,8 +73,39 @@
                     onclick="openNewModal()"
                   >
                     <i class="fa-solid fa-plus"></i>
-                    <span> New Appointment </span>
+                    <span>New Appointment</span>
                   </button>
+                </div>
+              </div>
+
+              <div class="schedule-overview" id="scheduleOverview">
+                <div class="schedule-overview-title">
+                  <i class="fa-solid fa-chart-simple"></i>
+                  <span>Schedule Overview</span>
+                </div>
+
+                <div class="schedule-stat scheduled-stat">
+                  <span class="schedule-stat-value" id="summaryScheduled">
+                    0
+                  </span>
+
+                  <span class="schedule-stat-label">Scheduled</span>
+                </div>
+
+                <div class="schedule-stat waiting-stat">
+                  <span class="schedule-stat-value" id="summaryWaiting">
+                    0
+                  </span>
+
+                  <span class="schedule-stat-label">Waiting</span>
+                </div>
+
+                <div class="schedule-stat completed-stat">
+                  <span class="schedule-stat-value" id="summaryCompleted">
+                    0
+                  </span>
+
+                  <span class="schedule-stat-label">Completed</span>
                 </div>
               </div>
 
@@ -135,7 +165,7 @@
                     id="showDentistsBtn"
                     onclick="showAppointmentSideSection('dentists')"
                   >
-                    <span> Dentists </span>
+                    <span>Dentists</span>
                   </button>
                 </div>
 
@@ -158,7 +188,7 @@
                     id="showWaitingBtn"
                     onclick="showAppointmentSideSection('waiting')"
                   >
-                    <span> Today's Appointments </span>
+                    <span>Today's Appointments</span>
                   </button>
                 </div>
               </div>
@@ -181,7 +211,6 @@
         <div class="modal-header">
           <div>
             <h3 id="modalTitle">New Appointment</h3>
-
             <span id="modalSubtitle" class="modal-subtitle"></span>
           </div>
 
@@ -197,7 +226,7 @@
 
         <div class="modal-body">
           <div class="form-group">
-            <label for="f_patient"> Patient </label>
+            <label for="f_patient">Patient</label>
 
             <div class="patient-select-wrapper" id="patientSelectWrapper">
               <input
@@ -227,13 +256,13 @@
 
           <div class="form-row-inline">
             <div class="form-group">
-              <label for="f_date"> Date </label>
+              <label for="f_date">Date</label>
 
               <input type="date" id="f_date" class="form-control" />
             </div>
 
             <div class="form-group">
-              <label for="f_dentist"> Dentist </label>
+              <label for="f_dentist">Dentist</label>
 
               <select id="f_dentist" class="form-control">
                 <option value="santos">Dr. M. Santos</option>
@@ -244,7 +273,7 @@
           </div>
 
           <div class="form-group">
-            <label for="f_type"> Service Type </label>
+            <label for="f_type">Service Type</label>
 
             <div class="service-select-wrapper" id="serviceSelectWrapper">
               <input
@@ -262,7 +291,7 @@
           </div>
 
           <div class="form-group">
-            <label for="f_duration"> Duration </label>
+            <label for="f_duration">Duration</label>
 
             <div class="duration-input-wrapper">
               <input
@@ -275,7 +304,7 @@
                 placeholder="e.g. 45"
               />
 
-              <span class="duration-unit"> minutes </span>
+              <span class="duration-unit">minutes</span>
             </div>
 
             <small class="duration-help">
@@ -285,24 +314,30 @@
           </div>
 
           <div class="form-group available-time-group">
-            <label for="f_time"> Available Time </label>
+            <label for="f_time_trigger">Available Time</label>
 
-            <div class="available-time-control">
-              <div class="available-time-icon">
-                <i class="fa-regular fa-clock"></i>
-              </div>
+            <div class="time-field-wrapper" id="timeFieldWrapper">
+              <div class="time-picker-dropdown" id="f_time_dropdown"></div>
 
-              <div class="available-time-select-wrapper">
-                <select
-                  id="f_time"
-                  class="form-control available-time-select"
-                  aria-label="Available appointment time"
-                >
-                  <option value="" selected disabled>Select a time</option>
-                </select>
+              <button
+                type="button"
+                id="f_time_trigger"
+                class="available-time-control time-trigger-btn"
+              >
+                <div class="available-time-icon">
+                  <i class="fa-regular fa-clock"></i>
+                </div>
 
-                <i class="fa-solid fa-chevron-down available-time-arrow"></i>
-              </div>
+                <span class="time-trigger-label" id="f_time_trigger_label">
+                  Select an available time
+                </span>
+
+                <i
+                  class="fa-solid fa-chevron-down available-time-arrow time-trigger-arrow"
+                ></i>
+              </button>
+
+              <input type="hidden" id="f_time" value="" />
             </div>
 
             <small
@@ -311,33 +346,15 @@
             ></small>
           </div>
 
-          <div id="customTimeWrapper" class="form-group custom-time-wrapper">
-            <label for="f_custom_time"> Custom Time </label>
-
-            <input
-              type="time"
-              id="f_custom_time"
-              class="form-control"
-              min="10:00"
-              max="20:00"
-              step="1800"
-            />
-
-            <small class="field-help">
-              Use a custom time only when needed. The existing conflict and
-              clinic-hours checks still apply.
-            </small>
-          </div>
-
           <div id="pastRecordNotice" class="past-record-notice">
             <i class="fa-solid fa-clock-rotate-left"></i>
 
             <div>
-              <strong> Historical appointment record </strong>
+              <strong>Historical appointment record</strong>
 
               <span>
                 This appointment is from a past date and can only be viewed. New
-                bookings are not allowed for past dates.
+                bookings and schedule changes are not allowed for past dates.
               </span>
             </div>
           </div>
@@ -346,7 +363,7 @@
             <i class="fa-solid fa-lock"></i>
 
             <div>
-              <strong> View-only appointment </strong>
+              <strong>View-only appointment</strong>
 
               <span>
                 This appointment is displayed as a record. Its schedule still
@@ -359,7 +376,7 @@
             <i class="fa-solid fa-circle-exclamation"></i>
 
             <div>
-              <strong> Schedule conflict </strong>
+              <strong>Schedule conflict</strong>
 
               <span id="scheduleConflictText">
                 This dentist already has an appointment during the selected
@@ -370,16 +387,29 @@
         </div>
 
         <div class="modal-actions">
-          <button
-            id="deleteBtn"
-            class="btn-danger"
-            type="button"
-            onclick="deleteAppt()"
-            style="display: none"
-          >
-            <i class="fa-solid fa-trash"></i>
-            Delete
-          </button>
+          <div class="modal-left-actions">
+            <button
+              id="deleteBtn"
+              class="btn-danger"
+              type="button"
+              onclick="deleteAppt()"
+              style="display: none"
+            >
+              <i class="fa-solid fa-trash"></i>
+              Delete
+            </button>
+
+            <button
+              id="requestRescheduleBtn"
+              class="btn-request-reschedule"
+              type="button"
+              onclick="openRescheduleRequestModal()"
+              style="display: none"
+            >
+              <i class="fa-solid fa-calendar-days"></i>
+              Request Reschedule
+            </button>
+          </div>
 
           <div class="modal-right-actions">
             <button
@@ -400,6 +430,93 @@
               Save Appointment
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="reschedule-request-overlay" id="rescheduleRequestOverlay">
+      <div class="reschedule-request-box">
+        <div class="reschedule-request-header">
+          <div>
+            <h3>Reschedule Appointment</h3>
+
+            <span>
+              Notify the patient about a change to their appointment schedule
+            </span>
+          </div>
+
+          <button
+            type="button"
+            class="reschedule-request-close"
+            onclick="closeRescheduleRequestModal()"
+            aria-label="Close"
+          >
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <div class="reschedule-request-body">
+          <div class="reschedule-request-appointment">
+            <div class="reschedule-request-icon">
+              <i class="fa-solid fa-calendar-days"></i>
+            </div>
+
+            <div class="reschedule-request-details">
+              <strong id="rescheduleRequestPatient">Patient</strong>
+
+              <span id="rescheduleRequestSchedule">
+                Current appointment schedule
+              </span>
+
+              <span id="rescheduleRequestDentist">Dentist</span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="rescheduleReason"> Reason for Schedule Change </label>
+
+            <select id="rescheduleReason" class="form-control">
+              <option value="dentist_unavailable">Dentist unavailable</option>
+
+              <option value="other">Other</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="rescheduleMessage">Message to Patient</label>
+
+            <textarea
+              id="rescheduleMessage"
+              class="form-control reschedule-message-control"
+              rows="4"
+              placeholder="Enter a message explaining why the appointment needs to be rescheduled..."
+            ></textarea>
+
+            <small class="field-help">
+              The patient will receive this message together with the schedule
+              change notification.
+            </small>
+          </div>
+        </div>
+
+        <div class="reschedule-request-actions">
+          <button
+            type="button"
+            class="btn-cancel"
+            onclick="closeRescheduleRequestModal()"
+          >
+            Cancel
+          </button>
+
+          <button
+            type="button"
+            class="btn-request-reschedule-confirm"
+            id="sendRescheduleRequestBtn"
+            onclick="submitRescheduleRequest()"
+          >
+            <i class="fa-solid fa-paper-plane"></i>
+            Send
+          </button>
         </div>
       </div>
     </div>
@@ -471,7 +588,6 @@
     <div class="toast" id="toast"></div>
 
     <script src="../../navigation_bar/sidebar.js"></script>
-
     <script src="appointment.js"></script>
 
     <script>

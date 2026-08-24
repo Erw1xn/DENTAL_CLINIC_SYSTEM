@@ -1,7 +1,3 @@
-/* =========================================================
-   GLOBAL
-========================================================= */
-
 * {
   box-sizing: border-box;
 }
@@ -16,10 +12,8 @@ body {
   margin: 0;
   display: flex;
   overflow-x: hidden;
-
   background: #f5f8f6;
   color: #14201a;
-
   font-family: "Poppins", sans-serif;
 }
 
@@ -33,63 +27,39 @@ button {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* =========================================================
-   MAIN PAGE
-========================================================= */
-
 .sms-main {
   flex: 1;
   width: 0;
   min-width: 0;
   min-height: 100vh;
-
-  padding: 34px 40px 92px;
-
+  padding: 32px 38px 90px;
   background: #f5f8f6;
-
   overflow-x: hidden;
 }
 
 .sms-page {
   width: 100%;
   max-width: 1500px;
-
   margin: 0 auto;
 }
-
-/* =========================================================
-   NOTIFICATION CARD
-========================================================= */
 
 .notification-card {
   width: 100%;
   overflow: hidden;
-
-  border: 1px solid #e4ebe7;
+  border: 1px solid #e3ebe6;
   border-radius: 18px;
-
   background: #ffffff;
-
-  box-shadow: 0 5px 20px rgba(20, 32, 26, 0.035);
+  box-shadow: 0 5px 22px rgba(20, 32, 26, 0.035);
 }
 
-/* =========================================================
-   CARD HEADER
-========================================================= */
-
 .card-header {
-  min-height: 78px;
-
+  min-height: 86px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-
   gap: 24px;
-
-  padding: 18px 22px;
-
+  padding: 20px 24px;
   border-bottom: 1px solid #edf1ee;
-
   background: #ffffff;
 }
 
@@ -100,60 +70,40 @@ button {
 
 .card-header h2 {
   margin: 0;
-
   color: #18251e;
-
-  font-size: 0.98rem;
+  font-size: 1.08rem;
   font-weight: 700;
-
-  line-height: 1.3;
+  line-height: 1.35;
 }
 
 .card-header p {
-  margin: 4px 0 0;
-
+  margin: 5px 0 0;
   color: #7c8881;
-
-  font-size: 0.64rem;
-
-  line-height: 1.45;
+  font-size: 0.68rem;
+  line-height: 1.5;
 }
-
-/* =========================================================
-   HEADER RIGHT / RECORD COUNT
-========================================================= */
 
 .header-right {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-
   gap: 10px;
-
   flex-shrink: 0;
 }
 
 .record-count {
-  min-height: 30px;
-
+  min-height: 32px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-
   gap: 4px;
-
-  padding: 0 10px;
-
+  padding: 0 11px;
   border: 1px solid #dcebe1;
   border-radius: 8px;
-
   background: #f1f7f3;
-
   color: #7b8780;
-
-  font-size: 0.59rem;
+  font-size: 0.62rem;
   font-weight: 500;
-
   white-space: nowrap;
 }
 
@@ -162,30 +112,18 @@ button {
   font-weight: 700;
 }
 
-/* =========================================================
-   BUTTONS
-========================================================= */
-
 .btn {
   min-height: 41px;
-
   display: inline-flex;
   align-items: center;
   justify-content: center;
-
   gap: 8px;
-
   padding: 0 16px;
-
   border-radius: 9px;
-
   font-size: 0.68rem;
   font-weight: 600;
-
   line-height: 1;
-
   cursor: pointer;
-
   transition:
     background-color 0.18s ease,
     border-color 0.18s ease,
@@ -194,49 +132,32 @@ button {
     transform 0.18s ease;
 }
 
-/* Secondary */
-
 .btn-secondary {
   border: 1px solid #dfe7e2;
-
   background: #ffffff;
-
   color: #44534b;
 }
 
 .btn-secondary:hover {
   border-color: #cbd9d0;
-
   background: #f6faf7;
-
   color: #176b38;
-
   transform: translateY(-1px);
 }
 
-/* Danger */
-
 .btn-danger {
   border: 1px solid #d34d4d;
-
   background: #d34d4d;
-
   color: #ffffff;
-
   box-shadow: 0 4px 12px rgba(211, 77, 77, 0.1);
 }
 
 .btn-danger:hover {
   border-color: #c63f3f;
-
   background: #c63f3f;
-
   transform: translateY(-1px);
-
   box-shadow: 0 6px 16px rgba(211, 77, 77, 0.14);
 }
-
-/* Button states */
 
 .btn-secondary:active,
 .btn-danger:active {
@@ -246,59 +167,34 @@ button {
 .btn-secondary:focus-visible,
 .btn-danger:focus-visible {
   outline: none;
-
   box-shadow: 0 0 0 3px rgba(23, 107, 56, 0.08);
 }
 
-/* =========================================================
-   FILTER AREA
-========================================================= */
-
 .filters {
   display: grid;
-
-  grid-template-columns:
-    minmax(300px, 1fr)
-    190px
-    250px;
-
-  gap: 10px;
-
-  padding: 15px 22px;
-
+  grid-template-columns: minmax(280px, 1fr) 190px 235px;
+  gap: 12px;
+  padding: 16px 24px;
   border-bottom: 1px solid #edf1ee;
-
   background: #fafcfb;
 }
 
 .search-wrapper,
 .filter-wrapper {
   position: relative;
-
   min-width: 0;
 }
 
-/* =========================================================
-   SEARCH
-========================================================= */
-
 .search-wrapper input {
   width: 100%;
-  height: 40px;
-
-  padding: 0 13px 0 37px;
-
+  height: 42px;
+  padding: 0 13px 0 39px;
   border: 1px solid #dfe7e2;
   border-radius: 9px;
-
   background: #ffffff;
-
   color: #26352d;
-
-  font-size: 0.66rem;
-
+  font-size: 0.67rem;
   outline: none;
-
   transition:
     border-color 0.18s ease,
     box-shadow 0.18s ease;
@@ -310,55 +206,33 @@ button {
 
 .search-wrapper input:focus {
   border-color: #5aa879;
-
   box-shadow: 0 0 0 3px rgba(23, 107, 56, 0.07);
 }
 
-/* Search icon */
-
 .search-icon {
   position: absolute;
-
   top: 50%;
   left: 14px;
-
   z-index: 1;
-
   display: flex;
   align-items: center;
-
   transform: translateY(-50%);
-
   color: #98a49e;
-
-  font-size: 0.69rem;
-
+  font-size: 0.7rem;
   pointer-events: none;
 }
 
-/* =========================================================
-   FILTER SELECTS
-========================================================= */
-
 .filter-wrapper select {
   width: 100%;
-  height: 40px;
-
-  padding: 0 32px 0 11px;
-
+  height: 42px;
+  padding: 0 32px 0 12px;
   border: 1px solid #dfe7e2;
   border-radius: 9px;
-
   background: #ffffff;
-
   color: #26352d;
-
-  font-size: 0.66rem;
-
+  font-size: 0.67rem;
   outline: none;
-
   cursor: pointer;
-
   transition:
     border-color 0.18s ease,
     box-shadow 0.18s ease;
@@ -366,33 +240,20 @@ button {
 
 .filter-wrapper select:focus {
   border-color: #5aa879;
-
   box-shadow: 0 0 0 3px rgba(23, 107, 56, 0.07);
 }
 
-/* =========================================================
-   TABLE CONTAINER
-========================================================= */
-
 .table-container {
   width: 100%;
-
   overflow-x: auto;
   overflow-y: hidden;
-
   -webkit-overflow-scrolling: touch;
 }
 
-/* =========================================================
-   NOTIFICATION TABLE
-========================================================= */
-
 .notification-table {
   width: 100%;
-  min-width: 980px;
-
+  min-width: 1120px;
   border-collapse: collapse;
-
   table-layout: fixed;
 }
 
@@ -400,43 +261,35 @@ button {
   background: #fafcfb;
 }
 
-/* Table headers */
-
 .notification-table th {
-  height: 43px;
-
-  padding: 0 13px;
-
+  height: 45px;
+  padding: 0 14px;
   border-bottom: 1px solid #e7ede9;
-
   color: #77847c;
-
-  font-size: 0.57rem;
+  font-size: 0.58rem;
   font-weight: 700;
-
-  letter-spacing: 0.35px;
-
+  letter-spacing: 0.4px;
   text-align: left;
-
   white-space: nowrap;
 }
 
-/* First / last cells */
-
 .notification-table th:first-child,
 .notification-table td:first-child {
-  padding-left: 22px;
+  padding-left: 24px;
 }
 
-.notification-table th:last-child,
+.notification-table th:last-child {
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
 .notification-table td:last-child {
-  padding-right: 22px;
+  padding-left: 8px;
+  padding-right: 8px;
 }
-
-/* Column widths */
 
 .notification-table th:nth-child(1) {
-  width: 18%;
+  width: 19%;
 }
 
 .notification-table th:nth-child(2) {
@@ -444,7 +297,7 @@ button {
 }
 
 .notification-table th:nth-child(3) {
-  width: 27%;
+  width: 25%;
 }
 
 .notification-table th:nth-child(4) {
@@ -452,30 +305,23 @@ button {
 }
 
 .notification-table th:nth-child(5) {
-  width: 11%;
+  width: 12%;
 }
 
 .notification-table th:nth-child(6) {
-  width: 9%;
+  width: 8%;
 }
 
 .notification-table th:nth-child(7) {
-  width: 7%;
+  width: 8%;
 }
 
-/* Table cells */
-
 .notification-table td {
-  height: 68px;
-
-  padding: 9px 13px;
-
+  height: 72px;
+  padding: 10px 14px;
   border-bottom: 1px solid #edf1ee;
-
   color: #536159;
-
-  font-size: 0.63rem;
-
+  font-size: 0.65rem;
   vertical-align: middle;
 }
 
@@ -491,74 +337,50 @@ button {
   border-bottom: none;
 }
 
-/* =========================================================
-   PATIENT CELL
-========================================================= */
-
 .patient-cell {
   display: flex;
   align-items: center;
-
   gap: 10px;
-
   min-width: 0;
 }
 
 .patient-avatar {
-  width: 36px;
-  height: 36px;
-
-  min-width: 36px;
-
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
   display: flex;
   align-items: center;
   justify-content: center;
-
   border: 1px solid #dcebe1;
   border-radius: 10px;
-
   background: #eaf7ef;
-
   color: #176b38;
-
-  font-size: 0.64rem;
+  font-size: 0.65rem;
   font-weight: 700;
 }
 
 .patient-info {
   min-width: 0;
-
   display: flex;
   flex-direction: column;
 }
 
 .patient-name {
   overflow: hidden;
-
   color: #1c2a22;
-
-  font-size: 0.66rem;
+  font-size: 0.68rem;
   font-weight: 700;
-
-  line-height: 1.35;
-
+  line-height: 1.4;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 
 .patient-id {
-  margin-top: 2px;
-
+  margin-top: 3px;
   color: #98a49e;
-
-  font-size: 0.52rem;
-
-  line-height: 1.2;
+  font-size: 0.54rem;
+  line-height: 1.25;
 }
-
-/* =========================================================
-   MESSAGE
-========================================================= */
 
 .message-cell {
   min-width: 0;
@@ -567,146 +389,93 @@ button {
 
 .message-preview {
   display: block;
-
   overflow: hidden;
-
   color: #69766f;
-
-  font-size: 0.61rem;
-
-  line-height: 1.45;
-
+  font-size: 0.63rem;
+  line-height: 1.5;
   white-space: nowrap;
-
   text-overflow: ellipsis;
 }
-
-/* =========================================================
-   NOTIFICATION TYPE
-========================================================= */
 
 .type-badge {
   display: inline-flex;
   align-items: center;
-
   max-width: 100%;
-
-  padding: 5px 8px;
-
+  padding: 6px 9px;
   border: 1px solid #e3eae5;
   border-radius: 7px;
-
   background: #f5f8f6;
-
   color: #5b6961;
-
-  font-size: 0.55rem;
+  font-size: 0.56rem;
   font-weight: 600;
-
-  line-height: 1.25;
-
+  line-height: 1.3;
   white-space: nowrap;
-
   overflow: hidden;
-
   text-overflow: ellipsis;
 }
 
 .type-badge.confirmation {
   border-color: #d5eadc;
-
   background: #eaf7ef;
-
   color: #267b47;
 }
 
 .type-badge.reminder {
   border-color: #f0dfb2;
-
   background: #fff5dc;
-
   color: #b67a08;
 }
 
 .type-badge.same-day {
   border-color: #d8e5f5;
-
   background: #eef4fb;
-
   color: #46719e;
 }
 
 .type-badge.reschedule {
   border-color: #e1d8f2;
-
   background: #f3effa;
-
   color: #7355a0;
 }
 
 .type-badge.cancellation {
   border-color: #f0d5d5;
-
   background: #ffeded;
-
   color: #d34d4d;
 }
 
-/* =========================================================
-   APPOINTMENT / DATE CELL
-========================================================= */
-
 .appointment-cell strong {
   display: block;
-
   color: #334239;
-
-  font-size: 0.6rem;
+  font-size: 0.62rem;
   font-weight: 600;
-
-  line-height: 1.35;
+  line-height: 1.4;
 }
 
 .appointment-cell span {
   display: block;
-
-  margin-top: 2px;
-
+  margin-top: 3px;
   color: #929d97;
-
-  font-size: 0.53rem;
-
+  font-size: 0.55rem;
   line-height: 1.3;
 }
-
-/* =========================================================
-   STATUS
-========================================================= */
 
 .status-badge {
   display: inline-flex;
   align-items: center;
-
   gap: 5px;
-
-  padding: 5px 8px;
-
+  padding: 6px 9px;
   border-radius: 999px;
-
-  font-size: 0.54rem;
+  font-size: 0.55rem;
   font-weight: 600;
-
   white-space: nowrap;
 }
 
 .status-dot {
   width: 5px;
   height: 5px;
-
   flex-shrink: 0;
-
   border-radius: 50%;
-
   background: currentColor;
 }
 
@@ -725,40 +494,29 @@ button {
   color: #d34d4d;
 }
 
-/* =========================================================
-   ACTION BUTTONS
-========================================================= */
-
 .action-buttons {
   display: flex;
   align-items: center;
-
+  justify-content: flex-start;
   gap: 6px;
+  width: max-content;
+  margin-left: -2px;
 }
 
 .action-btn {
   width: 32px;
   height: 32px;
-
   min-width: 32px;
-
   display: inline-flex;
   align-items: center;
   justify-content: center;
-
   padding: 0;
-
   border: 1px solid #e0e7e2;
   border-radius: 8px;
-
   background: #ffffff;
-
   color: #6b7970;
-
   font-size: 0.64rem;
-
   cursor: pointer;
-
   transition:
     background-color 0.18s ease,
     color 0.18s ease,
@@ -768,37 +526,36 @@ button {
 
 .action-btn:hover {
   border-color: #cfe0d5;
-
   background: #f1f7f3;
-
   color: #176b38;
-
   transform: translateY(-1px);
 }
 
 .action-btn.delete:hover {
   border-color: #edcaca;
-
   background: #fff1f1;
-
   color: #d34d4d;
 }
 
-/* =========================================================
-   EMPTY STATE
-========================================================= */
+.action-btn.retry:hover {
+  border-color: #d8e5f5;
+  background: #eef4fb;
+  color: #46719e;
+}
+
+.action-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
 
 .empty-state {
-  min-height: 280px;
-
+  min-height: 290px;
   display: none;
-
   flex-direction: column;
   align-items: center;
   justify-content: center;
-
-  padding: 38px 20px;
-
+  padding: 42px 20px;
   text-align: center;
 }
 
@@ -807,74 +564,48 @@ button {
 }
 
 .empty-icon {
-  width: 56px;
-  height: 56px;
-
+  width: 58px;
+  height: 58px;
   display: flex;
   align-items: center;
   justify-content: center;
-
-  margin-bottom: 13px;
-
+  margin-bottom: 14px;
   border: 1px solid #dcebe2;
   border-radius: 15px;
-
   background: #eef6f1;
-
   color: #176b38;
-
   font-size: 1.05rem;
 }
 
 .empty-state h3 {
   margin: 0;
-
   color: #26352d;
-
-  font-size: 0.86rem;
+  font-size: 0.88rem;
   font-weight: 700;
 }
 
 .empty-state p {
   max-width: 410px;
-
-  margin: 6px 0 17px;
-
+  margin: 7px 0 17px;
   color: #87938c;
-
-  font-size: 0.64rem;
-
+  font-size: 0.65rem;
   line-height: 1.6;
 }
 
-/* =========================================================
-   MODAL OVERLAY
-========================================================= */
-
 .modal-overlay {
   position: fixed;
-
   inset: 0;
-
   z-index: 10000;
-
   display: flex;
   align-items: center;
   justify-content: center;
-
   padding: 20px;
-
   background: rgba(11, 22, 15, 0.46);
-
   backdrop-filter: blur(5px);
   -webkit-backdrop-filter: blur(5px);
-
   opacity: 0;
-
   visibility: hidden;
-
   pointer-events: none;
-
   transition:
     opacity 0.2s ease,
     visibility 0.2s ease;
@@ -882,47 +613,28 @@ button {
 
 .modal-overlay.show {
   opacity: 1;
-
   visibility: visible;
-
   pointer-events: auto;
 }
 
-/* =========================================================
-   MODAL
-========================================================= */
-
 .modal {
   width: 100%;
-
   max-height: calc(100vh - 40px);
-
   overflow-y: auto;
-
   padding: 24px;
-
   border: 1px solid #e2e9e4;
-
   border-radius: 16px;
-
   background: #ffffff;
-
   box-shadow: 0 24px 65px rgba(20, 32, 26, 0.18);
-
   scrollbar-width: thin;
-
   scrollbar-color: #cbd8d0 transparent;
-
   transform: translateY(8px) scale(0.985);
-
   transition: transform 0.2s ease;
 }
 
 .modal-overlay.show .modal {
   transform: translateY(0) scale(1);
 }
-
-/* Modal scrollbar */
 
 .modal::-webkit-scrollbar {
   width: 6px;
@@ -934,11 +646,8 @@ button {
 
 .modal::-webkit-scrollbar-thumb {
   border-radius: 999px;
-
   background: #cbd8d0;
 }
-
-/* Modal sizes */
 
 .view-modal {
   width: min(650px, 100%);
@@ -946,100 +655,64 @@ button {
 
 .delete-modal {
   width: min(430px, 100%);
-
   text-align: center;
 }
-
-/* =========================================================
-   MODAL HEADER
-========================================================= */
 
 .modal-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-
   gap: 16px;
-
   margin-bottom: 20px;
-
   padding-bottom: 16px;
-
   border-bottom: 1px solid #edf1ee;
 }
 
 .modal-header-content {
   flex: 1;
-
   min-width: 0;
 }
 
 .modal-label {
   display: block;
-
   margin-bottom: 4px;
-
   color: #176b38;
-
   font-size: 0.54rem;
   font-weight: 700;
-
   letter-spacing: 0.9px;
-
   line-height: 1.2;
-
   text-transform: uppercase;
 }
 
 .modal-header h2 {
   margin: 0;
-
   color: #17251d;
-
   font-size: 1rem;
   font-weight: 700;
-
   line-height: 1.35;
 }
 
 .modal-header p {
   margin: 4px 0 0;
-
   color: #7c8881;
-
   font-size: 0.62rem;
-
   line-height: 1.45;
 }
-
-/* =========================================================
-   MODAL CLOSE BUTTON
-========================================================= */
 
 .modal-close {
   width: 34px;
   height: 34px;
-
   min-width: 34px;
-
   display: flex;
   align-items: center;
   justify-content: center;
-
   border: 1px solid #e1e8e3;
-
   border-radius: 9px;
-
   background: #ffffff;
-
   color: #718078;
-
   font-size: 1rem;
-
   line-height: 1;
-
   cursor: pointer;
-
   transition:
     background-color 0.18s ease,
     color 0.18s ease,
@@ -1049,11 +722,8 @@ button {
 
 .modal-close:hover {
   border-color: #d9e2dc;
-
   background: #f4f7f5;
-
   color: #26352d;
-
   transform: translateY(-1px);
 }
 
@@ -1063,34 +733,21 @@ button {
 
 .modal-close:focus-visible {
   outline: none;
-
   border-color: #5aa879;
-
   box-shadow: 0 0 0 3px rgba(23, 107, 56, 0.08);
 }
-
-/* =========================================================
-   NOTIFICATION DETAILS
-========================================================= */
 
 .details-container {
   display: flex;
   flex-direction: column;
-
   gap: 0;
 }
 
 .detail-row {
   display: grid;
-
-  grid-template-columns:
-    145px
-    minmax(0, 1fr);
-
+  grid-template-columns: 145px minmax(0, 1fr);
   gap: 16px;
-
   padding: 12px 0;
-
   border-bottom: 1px solid #edf1ee;
 }
 
@@ -1100,106 +757,67 @@ button {
 
 .detail-label {
   color: #7c8982;
-
   font-size: 0.6rem;
   font-weight: 600;
-
   line-height: 1.4;
 }
 
 .detail-value {
   min-width: 0;
-
   color: #334039;
-
   font-size: 0.63rem;
-
   line-height: 1.55;
-
   word-break: break-word;
 }
 
 .detail-message {
   margin: 0;
-
   padding: 0;
-
   color: #334039;
-
   font-size: 0.63rem;
-
   line-height: 1.55;
-
   text-align: left;
-
   white-space: pre-wrap;
-
   word-break: break-word;
 }
-
-/* =========================================================
-   DELETE MODAL
-========================================================= */
 
 .delete-icon {
   width: 54px;
   height: 54px;
-
   display: flex;
   align-items: center;
   justify-content: center;
-
   margin: 0 auto 15px;
-
   border: 1px solid #f0d5d5;
-
   border-radius: 50%;
-
   background: #ffeded;
-
   color: #d34d4d;
-
   font-size: 1rem;
 }
 
 .delete-modal h2 {
   margin: 0;
-
   color: #26352d;
-
   font-size: 1rem;
   font-weight: 700;
-
   line-height: 1.35;
 }
 
 .delete-modal > p {
   max-width: 330px;
-
   margin: 7px auto 0;
-
   color: #87938c;
-
   font-size: 0.63rem;
-
   line-height: 1.55;
 }
-
-/* =========================================================
-   MODAL FOOTER
-========================================================= */
 
 .modal-footer {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-
   gap: 9px;
-
   margin-top: 20px;
-
   padding-top: 16px;
-
   border-top: 1px solid #edf1ee;
 }
 
@@ -1211,46 +829,26 @@ button {
   min-width: 100px;
 }
 
-/* =========================================================
-   TOAST
-========================================================= */
-
 .toast {
   position: fixed;
-
   right: 24px;
   bottom: 24px;
-
   z-index: 11000;
-
   min-width: 250px;
-
   display: flex;
   align-items: center;
-
   gap: 10px;
-
   padding: 12px 15px;
-
   border: 1px solid #dfe9e3;
-
   border-radius: 11px;
-
   background: #ffffff;
-
   color: #46534c;
-
   font-size: 0.64rem;
   font-weight: 500;
-
   box-shadow: 0 12px 32px rgba(20, 32, 26, 0.13);
-
   transform: translateY(12px);
-
   opacity: 0;
-
   visibility: hidden;
-
   transition:
     opacity 0.2s ease,
     transform 0.2s ease,
@@ -1259,36 +857,23 @@ button {
 
 .toast.show {
   transform: translateY(0);
-
   opacity: 1;
-
   visibility: visible;
 }
 
 #toastIcon {
   width: 26px;
   height: 26px;
-
   min-width: 26px;
-
   display: flex;
   align-items: center;
   justify-content: center;
-
   border: 1px solid #dcebe1;
-
   border-radius: 50%;
-
   background: #eaf7ef;
-
   color: #176b38;
-
   font-size: 0.6rem;
 }
-
-/* =========================================================
-   RESPONSIVE — 1200px
-========================================================= */
 
 @media (max-width: 1200px) {
   .sms-main {
@@ -1296,88 +881,70 @@ button {
   }
 
   .filters {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr) 180px 220px;
+  }
+}
+
+@media (max-width: 1050px) {
+  .filters {
+    grid-template-columns: minmax(0, 1fr) 180px;
   }
 
-  .search-wrapper {
+  .filter-wrapper:last-child {
     grid-column: 1 / -1;
   }
 }
 
-/* =========================================================
-   RESPONSIVE — 1000px
-========================================================= */
-
-@media (max-width: 1000px) {
+@media (max-width: 900px) {
   .sms-main {
     padding: 28px 22px 88px;
   }
 
-  .filters {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .search-wrapper {
-    grid-column: 1 / -1;
-  }
-}
-
-/* =========================================================
-   RESPONSIVE — 900px
-========================================================= */
-
-@media (max-width: 900px) {
   .card-header {
     align-items: flex-start;
-
     flex-direction: column;
-
     gap: 13px;
   }
 
   .header-right {
     width: 100%;
-
     justify-content: flex-start;
   }
-}
 
-/* =========================================================
-   RESPONSIVE — 768px
-========================================================= */
+  .filters {
+    grid-template-columns: 1fr;
+  }
+
+  .filter-wrapper:last-child {
+    grid-column: auto;
+  }
+}
 
 @media (max-width: 768px) {
   body {
     display: block;
-
     width: 100%;
   }
 
   .sms-main {
     width: 100%;
-
     min-height: calc(100vh - 57px);
-
     padding: 22px 16px 84px;
   }
 
   .sms-page {
     width: 100%;
-
     max-width: none;
   }
 
   .card-header {
-    padding: 16px;
+    padding: 18px 16px;
   }
 
   .filters {
     display: flex;
-
     flex-direction: column;
-
     gap: 9px;
-
     padding: 14px 16px;
   }
 
@@ -1387,7 +954,7 @@ button {
   }
 
   .notification-table {
-    min-width: 980px;
+    min-width: 1120px;
   }
 
   .modal-overlay {
@@ -1396,16 +963,10 @@ button {
 
   .modal {
     max-height: calc(100vh - 28px);
-
     padding: 21px;
-
     border-radius: 15px;
   }
 }
-
-/* =========================================================
-   RESPONSIVE — 600px
-========================================================= */
 
 @media (max-width: 600px) {
   .sms-main {
@@ -1417,7 +978,7 @@ button {
   }
 
   .card-header {
-    padding: 15px;
+    padding: 16px 15px;
   }
 
   .filters {
@@ -1426,9 +987,7 @@ button {
 
   .modal-header {
     gap: 12px;
-
     margin-bottom: 18px;
-
     padding-bottom: 14px;
   }
 
@@ -1438,9 +997,7 @@ button {
 
   .detail-row {
     grid-template-columns: 1fr;
-
     gap: 4px;
-
     padding: 11px 0;
   }
 
@@ -1449,10 +1006,6 @@ button {
   }
 }
 
-/* =========================================================
-   RESPONSIVE — 480px
-========================================================= */
-
 @media (max-width: 480px) {
   .sms-main {
     padding: 18px 12px 78px;
@@ -1460,9 +1013,7 @@ button {
 
   .card-header {
     align-items: flex-start;
-
     flex-direction: column;
-
     gap: 11px;
   }
 
@@ -1476,12 +1027,11 @@ button {
 
   .filters {
     padding: 12px;
-
     gap: 8px;
   }
 
   .notification-table {
-    min-width: 960px;
+    min-width: 1120px;
   }
 
   .modal-overlay {
@@ -1490,9 +1040,7 @@ button {
 
   .modal {
     max-height: calc(100vh - 24px);
-
     padding: 19px;
-
     border-radius: 14px;
   }
 
@@ -1502,7 +1050,6 @@ button {
 
   .modal-footer {
     flex-direction: column-reverse;
-
     align-items: stretch;
   }
 
@@ -1512,18 +1059,11 @@ button {
 
   .toast {
     right: 12px;
-
     bottom: 12px;
-
     left: 12px;
-
     min-width: 0;
   }
 }
-
-/* =========================================================
-   RESPONSIVE — 360px
-========================================================= */
 
 @media (max-width: 360px) {
   .sms-main {
