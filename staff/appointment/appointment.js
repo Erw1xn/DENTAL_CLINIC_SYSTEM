@@ -45,7 +45,11 @@ const dentists = {
     specialty: "General Dentistry",
     color: "#E8A93B",
   },
-  ramos: { name: "Dr. J. Ramos", specialty: "Oral Surgery", color: "#FF6B57" },
+  ramos: {
+    name: "Dr. J. Ramos",
+    specialty: "Oral Surgery",
+    color: "#FF6B57",
+  },
 };
 const APPOINTMENT_STATUS = {
   SCHEDULED: "scheduled",
@@ -78,6 +82,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   renderAll();
   setInterval(() => {
+    updateAutomaticAppointmentStatuses();
     renderTimeline();
     renderWaitingQueue();
     renderRealtimeDentistsDuty();
@@ -143,6 +148,7 @@ function setupEvents() {
       renderScheduleOverview();
       renderTimeline();
       renderWaitingQueue();
+      renderRealtimeDentistsDuty();
     });
   }
   const serviceInput = document.getElementById("f_type");
@@ -212,7 +218,6 @@ function setupEvents() {
       }
     });
   }
-
   const rescheduleReasonInput = document.getElementById("rescheduleReason");
   if (rescheduleReasonInput) {
     rescheduleReasonInput.addEventListener("change", () => {
@@ -800,7 +805,26 @@ function findDentistConflict(date, start, duration, dentist, ignoreId = null) {
   );
 }
 function updateAutomaticAppointmentStatuses() {
-  return false;
+  let changed = false;
+  const todayKey = dateToKey(new Date());
+  const currentTime = getCurrentTimeMinutes();
+  appointments.forEach((appt) => {
+    if (appt.status !== APPOINTMENT_STATUS.IN_CONSULTATION) return;
+    const appointmentEnd = getAppointmentEnd(appt);
+    const hasEnded =
+      appt.date < todayKey ||
+      (appt.date === todayKey && currentTime >= appointmentEnd);
+    if (!hasEnded) return;
+    appt.status = APPOINTMENT_STATUS.READY_COMPLETE;
+    appt.consultationStarted = false;
+    appt.manualReadyComplete = true;
+    syncAppointmentToPatient(appt);
+    changed = true;
+  });
+  if (changed) {
+    saveAppointmentsToStorage();
+  }
+  return changed;
 }
 function getStatusLabel(status) {
   switch (status) {
@@ -809,7 +833,7 @@ function getStatusLabel(status) {
     case APPOINTMENT_STATUS.IN_CONSULTATION:
       return "In Consultation";
     case APPOINTMENT_STATUS.READY_COMPLETE:
-      return "Ready to Complete";
+      return "Complete";
     case APPOINTMENT_STATUS.COMPLETED:
       return "Completed";
     case APPOINTMENT_STATUS.NO_SHOW:
@@ -1621,7 +1645,6 @@ function getRescheduleReasonLabel(reason) {
   };
   return labels[reason] || "Other";
 }
-
 function getDefaultRescheduleMessage(reason) {
   if (reason === "dentist_unavailable") {
     return "The dentist is unavailable on your scheduled date. Please select a new preferred appointment schedule.";
@@ -1837,13 +1860,13 @@ function checkInAppointment(id) {
   appt.status = APPOINTMENT_STATUS.IN_CONSULTATION;
   appt.checkedIn = true;
   appt.checkedInAt = new Date().toISOString();
-  appt.consultationStarted = false;
+  appt.consultationStarted = true;
   appt.manualReadyComplete = false;
   saveAppointmentsToStorage();
   syncAppointmentToPatient(appt);
   renderAll();
   showToast(
-    `${appt.patient} has been checked in and added to the Waiting Queue.`,
+    `${appt.patient} has been checked in and the consultation has started.`,
   );
 }
 function startConsultation(id) {
@@ -2030,16 +2053,9 @@ function createAppointmentStatusButton(appt) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "appt-status-btn status-consultation";
-    button.textContent =
-      appt.checkedIn && !appt.consultationStarted
-        ? "Waiting"
-        : "In Consultation";
+    button.textContent = "In Consultation";
     button.addEventListener("click", (event) => {
       event.stopPropagation();
-      if (appt.checkedIn && !appt.consultationStarted) {
-        startConsultation(appt.id);
-        return;
-      }
       openStatusConfirmation(appt.id, "finishConsultation");
     });
     wrapper.appendChild(button);
@@ -2088,16 +2104,53 @@ function createAppointmentStatusButton(appt) {
   }
   return wrapper;
 }
+function updateAppointmentSideTitle() {
+  const header = document.getElementById("waitingQueueHeader");
+  if (!header) return;
+  const title = header.querySelector("h3");
+  const description = header.querySelector(".side-section-description");
+  const switchButton = document.getElementById("showWaitingBtn");
+  const selectedKey = dateToKey(selectedDate);
+  const selected = keyToDate(selectedKey);
+  const dateLabel = selected.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+  });
+  if (title) {
+    title.textContent = isToday(selectedKey)
+      ? "Today's Appointments"
+      : `${dateLabel} Appointments`;
+  }
+  if (description) {
+    description.textContent = isToday(selectedKey)
+      ? "Appointments scheduled for today and current status"
+      : isPastDate(selectedKey)
+        ? "Appointment history for this date"
+        : "Upcoming appointments scheduled for this date";
+  }
+  if (switchButton) {
+    const label = switchButton.querySelector("span");
+    if (label) {
+      label.textContent = isToday(selectedKey)
+        ? "Today's Appointments"
+        : "Appointment";
+    }
+  }
+}
 function renderAll() {
+  updateAutomaticAppointmentStatuses();
   renderCalendar();
   renderScheduleOverview();
   renderTimeline();
   renderWaitingQueue();
   renderRealtimeDentistsDuty();
+  updateAppointmentSideTitle();
 }
 function renderScheduleOverview() {
   const scheduled = document.getElementById("summaryScheduled");
-  const waiting = document.getElementById("summaryWaiting");
+  const inConsultation =
+    document.getElementById("summaryInConsultation") ||
+    document.getElementById("summaryWaiting");
   const completed = document.getElementById("summaryCompleted");
   const selectedKey = dateToKey(selectedDate);
   const dayAppointments = appointments
@@ -2106,24 +2159,28 @@ function renderScheduleOverview() {
   const scheduledCount = dayAppointments.filter(
     (appt) => appt.status === APPOINTMENT_STATUS.SCHEDULED,
   ).length;
-  let waitingCount = 0;
-  if (isToday(selectedKey)) {
-    const currentTime = getCurrentTimeMinutes();
-    waitingCount = dayAppointments.filter(
-      (appt) =>
-        appt.status !== APPOINTMENT_STATUS.COMPLETED &&
-        appt.status !== APPOINTMENT_STATUS.NO_SHOW &&
-        getAppointmentEnd(appt) > currentTime,
-    ).length;
-  }
+  const inConsultationCount = dayAppointments.filter(
+    (appt) => appt.status === APPOINTMENT_STATUS.IN_CONSULTATION,
+  ).length;
   const completedCount = dayAppointments.filter(
     (appt) => appt.status === APPOINTMENT_STATUS.COMPLETED,
   ).length;
   if (scheduled) {
     scheduled.textContent = scheduledCount;
   }
-  if (waiting) {
-    waiting.textContent = waitingCount;
+  if (inConsultation) {
+    inConsultation.textContent = inConsultationCount;
+    if (!document.getElementById("summaryInConsultation")) {
+      const card = inConsultation.closest("div");
+      const label = card
+        ? Array.from(card.querySelectorAll("span,div,p")).find(
+            (element) =>
+              element.childElementCount === 0 &&
+              element.textContent.trim() === "Waiting",
+          )
+        : null;
+      if (label) label.textContent = "In Consultation";
+    }
   }
   if (completed) {
     completed.textContent = completedCount;
@@ -2254,11 +2311,7 @@ function renderTimeline() {
         : "Upcoming Schedule";
   }
   if (dateLabel) {
-    const dentistLabel =
-      selectedDentistFilter === "all"
-        ? ""
-        : ` · ${dentists[selectedDentistFilter]?.name || selectedDentistFilter}`;
-    dateLabel.textContent = `${formatDateLong(selectedKey)}${dentistLabel}`;
+    dateLabel.textContent = formatDateLong(selectedKey);
   }
   const dayAppointments = filteredAppts();
   for (
@@ -2326,18 +2379,12 @@ function createAppointmentCard(appt) {
   info.style.flex = "1";
   info.style.minWidth = "0";
   let workflowText = "";
-  if (
-    appt.status === APPOINTMENT_STATUS.IN_CONSULTATION &&
-    appt.checkedIn &&
-    !appt.consultationStarted
-  ) {
-    workflowText = " · Waiting";
-  } else if (appt.status === APPOINTMENT_STATUS.IN_CONSULTATION) {
+  if (appt.status === APPOINTMENT_STATUS.IN_CONSULTATION) {
     workflowText = " · In Consultation";
   } else if (appt.status === APPOINTMENT_STATUS.READY_COMPLETE) {
-    workflowText = " · Ready to Complete";
+    workflowText = " · Complete";
   }
-  info.innerHTML = `<div class="tooth-badge" style="background:${hexToRgba(dentist.color, 0.12)};color:${dentist.color};"><i class="fa-solid fa-tooth"></i></div><div class="appt-info"><div class="pname">${escapeHtml(appt.patient)}</div><div class="ptype">${escapeHtml(appt.type)} · ${escapeHtml(dentist.name)}${workflowText}</div></div>`;
+  info.innerHTML = `<div class="tooth-badge" style="background:${hexToRgba(dentist.color, 0.12)};color:${dentist.color};"><i class="fa-solid fa-tooth"></i></div><div class="appt-info" style="margin-left:14px;"><div class="pname">${escapeHtml(appt.patient)}</div><div class="ptype">${escapeHtml(appt.type)} · ${escapeHtml(dentist.name)}${workflowText}</div></div>`;
   const time = document.createElement("div");
   time.className = "appt-time-range";
   time.textContent = `${fmtTime(appt.start)} – ${fmtTime(getAppointmentEndTime(appt))}`;
@@ -2352,24 +2399,27 @@ function renderWaitingQueue() {
   const list = document.getElementById("waitingQueueList");
   if (!list) return;
   list.innerHTML = "";
-  const todayKey = dateToKey(new Date());
-  const currentTime = getCurrentTimeMinutes();
+  const selectedKey = dateToKey(selectedDate);
+  const selectedIsToday = isToday(selectedKey);
+  const selectedIsPast = isPastDate(selectedKey);
   const search = (document.getElementById("searchInput")?.value || "")
     .trim()
     .toLowerCase();
-  const todayAppointments = appointments
-    .filter((appt) => appt.date === todayKey)
-    .filter(
-      (appt) =>
-        appt.status !== APPOINTMENT_STATUS.COMPLETED &&
-        appt.status !== APPOINTMENT_STATUS.NO_SHOW &&
-        getAppointmentEnd(appt) > currentTime,
-    )
+  const selectedAppointments = appointments
+    .filter((appt) => appt.date === selectedKey)
     .filter((appt) => appt.dentist === selectedDentistFilter)
     .filter((appt) => {
-      if (!search) {
-        return true;
+      if (selectedIsPast) return true;
+      if (selectedIsToday) {
+        return (
+          appt.status !== APPOINTMENT_STATUS.COMPLETED &&
+          appt.status !== APPOINTMENT_STATUS.NO_SHOW
+        );
       }
+      return appt.status === APPOINTMENT_STATUS.SCHEDULED;
+    })
+    .filter((appt) => {
+      if (!search) return true;
       const patient = findPatientById(appt.patientId);
       const patientName = String(
         appt.patient || (patient ? getPatientFullName(patient) : ""),
@@ -2383,14 +2433,18 @@ function renderWaitingQueue() {
       );
     })
     .sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
-  if (!todayAppointments.length) {
+  if (!selectedAppointments.length) {
     const empty = document.createElement("div");
     empty.className = "empty-queue";
-    empty.textContent = "No appointments for today.";
+    empty.textContent = selectedIsToday
+      ? "No appointments for today."
+      : selectedIsPast
+        ? "No appointments recorded for this date."
+        : "No scheduled appointments for this date.";
     list.appendChild(empty);
     return;
   }
-  todayAppointments.forEach((appt) => {
+  selectedAppointments.forEach((appt) => {
     const item = document.createElement("div");
     item.className = "queue-item";
     const initials = getInitials(appt.patient);
@@ -2406,52 +2460,58 @@ function renderRealtimeDentistsDuty() {
   if (!list) return;
   list.innerHTML = "";
   const selectedKey = dateToKey(selectedDate);
-  Object.entries(dentists).forEach(([id, dentist]) => {
-    const doctorAppointments = appointments
-      .filter((appt) => appt.date === selectedKey && appt.dentist === id)
-      .sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
-    const now = new Date();
-    const nowMinutes = now.getHours() * 60 + now.getMinutes();
-    let status = "Available";
-    let statusClass = "status-badge-available";
-    const isInactive = (appt) =>
-      appt.status === APPOINTMENT_STATUS.COMPLETED ||
-      appt.status === APPOINTMENT_STATUS.NO_SHOW;
-    if (isToday(selectedKey)) {
-      const currentAppointment = doctorAppointments.find((appt) => {
-        const start = timeToMinutes(appt.start);
-        const end = getAppointmentEnd(appt);
-        return nowMinutes >= start && nowMinutes < end && !isInactive(appt);
-      });
-      if (currentAppointment) {
-        status = `${getStatusLabel(currentAppointment.status)} · ${currentAppointment.patient}`;
-        statusClass = "status-badge-busy";
-      } else if (doctorAppointments.length) {
-        const nextAppt = doctorAppointments.find(
-          (appt) =>
-            timeToMinutes(appt.start) >= nowMinutes && !isInactive(appt),
-        );
-        if (nextAppt) {
-          status = `Available · Next ${fmtTime(nextAppt.start)}`;
-        }
+  const visibleDentistId = selectedDentistFilter || "santos";
+  const dentist = dentists[visibleDentistId] || dentists.santos;
+  const doctorAppointments = appointments
+    .filter(
+      (appt) => appt.date === selectedKey && appt.dentist === visibleDentistId,
+    )
+    .sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+  const now = new Date();
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  let status = "Available";
+  let nextTimeText = "";
+  let statusClass = "status-badge-available";
+  const isInactive = (appt) =>
+    appt.status === APPOINTMENT_STATUS.COMPLETED ||
+    appt.status === APPOINTMENT_STATUS.NO_SHOW;
+  if (isToday(selectedKey)) {
+    const currentAppointment = doctorAppointments.find((appt) => {
+      const start = timeToMinutes(appt.start);
+      const end = getAppointmentEnd(appt);
+      return nowMinutes >= start && nowMinutes < end && !isInactive(appt);
+    });
+    if (currentAppointment) {
+      status = `${getStatusLabel(currentAppointment.status)} · ${currentAppointment.patient}`;
+      statusClass = "status-badge-busy";
+    } else if (doctorAppointments.length) {
+      const nextAppt = doctorAppointments.find(
+        (appt) => timeToMinutes(appt.start) >= nowMinutes && !isInactive(appt),
+      );
+      if (nextAppt) {
+        status = "Available";
+        nextTimeText = `Next ${fmtTime(nextAppt.start)}`;
       }
-    } else if (!isPastDate(selectedKey) && doctorAppointments.length) {
-      const activeCount = doctorAppointments.filter(
-        (appt) => !isInactive(appt),
-      ).length;
-      status = `${activeCount} appointment${activeCount !== 1 ? "s" : ""} scheduled`;
     }
-    if (isPastDate(selectedKey)) {
-      status = doctorAppointments.length
-        ? `${doctorAppointments.length} recorded appointment${doctorAppointments.length > 1 ? "s" : ""}`
-        : "No recorded appointments";
-    }
-    const card = document.createElement("div");
-    card.className = "doc-duty-card";
-    const initials = getInitials(dentist.name.replace("Dr. ", ""));
-    card.innerHTML = `<div class="doc-avatar-dot" style="background:${hexToRgba(dentist.color, 0.12)};color:${dentist.color};">${initials}</div><div class="doc-duty-info"><strong>${escapeHtml(dentist.name)}</strong><span class="spec-label">${escapeHtml(dentist.specialty)}</span><span class="${statusClass}">${escapeHtml(status)}</span></div>`;
-    list.appendChild(card);
-  });
+  } else if (!isPastDate(selectedKey) && doctorAppointments.length) {
+    const activeCount = doctorAppointments.filter(
+      (appt) => !isInactive(appt),
+    ).length;
+    status = `${activeCount} appointment${activeCount !== 1 ? "s" : ""} scheduled`;
+  }
+  if (isPastDate(selectedKey)) {
+    status = doctorAppointments.length
+      ? `${doctorAppointments.length} recorded appointment${doctorAppointments.length > 1 ? "s" : ""}`
+      : "No recorded appointments";
+  }
+  const card = document.createElement("div");
+  card.className = "doc-duty-card";
+  const initials = getInitials(dentist.name.replace("Dr. ", ""));
+  const nextTimeHtml = nextTimeText
+    ? `<span class="doc-next-time">${escapeHtml(nextTimeText)}</span>`
+    : "";
+  card.innerHTML = `<div class="doc-duty-main"><div class="doc-avatar-dot" style="background:${hexToRgba(dentist.color, 0.12)};color:${dentist.color};">${initials}</div><div class="doc-duty-info"><strong>${escapeHtml(dentist.name)}</strong><span class="spec-label">${escapeHtml(dentist.specialty)}</span></div></div><div class="doc-status-col"><span class="${statusClass}">${escapeHtml(status)}</span>${nextTimeHtml}</div>`;
+  list.appendChild(card);
 }
 function getInitials(name) {
   return name

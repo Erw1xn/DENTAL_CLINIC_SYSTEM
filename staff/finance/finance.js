@@ -6,45 +6,38 @@ document.addEventListener("DOMContentLoaded", function () {
 
   const paymentModal = document.getElementById("paymentModal");
   const detailsModal = document.getElementById("detailsModal");
-
   const paymentForm = document.getElementById("paymentForm");
-
   const recordPaymentBtn = document.getElementById("recordPaymentBtn");
-
   const closeModalBtn = document.getElementById("closeModalBtn");
-
   const cancelPaymentBtn = document.getElementById("cancelPaymentBtn");
-
   const closeDetailsBtn = document.getElementById("closeDetailsBtn");
-
   const detailsCloseButton = document.getElementById("detailsCloseButton");
 
+  const collectionDrawer = document.getElementById("collectionDrawer");
+  const collectionDrawerOverlay = document.getElementById(
+    "collectionDrawerOverlay",
+  );
+  const openCollectionDrawerBtn = document.getElementById(
+    "openCollectionDrawerBtn",
+  );
+  const closeCollectionDrawerBtn = document.getElementById(
+    "closeCollectionDrawerBtn",
+  );
+
   const searchInput = document.getElementById("searchInput");
-
   const paymentMethodFilter = document.getElementById("paymentMethodFilter");
-
   const dateFilter = document.getElementById("dateFilter");
-
   const tableBody = document.getElementById("transactionsTableBody");
-
   const emptyState = document.getElementById("emptyState");
 
   const transactionIdInput = document.getElementById("transactionId");
-
   const patientNameInput = document.getElementById("patientName");
-
   const serviceNameInput = document.getElementById("serviceName");
-
   const paymentAmountInput = document.getElementById("paymentAmount");
-
   const paymentDateInput = document.getElementById("paymentDate");
-
   const paymentMethodInput = document.getElementById("paymentMethod");
-
   const paymentStatusInput = document.getElementById("paymentStatus");
-
   const paymentNotesInput = document.getElementById("paymentNotes");
-
   const modalTitle = document.getElementById("modalTitle");
 
   const showMonthlyCollectionBtn = document.getElementById(
@@ -65,16 +58,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function initialize() {
     loadTransactions();
-
     setDefaultPaymentDate();
-
-    updateCurrentMonthLabel();
-
     updateMonthlyCollectionDescription();
-
-    renderDashboard();
-
     renderTransactions();
+    renderPaymentMethods();
+    showTodayCollection();
 
     if (window.lucide) {
       lucide.createIcons();
@@ -104,6 +92,18 @@ document.addEventListener("DOMContentLoaded", function () {
       closeDetailsModal();
     });
 
+    openCollectionDrawerBtn.addEventListener("click", function () {
+      openCollectionDrawer();
+    });
+
+    closeCollectionDrawerBtn.addEventListener("click", function () {
+      closeCollectionDrawer();
+    });
+
+    collectionDrawerOverlay.addEventListener("click", function () {
+      closeCollectionDrawer();
+    });
+
     showMonthlyCollectionBtn.addEventListener("click", function () {
       showMonthlyCollection();
     });
@@ -114,7 +114,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
     paymentForm.addEventListener("submit", function (event) {
       event.preventDefault();
-
       savePayment();
     });
 
@@ -128,6 +127,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
     dateFilter.addEventListener("change", function () {
       renderTransactions();
+    });
+
+    paymentAmountInput.addEventListener("input", function () {
+      updatePaymentCalculation();
     });
 
     paymentModal.addEventListener("click", function (event) {
@@ -145,10 +148,38 @@ document.addEventListener("DOMContentLoaded", function () {
     document.addEventListener("keydown", function (event) {
       if (event.key === "Escape") {
         closePaymentModal();
-
         closeDetailsModal();
+        closeCollectionDrawer();
       }
     });
+  }
+
+  function openCollectionDrawer() {
+    if (!collectionDrawer || !collectionDrawerOverlay) {
+      return;
+    }
+
+    showTodayCollection();
+
+    collectionDrawer.classList.add("active");
+    collectionDrawerOverlay.classList.add("active");
+
+    document.body.style.overflow = "hidden";
+
+    if (window.lucide) {
+      lucide.createIcons();
+    }
+  }
+
+  function closeCollectionDrawer() {
+    if (!collectionDrawer || !collectionDrawerOverlay) {
+      return;
+    }
+
+    collectionDrawer.classList.remove("active");
+    collectionDrawerOverlay.classList.remove("active");
+
+    document.body.style.overflow = "";
   }
 
   function loadTransactions() {
@@ -157,9 +188,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
       if (savedData === null) {
         transactions = createSampleTransactions();
-
         saveTransactions();
-
         return;
       }
 
@@ -167,10 +196,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
       if (Array.isArray(parsedData)) {
         transactions = parsedData.map(function (transaction) {
-          return {
-            ...transaction,
-            status: "Paid",
-          };
+          return normalizeTransaction(transaction);
         });
 
         saveTransactions();
@@ -179,14 +205,48 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     } catch (error) {
       console.error("Unable to load finance transactions:", error);
-
       transactions = [];
     }
   }
 
+  function normalizeTransaction(transaction) {
+    const oldAmount = Number(transaction.amount) || 0;
+    const total = Number(transaction.total);
+    const discount = Number(transaction.discount);
+    const paid = Number(transaction.paid);
+
+    const normalizedTotal = Number.isFinite(total) ? total : oldAmount;
+
+    const normalizedDiscount = Number.isFinite(discount) ? discount : 0;
+
+    const normalizedPaid = Number.isFinite(paid)
+      ? paid
+      : Number.isFinite(total)
+        ? Math.max(normalizedTotal - normalizedDiscount, 0)
+        : oldAmount;
+
+    const balance = calculateBalance(
+      normalizedTotal,
+      normalizedDiscount,
+      normalizedPaid,
+    );
+
+    return {
+      ...transaction,
+      total: normalizedTotal,
+      discount: normalizedDiscount,
+      paid: normalizedPaid,
+      balance: balance,
+      status: getTransactionStatus({
+        total: normalizedTotal,
+        discount: normalizedDiscount,
+        paid: normalizedPaid,
+      }),
+    };
+  }
+
   function createSampleTransactions() {
     const today = getTodayString();
-
     const baseDate = new Date();
 
     function getPastDate(daysAgo) {
@@ -195,9 +255,7 @@ document.addEventListener("DOMContentLoaded", function () {
       date.setDate(date.getDate() - daysAgo);
 
       const year = date.getFullYear();
-
       const month = String(date.getMonth() + 1).padStart(2, "0");
-
       const day = String(date.getDate()).padStart(2, "0");
 
       return `${year}-${month}-${day}`;
@@ -208,7 +266,10 @@ document.addEventListener("DOMContentLoaded", function () {
         id: "TXN-SAMPLE-001",
         patientName: "Erwin Jacaba",
         service: "Dental Cleaning",
-        amount: 1700,
+        total: 1700,
+        discount: 0,
+        paid: 1700,
+        balance: 0,
         date: today,
         paymentMethod: "Cash",
         status: "Paid",
@@ -216,51 +277,59 @@ document.addEventListener("DOMContentLoaded", function () {
         createdTime: "09:15:00",
         createdAt: new Date().toISOString(),
       },
-
       {
         id: "TXN-SAMPLE-002",
         patientName: "Maria Santos",
         service: "Tooth Filling / Pasta",
-        amount: 2500,
+        total: 2500,
+        discount: 200,
+        paid: 1000,
+        balance: 1300,
         date: today,
         paymentMethod: "GCash",
-        status: "Paid",
+        status: "Partial",
         notes: "Composite tooth filling.",
         createdTime: "10:30:00",
         createdAt: new Date().toISOString(),
       },
-
       {
         id: "TXN-SAMPLE-003",
         patientName: "John Cruz",
         service: "Tooth Extraction",
-        amount: 3500,
+        total: 3500,
+        discount: 0,
+        paid: 0,
+        balance: 3500,
         date: getPastDate(1),
         paymentMethod: "Card",
-        status: "Paid",
+        status: "Unpaid",
         notes: "Tooth extraction treatment.",
         createdTime: "11:45:00",
         createdAt: new Date().toISOString(),
       },
-
       {
         id: "TXN-SAMPLE-004",
         patientName: "Angela Reyes",
         service: "Root Canal",
-        amount: 8500,
+        total: 8500,
+        discount: 500,
+        paid: 3000,
+        balance: 5000,
         date: getPastDate(2),
         paymentMethod: "Bank Transfer",
-        status: "Paid",
+        status: "Partial",
         notes: "Root canal treatment.",
         createdTime: "14:00:00",
         createdAt: new Date().toISOString(),
       },
-
       {
         id: "TXN-SAMPLE-005",
         patientName: "Carlos Mendoza",
         service: "Braces Adjustment",
-        amount: 1800,
+        total: 1800,
+        discount: 0,
+        paid: 1800,
+        balance: 0,
         date: getPastDate(3),
         paymentMethod: "GCash",
         status: "Paid",
@@ -268,12 +337,14 @@ document.addEventListener("DOMContentLoaded", function () {
         createdTime: "15:30:00",
         createdAt: new Date().toISOString(),
       },
-
       {
         id: "TXN-SAMPLE-006",
         patientName: "Sofia Garcia",
         service: "Consultation",
-        amount: 800,
+        total: 800,
+        discount: 0,
+        paid: 800,
+        balance: 0,
         date: getPastDate(4),
         paymentMethod: "Cash",
         status: "Paid",
@@ -294,7 +365,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function createTransactionId() {
     const timestamp = Date.now().toString().slice(-8);
-
     const random = Math.floor(100 + Math.random() * 900);
 
     return "TXN-" + timestamp + random;
@@ -304,9 +374,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const today = new Date();
 
     const year = today.getFullYear();
-
     const month = String(today.getMonth() + 1).padStart(2, "0");
-
     const day = String(today.getDate()).padStart(2, "0");
 
     return `${year}-${month}-${day}`;
@@ -324,7 +392,6 @@ document.addEventListener("DOMContentLoaded", function () {
     const today = new Date();
 
     const year = today.getFullYear();
-
     const month = String(today.getMonth() + 1).padStart(2, "0");
 
     return `${year}-${month}`;
@@ -391,17 +458,6 @@ document.addEventListener("DOMContentLoaded", function () {
     ).toUpperCase();
   }
 
-  function updateCurrentMonthLabel() {
-    const now = new Date();
-
-    const monthName = now.toLocaleDateString("en-US", {
-      month: "long",
-      year: "numeric",
-    });
-
-    document.getElementById("currentMonthLabel").textContent = monthName;
-  }
-
   function updateMonthlyCollectionDescription() {
     const now = new Date();
 
@@ -414,43 +470,46 @@ document.addEventListener("DOMContentLoaded", function () {
       `Payment collection for ${monthName}.`;
   }
 
-  function renderDashboard() {
-    const today = getTodayString();
+  function calculateBalance(total, discount, paid) {
+    const normalizedTotal = Math.max(Number(total) || 0, 0);
 
-    const currentMonth = getCurrentMonthKey();
+    const normalizedDiscount = Math.max(Number(discount) || 0, 0);
 
-    let todayRevenue = 0;
+    const normalizedPaid = Math.max(Number(paid) || 0, 0);
 
-    let monthlyRevenue = 0;
+    return Math.max(normalizedTotal - normalizedDiscount - normalizedPaid, 0);
+  }
 
-    let paidCount = 0;
+  function getTransactionStatus(transaction) {
+    const total = Math.max(Number(transaction.total) || 0, 0);
 
-    transactions.forEach(function (transaction) {
-      const amount = Number(transaction.amount) || 0;
+    const discount = Math.max(Number(transaction.discount) || 0, 0);
 
-      if (transaction.status === "Paid" && transaction.date === today) {
-        todayRevenue += amount;
-      }
+    const paid = Math.max(Number(transaction.paid) || 0, 0);
 
-      if (
-        transaction.status === "Paid" &&
-        getMonthKey(transaction.date) === currentMonth
-      ) {
-        monthlyRevenue += amount;
+    const balance = calculateBalance(total, discount, paid);
 
-        paidCount++;
-      }
-    });
+    if (balance <= 0) {
+      return "Paid";
+    }
 
-    document.getElementById("todayRevenue").textContent =
-      formatCurrency(todayRevenue);
+    if (paid > 0) {
+      return "Partial";
+    }
 
-    document.getElementById("monthlyRevenue").textContent =
-      formatCurrency(monthlyRevenue);
+    return "Unpaid";
+  }
 
-    document.getElementById("paidTransactions").textContent = paidCount;
+  function getStatusClass(status) {
+    if (status === "Paid") {
+      return "status-paid";
+    }
 
-    renderPaymentMethods();
+    if (status === "Partial") {
+      return "status-partial";
+    }
+
+    return "status-unpaid";
   }
 
   function createPaymentMethodTotals(filterType) {
@@ -459,17 +518,14 @@ document.addEventListener("DOMContentLoaded", function () {
         amount: 0,
         count: 0,
       },
-
       GCash: {
         amount: 0,
         count: 0,
       },
-
       "Bank Transfer": {
         amount: 0,
         count: 0,
       },
-
       Card: {
         amount: 0,
         count: 0,
@@ -477,11 +533,12 @@ document.addEventListener("DOMContentLoaded", function () {
     };
 
     const today = getTodayString();
-
     const currentMonth = getCurrentMonthKey();
 
     transactions.forEach(function (transaction) {
-      if (transaction.status !== "Paid") {
+      const paid = Number(transaction.paid) || 0;
+
+      if (paid <= 0) {
         return;
       }
 
@@ -501,11 +558,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
       const method = transaction.paymentMethod;
 
-      const amount = Number(transaction.amount) || 0;
-
       if (methods[method]) {
-        methods[method].amount += amount;
-
+        methods[method].amount += paid;
         methods[method].count++;
       }
     });
@@ -515,11 +569,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function renderPaymentMethods() {
     const todayMethods = createPaymentMethodTotals("today");
-
     const monthlyMethods = createPaymentMethodTotals("month");
 
     renderTodayCollection(todayMethods);
-
     renderMonthlyCollection(monthlyMethods);
   }
 
@@ -611,7 +663,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function showMonthlyCollection() {
     todayCollectionPage.classList.remove("active");
-
     monthlyCollectionPage.classList.add("active");
 
     if (window.lucide) {
@@ -621,7 +672,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function showTodayCollection() {
     monthlyCollectionPage.classList.remove("active");
-
     todayCollectionPage.classList.add("active");
 
     if (window.lucide) {
@@ -641,10 +691,12 @@ document.addEventListener("DOMContentLoaded", function () {
     const dateValue = dateFilter.value;
 
     const today = getTodayString();
-
     const currentMonth = getCurrentMonthKey();
 
     return transactions
+      .map(function (transaction) {
+        return normalizeTransaction(transaction);
+      })
       .filter(function (transaction) {
         const patient = String(transaction.patientName || "").toLowerCase();
 
@@ -692,7 +744,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
     if (filtered.length === 0) {
       emptyState.style.display = "flex";
-
       return;
     }
 
@@ -703,100 +754,104 @@ document.addEventListener("DOMContentLoaded", function () {
 
       const initials = getInitials(transaction.patientName);
 
+      const status = getTransactionStatus(transaction);
+
+      const statusClass = getStatusClass(status);
+
+      const balance = calculateBalance(
+        transaction.total,
+        transaction.discount,
+        transaction.paid,
+      );
+
       row.innerHTML = `
-          <td>
-            <div class="patient-cell">
-
-              <div class="patient-avatar">
-                ${escapeHtml(initials)}
-              </div>
-
-              <div class="patient-info">
-
-                <strong>
-                  ${escapeHtml(transaction.patientName || "Unknown Patient")}
-                </strong>
-
-                <span>
-                  ${escapeHtml(transaction.id || "-")}
-                </span>
-
-              </div>
-
+        <td>
+          <div class="patient-cell">
+            <div class="patient-avatar">
+              ${escapeHtml(initials)}
             </div>
-          </td>
 
-          <td>
-            <span class="service-name">
-              ${escapeHtml(transaction.service || "-")}
-            </span>
-          </td>
-
-          <td>
-            <div class="date-cell">
-
+            <div class="patient-info">
               <strong>
-                ${escapeHtml(formatShortDate(transaction.date))}
+                ${escapeHtml(transaction.patientName || "Unknown Patient")}
               </strong>
 
               <span>
-                ${escapeHtml(getTimeLabel(transaction.createdTime))}
+                ${escapeHtml(transaction.id || "-")}
               </span>
-
             </div>
-          </td>
+          </div>
+        </td>
 
-          <td class="amount-cell">
-            ${escapeHtml(formatCurrency(transaction.amount))}
-          </td>
+        <td>
+          <span class="service-name">
+            ${escapeHtml(transaction.service || "-")}
+          </span>
+        </td>
 
-          <td>
-            <span class="method-badge">
+        <td>
+          <div class="date-cell">
+            <strong>
+              ${escapeHtml(formatShortDate(transaction.date))}
+            </strong>
 
-              <span class="method-dot"></span>
-
-              ${escapeHtml(transaction.paymentMethod || "-")}
-
+            <span>
+              ${escapeHtml(getTimeLabel(transaction.createdTime))}
             </span>
-          </td>
+          </div>
+        </td>
 
-          <td>
-            <span class="status-badge status-paid">
-              Paid
-            </span>
-          </td>
+        <td class="amount-cell">
+          ${escapeHtml(formatCurrency(transaction.total))}
+        </td>
 
-          <td class="action-cell">
+        <td class="amount-cell discount-cell">
+          ${escapeHtml(formatCurrency(transaction.discount))}
+        </td>
 
-            <button
-              class="action-button"
-              title="View Details"
-              data-action="view"
-              data-id="${escapeHtml(transaction.id)}"
-            >
-              <i data-lucide="eye"></i>
-            </button>
+        <td class="amount-cell paid-cell">
+          ${escapeHtml(formatCurrency(transaction.paid))}
+        </td>
 
-            <button
-              class="action-button"
-              title="Edit Payment"
-              data-action="edit"
-              data-id="${escapeHtml(transaction.id)}"
-            >
-              <i data-lucide="pencil"></i>
-            </button>
+        <td class="amount-cell balance-cell">
+          ${escapeHtml(formatCurrency(balance))}
+        </td>
 
-            <button
-              class="action-button delete-action-button"
-              title="Delete Payment"
-              data-action="delete"
-              data-id="${escapeHtml(transaction.id)}"
-            >
-              <i data-lucide="trash-2"></i>
-            </button>
+        <td>
+          <span class="status-badge ${statusClass}">
+            ${escapeHtml(status)}
+          </span>
+        </td>
 
-          </td>
-        `;
+        <td class="action-cell">
+          <button
+            class="action-button"
+            title="View Details"
+            data-action="view"
+            data-id="${escapeHtml(transaction.id)}"
+          >
+            <i data-lucide="eye"></i>
+          </button>
+
+          <button
+            class="action-button"
+            title="Edit Payment"
+            data-action="edit"
+            data-id="${escapeHtml(transaction.id)}"
+          >
+            <i data-lucide="pencil"></i>
+          </button>
+
+          <button
+            class="action-button delete-action-button"
+            title="Delete Payment"
+            data-action="delete"
+            data-id="${escapeHtml(transaction.id)}"
+          >
+            <i data-lucide="trash-2"></i>
+          </button>
+        </td>
+      `;
 
       tableBody.appendChild(row);
     });
@@ -823,13 +878,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
     if (action === "view") {
       showTransactionDetails(transaction);
-
       return;
     }
 
     if (action === "edit") {
       openPaymentModal(transaction);
-
       return;
     }
 
@@ -850,9 +903,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     let hour = parseInt(parts[0], 10);
-
     const minute = parts[1];
-
     const period = hour >= 12 ? "PM" : "AM";
 
     hour = hour % 12 || 12;
@@ -860,29 +911,52 @@ document.addEventListener("DOMContentLoaded", function () {
     return `${hour}:${minute} ${period}`;
   }
 
+  function updatePaymentCalculation() {
+    const paid = Math.max(parseFloat(paymentAmountInput.value) || 0, 0);
+
+    const status = paid > 0 ? "Paid" : "Unpaid";
+
+    if (paymentStatusInput) {
+      paymentStatusInput.value = status;
+    }
+
+    return {
+      total: paid,
+      discount: 0,
+      paid: paid,
+      balance: 0,
+      status: status,
+    };
+  }
+
   function openPaymentModal(transaction = null) {
     paymentModal.classList.add("active");
 
     if (transaction) {
-      editingTransactionId = transaction.id;
+      const normalized = normalizeTransaction(transaction);
+
+      editingTransactionId = normalized.id;
 
       modalTitle.textContent = "Edit Payment";
 
-      transactionIdInput.value = transaction.id;
+      transactionIdInput.value = normalized.id;
 
-      patientNameInput.value = transaction.patientName || "";
+      patientNameInput.value = normalized.patientName || "";
 
-      serviceNameInput.value = transaction.service || "";
+      serviceNameInput.value = normalized.service || "";
 
-      paymentAmountInput.value = transaction.amount || "";
+      paymentAmountInput.value = normalized.paid || "";
 
-      paymentDateInput.value = transaction.date || getTodayString();
+      paymentDateInput.value = normalized.date || getTodayString();
 
-      paymentMethodInput.value = transaction.paymentMethod || "";
+      paymentMethodInput.value = normalized.paymentMethod || "";
 
-      paymentStatusInput.value = "Paid";
+      if (paymentStatusInput) {
+        paymentStatusInput.value =
+          normalized.status === "Paid" ? "Paid" : "Paid";
+      }
 
-      paymentNotesInput.value = transaction.notes || "";
+      paymentNotesInput.value = normalized.notes || "";
     } else {
       editingTransactionId = null;
 
@@ -892,10 +966,16 @@ document.addEventListener("DOMContentLoaded", function () {
 
       transactionIdInput.value = "";
 
+      paymentAmountInput.value = "";
+
       paymentDateInput.value = getTodayString();
 
-      paymentStatusInput.value = "Paid";
+      if (paymentStatusInput) {
+        paymentStatusInput.value = "Paid";
+      }
     }
+
+    updatePaymentCalculation();
 
     setTimeout(function () {
       patientNameInput.focus();
@@ -919,7 +999,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const service = serviceNameInput.value.trim();
 
-    const amount = parseFloat(paymentAmountInput.value);
+    const paid = parseFloat(paymentAmountInput.value);
 
     const date = paymentDateInput.value;
 
@@ -929,33 +1009,33 @@ document.addEventListener("DOMContentLoaded", function () {
 
     if (!patientName) {
       showToast("Please enter the patient name.");
-
       return;
     }
 
     if (!service) {
       showToast("Please enter the service.");
-
       return;
     }
 
-    if (isNaN(amount) || amount < 0) {
+    if (isNaN(paid) || paid <= 0) {
       showToast("Please enter a valid amount.");
-
       return;
     }
 
     if (!date) {
       showToast("Please select the payment date.");
-
       return;
     }
 
     if (!paymentMethod) {
       showToast("Please select a payment method.");
-
       return;
     }
+
+    const total = paid;
+    const discount = 0;
+    const balance = 0;
+    const status = "Paid";
 
     const now = new Date();
 
@@ -969,19 +1049,15 @@ document.addEventListener("DOMContentLoaded", function () {
       if (index !== -1) {
         transactions[index] = {
           ...transactions[index],
-
           patientName: patientName,
-
           service: service,
-
-          amount: amount,
-
+          total: total,
+          discount: discount,
+          paid: paid,
+          balance: balance,
           date: date,
-
           paymentMethod: paymentMethod,
-
-          status: "Paid",
-
+          status: status,
           notes: notes,
         };
       }
@@ -990,23 +1066,17 @@ document.addEventListener("DOMContentLoaded", function () {
     } else {
       const newTransaction = {
         id: createTransactionId(),
-
         patientName: patientName,
-
         service: service,
-
-        amount: amount,
-
+        total: total,
+        discount: discount,
+        paid: paid,
+        balance: balance,
         date: date,
-
         paymentMethod: paymentMethod,
-
-        status: "Paid",
-
+        status: status,
         notes: notes,
-
         createdTime: createdTime,
-
         createdAt: new Date().toISOString(),
       };
 
@@ -1019,42 +1089,82 @@ document.addEventListener("DOMContentLoaded", function () {
 
     closePaymentModal();
 
-    renderDashboard();
+    renderPaymentMethods();
 
     renderTransactions();
   }
 
   function showTransactionDetails(transaction) {
-    document.getElementById("detailTransactionId").textContent =
-      transaction.id || "-";
+    const normalized = normalizeTransaction(transaction);
 
-    document.getElementById("detailPatient").textContent =
-      transaction.patientName || "-";
-
-    document.getElementById("detailService").textContent =
-      transaction.service || "-";
-
-    document.getElementById("detailAmount").textContent = formatCurrency(
-      transaction.amount,
-    );
-
-    document.getElementById("detailMethod").textContent =
-      transaction.paymentMethod || "-";
-
-    document.getElementById("detailDate").textContent = formatDate(
-      transaction.date,
-    );
-
+    const detailTransactionId = document.getElementById("detailTransactionId");
+    const detailPatient = document.getElementById("detailPatient");
+    const detailService = document.getElementById("detailService");
+    const detailAmount = document.getElementById("detailAmount");
+    const detailTotal = document.getElementById("detailTotal");
+    const detailDiscount = document.getElementById("detailDiscount");
+    const detailPaid = document.getElementById("detailPaid");
+    const detailBalance = document.getElementById("detailBalance");
+    const detailMethod = document.getElementById("detailMethod");
+    const detailDate = document.getElementById("detailDate");
     const detailStatus = document.getElementById("detailStatus");
+    const detailNotes = document.getElementById("detailNotes");
 
-    detailStatus.textContent = "Paid";
+    if (detailTransactionId) {
+      detailTransactionId.textContent = normalized.id || "-";
+    }
 
-    detailStatus.style.color = "#16814b";
+    if (detailPatient) {
+      detailPatient.textContent = normalized.patientName || "-";
+    }
 
-    document.getElementById("detailNotes").textContent =
-      transaction.notes || "No notes.";
+    if (detailService) {
+      detailService.textContent = normalized.service || "-";
+    }
+
+    if (detailTotal) {
+      detailTotal.textContent = formatCurrency(normalized.total);
+    }
+
+    if (detailDiscount) {
+      detailDiscount.textContent = formatCurrency(normalized.discount);
+    }
+
+    if (detailPaid) {
+      detailPaid.textContent = formatCurrency(normalized.paid);
+    }
+
+    if (detailBalance) {
+      detailBalance.textContent = formatCurrency(normalized.balance);
+    }
+
+    if (detailAmount) {
+      detailAmount.textContent = formatCurrency(normalized.total);
+    }
+
+    if (detailMethod) {
+      detailMethod.textContent = normalized.paymentMethod || "-";
+    }
+
+    if (detailDate) {
+      detailDate.textContent = formatDate(normalized.date);
+    }
+
+    if (detailStatus) {
+      detailStatus.textContent = normalized.status;
+
+      detailStatus.className = `status-badge ${getStatusClass(normalized.status)}`;
+    }
+
+    if (detailNotes) {
+      detailNotes.textContent = normalized.notes || "No notes.";
+    }
 
     detailsModal.classList.add("active");
+
+    if (window.lucide) {
+      lucide.createIcons();
+    }
   }
 
   function closeDetailsModal() {
@@ -1070,11 +1180,15 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
+    const normalized = normalizeTransaction(transaction);
+
     const confirmed = window.confirm(
-      `Delete this payment?\n\n` +
-        `Patient: ${transaction.patientName}\n` +
-        `Service: ${transaction.service}\n` +
-        `Amount: ${formatCurrency(transaction.amount)}\n\n` +
+      `Delete this payment record?\n\n` +
+        `Patient: ${normalized.patientName}\n` +
+        `Service: ${normalized.service}\n` +
+        `Total: ${formatCurrency(normalized.total)}\n` +
+        `Paid: ${formatCurrency(normalized.paid)}\n` +
+        `Balance: ${formatCurrency(normalized.balance)}\n\n` +
         `This action cannot be undone.`,
     );
 
@@ -1088,11 +1202,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
     saveTransactions();
 
-    renderDashboard();
+    renderPaymentMethods();
 
     renderTransactions();
 
-    showToast("Payment deleted successfully.");
+    showToast("Payment record deleted successfully.");
   }
 
   function setDefaultPaymentDate() {

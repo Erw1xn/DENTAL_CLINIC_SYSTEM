@@ -29,62 +29,15 @@
 
   <body>
     <div class="dashboard-wrapper">
-      <!-- SIDEBAR -->
       <aside id="sidebar-container"></aside>
 
-      <!-- MAIN CONTENT -->
       <main class="finance-page">
-        <!-- SUMMARY CARDS -->
-        <section class="summary-grid">
-          <div class="summary-card">
-            <div class="summary-icon revenue-icon">
-              <i data-lucide="wallet"></i>
-            </div>
-
-            <div class="summary-content">
-              <span class="summary-title"> Today's Revenue </span>
-
-              <strong id="todayRevenue"> ₱0.00 </strong>
-
-              <small> Today's collection </small>
-            </div>
-          </div>
-
-          <div class="summary-card">
-            <div class="summary-icon monthly-icon">
-              <i data-lucide="calendar-days"></i>
-            </div>
-
-            <div class="summary-content">
-              <span class="summary-title"> Monthly Revenue </span>
-
-              <strong id="monthlyRevenue"> ₱0.00 </strong>
-
-              <small id="currentMonthLabel"> Current month </small>
-            </div>
-          </div>
-
-          <div class="summary-card">
-            <div class="summary-icon paid-icon">
-              <i data-lucide="circle-check"></i>
-            </div>
-
-            <div class="summary-content">
-              <span class="summary-title"> Paid Transactions </span>
-
-              <strong id="paidTransactions"> 0 </strong>
-
-              <small> This month </small>
-            </div>
-          </div>
-        </section>
-
-        <!-- MAIN FINANCE CONTENT -->
         <section class="finance-content-grid">
-          <!-- TRANSACTIONS -->
           <div class="transactions-card">
             <div class="card-header">
-              <div>
+              <div class="card-heading">
+                <span class="section-label">FINANCE</span>
+
                 <h2>Recent Transactions</h2>
 
                 <p>View and manage recent patient payments.</p>
@@ -96,17 +49,32 @@
                 </span>
 
                 <button
+                  class="collection-header-button"
+                  id="openCollectionDrawerBtn"
+                  type="button"
+                >
+                  <span class="collection-button-icon">
+                    <i data-lucide="wallet-cards"></i>
+                  </span>
+
+                  <span class="collection-button-text"> Collections </span>
+
+                  <span class="collection-button-arrow">
+                    <i data-lucide="chevron-right"></i>
+                  </span>
+                </button>
+
+                <button
                   class="primary-button record-payment-header-button"
                   id="recordPaymentBtn"
                   type="button"
                 >
                   <i data-lucide="plus"></i>
-                  Record Payment
+                  <span>Record Payment</span>
                 </button>
               </div>
             </div>
 
-            <!-- FILTERS -->
             <div class="filters">
               <div class="search-box">
                 <i data-lucide="search"></i>
@@ -121,26 +89,19 @@
 
               <select id="paymentMethodFilter">
                 <option value="all">All Payment Methods</option>
-
                 <option value="Cash">Cash</option>
-
                 <option value="GCash">GCash</option>
-
                 <option value="Bank Transfer">Bank Transfer</option>
-
                 <option value="Card">Card</option>
               </select>
 
               <select id="dateFilter">
                 <option value="all">All Dates</option>
-
                 <option value="today">Today</option>
-
                 <option value="month">This Month</option>
               </select>
             </div>
 
-            <!-- TABLE -->
             <div class="table-wrapper">
               <table class="transactions-table">
                 <thead>
@@ -148,17 +109,18 @@
                     <th>PATIENT</th>
                     <th>SERVICE</th>
                     <th>DATE</th>
-                    <th>AMOUNT</th>
-                    <th>PAYMENT METHOD</th>
+                    <th>TOTAL</th>
+                    <th>DISCOUNT</th>
+                    <th>PAID</th>
+                    <th>BALANCE</th>
                     <th>STATUS</th>
-                    <th>ACTION</th>
+                    <th class="action-header">ACTION</th>
                   </tr>
                 </thead>
 
                 <tbody id="transactionsTableBody"></tbody>
               </table>
 
-              <!-- EMPTY STATE -->
               <div class="empty-state" id="emptyState">
                 <div class="empty-icon">
                   <i data-lucide="receipt"></i>
@@ -170,214 +132,267 @@
               </div>
             </div>
           </div>
+        </section>
+      </main>
+    </div>
 
-          <!-- PAYMENT METHODS / COLLECTION SUMMARY -->
-          <div class="payment-method-card">
-            <!-- TODAY'S COLLECTION PAGE -->
-            <div class="payment-method-page active" id="todayCollectionPage">
-              <div class="card-header">
+    <div class="collection-drawer-overlay" id="collectionDrawerOverlay"></div>
+
+    <aside class="collection-drawer" id="collectionDrawer">
+      <div class="collection-drawer-header">
+        <div>
+          <span class="collection-drawer-label">FINANCE</span>
+
+          <h2>Payment Collection</h2>
+
+          <p>Review collected payments by period.</p>
+        </div>
+
+        <button
+          type="button"
+          class="collection-drawer-close"
+          id="closeCollectionDrawerBtn"
+        >
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+
+      <div class="collection-drawer-content">
+        <div class="payment-method-page active" id="todayCollectionPage">
+          <div class="collection-period-header">
+            <div>
+              <div class="collection-title-row">
+                <div class="collection-period-icon">
+                  <i data-lucide="calendar-days"></i>
+                </div>
+
                 <div>
-                  <h2>Today's Collection</h2>
+                  <h3>Today's Collection</h3>
 
                   <p>Payment collection for today.</p>
                 </div>
-
-                <button
-                  type="button"
-                  class="collection-page-button"
-                  id="showMonthlyCollectionBtn"
-                >
-                  Next
-
-                  <i data-lucide="chevron-right"></i>
-                </button>
-              </div>
-
-              <div class="payment-method-list">
-                <!-- CASH -->
-                <div class="payment-method-item">
-                  <div class="method-left">
-                    <div class="method-icon cash">
-                      <i data-lucide="banknote"></i>
-                    </div>
-
-                    <div>
-                      <strong>Cash</strong>
-
-                      <span id="todayCashCount"> 0 transactions </span>
-                    </div>
-                  </div>
-
-                  <strong id="todayCashAmount"> ₱0.00 </strong>
-                </div>
-
-                <!-- GCASH -->
-                <div class="payment-method-item">
-                  <div class="method-left">
-                    <div class="method-icon gcash">
-                      <i data-lucide="smartphone"></i>
-                    </div>
-
-                    <div>
-                      <strong>GCash</strong>
-
-                      <span id="todayGcashCount"> 0 transactions </span>
-                    </div>
-                  </div>
-
-                  <strong id="todayGcashAmount"> ₱0.00 </strong>
-                </div>
-
-                <!-- BANK -->
-                <div class="payment-method-item">
-                  <div class="method-left">
-                    <div class="method-icon bank">
-                      <i data-lucide="building-2"></i>
-                    </div>
-
-                    <div>
-                      <strong>Bank Transfer</strong>
-
-                      <span id="todayBankCount"> 0 transactions </span>
-                    </div>
-                  </div>
-
-                  <strong id="todayBankAmount"> ₱0.00 </strong>
-                </div>
-
-                <!-- CARD -->
-                <div class="payment-method-item">
-                  <div class="method-left">
-                    <div class="method-icon card">
-                      <i data-lucide="credit-card"></i>
-                    </div>
-
-                    <div>
-                      <strong>Card</strong>
-
-                      <span id="todayCardCount"> 0 transactions </span>
-                    </div>
-                  </div>
-
-                  <strong id="todayCardAmount"> ₱0.00 </strong>
-                </div>
-              </div>
-
-              <div class="payment-total">
-                <span> Total Collected Today </span>
-
-                <strong id="todayPaymentMethodTotal"> ₱0.00 </strong>
               </div>
             </div>
 
-            <!-- MONTHLY COLLECTION PAGE -->
-            <div class="payment-method-page" id="monthlyCollectionPage">
-              <div class="card-header">
+            <button
+              type="button"
+              class="collection-page-button"
+              id="showMonthlyCollectionBtn"
+            >
+              This Month
+              <i data-lucide="chevron-right"></i>
+            </button>
+          </div>
+
+          <div class="collection-total-card">
+            <div>
+              <span>Total Collected</span>
+
+              <strong id="todayPaymentMethodTotal">₱0.00</strong>
+            </div>
+
+            <div class="collection-total-icon">
+              <i data-lucide="wallet"></i>
+            </div>
+          </div>
+
+          <div class="collection-section-heading">
+            <div>
+              <h4>Payment Methods</h4>
+
+              <p>Collection breakdown for today.</p>
+            </div>
+          </div>
+
+          <div class="payment-method-list">
+            <div class="payment-method-item">
+              <div class="method-left">
+                <div class="method-icon cash">
+                  <i data-lucide="banknote"></i>
+                </div>
+
                 <div>
-                  <h2>Monthly Collection</h2>
+                  <strong>Cash</strong>
+
+                  <span id="todayCashCount">0 transactions</span>
+                </div>
+              </div>
+
+              <strong id="todayCashAmount">₱0.00</strong>
+            </div>
+
+            <div class="payment-method-item">
+              <div class="method-left">
+                <div class="method-icon gcash">
+                  <i data-lucide="smartphone"></i>
+                </div>
+
+                <div>
+                  <strong>GCash</strong>
+
+                  <span id="todayGcashCount">0 transactions</span>
+                </div>
+              </div>
+
+              <strong id="todayGcashAmount">₱0.00</strong>
+            </div>
+
+            <div class="payment-method-item">
+              <div class="method-left">
+                <div class="method-icon bank">
+                  <i data-lucide="building-2"></i>
+                </div>
+
+                <div>
+                  <strong>Bank Transfer</strong>
+
+                  <span id="todayBankCount">0 transactions</span>
+                </div>
+              </div>
+
+              <strong id="todayBankAmount">₱0.00</strong>
+            </div>
+
+            <div class="payment-method-item">
+              <div class="method-left">
+                <div class="method-icon card">
+                  <i data-lucide="credit-card"></i>
+                </div>
+
+                <div>
+                  <strong>Card</strong>
+
+                  <span id="todayCardCount">0 transactions</span>
+                </div>
+              </div>
+
+              <strong id="todayCardAmount">₱0.00</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="payment-method-page" id="monthlyCollectionPage">
+          <div class="collection-period-header">
+            <div>
+              <div class="collection-title-row">
+                <div class="collection-period-icon">
+                  <i data-lucide="calendar-range"></i>
+                </div>
+
+                <div>
+                  <h3>Monthly Collection</h3>
 
                   <p id="monthlyCollectionDescription">
                     Payment collection for this month.
                   </p>
                 </div>
-
-                <button
-                  type="button"
-                  class="collection-page-button"
-                  id="showTodayCollectionBtn"
-                >
-                  <i data-lucide="chevron-left"></i>
-                  Back
-                </button>
-              </div>
-
-              <div class="payment-method-list">
-                <!-- CASH -->
-                <div class="payment-method-item">
-                  <div class="method-left">
-                    <div class="method-icon cash">
-                      <i data-lucide="banknote"></i>
-                    </div>
-
-                    <div>
-                      <strong>Cash</strong>
-
-                      <span id="monthlyCashCount"> 0 transactions </span>
-                    </div>
-                  </div>
-
-                  <strong id="monthlyCashAmount"> ₱0.00 </strong>
-                </div>
-
-                <!-- GCASH -->
-                <div class="payment-method-item">
-                  <div class="method-left">
-                    <div class="method-icon gcash">
-                      <i data-lucide="smartphone"></i>
-                    </div>
-
-                    <div>
-                      <strong>GCash</strong>
-
-                      <span id="monthlyGcashCount"> 0 transactions </span>
-                    </div>
-                  </div>
-
-                  <strong id="monthlyGcashAmount"> ₱0.00 </strong>
-                </div>
-
-                <!-- BANK -->
-                <div class="payment-method-item">
-                  <div class="method-left">
-                    <div class="method-icon bank">
-                      <i data-lucide="building-2"></i>
-                    </div>
-
-                    <div>
-                      <strong>Bank Transfer</strong>
-
-                      <span id="monthlyBankCount"> 0 transactions </span>
-                    </div>
-                  </div>
-
-                  <strong id="monthlyBankAmount"> ₱0.00 </strong>
-                </div>
-
-                <!-- CARD -->
-                <div class="payment-method-item">
-                  <div class="method-left">
-                    <div class="method-icon card">
-                      <i data-lucide="credit-card"></i>
-                    </div>
-
-                    <div>
-                      <strong>Card</strong>
-
-                      <span id="monthlyCardCount"> 0 transactions </span>
-                    </div>
-                  </div>
-
-                  <strong id="monthlyCardAmount"> ₱0.00 </strong>
-                </div>
-              </div>
-
-              <div class="payment-total">
-                <span> Total Collected This Month </span>
-
-                <strong id="monthlyPaymentMethodTotal"> ₱0.00 </strong>
               </div>
             </div>
-          </div>
-        </section>
-      </main>
-    </div>
 
-    <!-- RECORD PAYMENT MODAL -->
+            <button
+              type="button"
+              class="collection-page-button"
+              id="showTodayCollectionBtn"
+            >
+              <i data-lucide="chevron-left"></i>
+              Today
+            </button>
+          </div>
+
+          <div class="collection-total-card">
+            <div>
+              <span>Total Collected</span>
+
+              <strong id="monthlyPaymentMethodTotal">₱0.00</strong>
+            </div>
+
+            <div class="collection-total-icon">
+              <i data-lucide="wallet"></i>
+            </div>
+          </div>
+
+          <div class="collection-section-heading">
+            <div>
+              <h4>Payment Methods</h4>
+
+              <p>Collection breakdown for this month.</p>
+            </div>
+          </div>
+
+          <div class="payment-method-list">
+            <div class="payment-method-item">
+              <div class="method-left">
+                <div class="method-icon cash">
+                  <i data-lucide="banknote"></i>
+                </div>
+
+                <div>
+                  <strong>Cash</strong>
+
+                  <span id="monthlyCashCount">0 transactions</span>
+                </div>
+              </div>
+
+              <strong id="monthlyCashAmount">₱0.00</strong>
+            </div>
+
+            <div class="payment-method-item">
+              <div class="method-left">
+                <div class="method-icon gcash">
+                  <i data-lucide="smartphone"></i>
+                </div>
+
+                <div>
+                  <strong>GCash</strong>
+
+                  <span id="monthlyGcashCount">0 transactions</span>
+                </div>
+              </div>
+
+              <strong id="monthlyGcashAmount">₱0.00</strong>
+            </div>
+
+            <div class="payment-method-item">
+              <div class="method-left">
+                <div class="method-icon bank">
+                  <i data-lucide="building-2"></i>
+                </div>
+
+                <div>
+                  <strong>Bank Transfer</strong>
+
+                  <span id="monthlyBankCount">0 transactions</span>
+                </div>
+              </div>
+
+              <strong id="monthlyBankAmount">₱0.00</strong>
+            </div>
+
+            <div class="payment-method-item">
+              <div class="method-left">
+                <div class="method-icon card">
+                  <i data-lucide="credit-card"></i>
+                </div>
+
+                <div>
+                  <strong>Card</strong>
+
+                  <span id="monthlyCardCount">0 transactions</span>
+                </div>
+              </div>
+
+              <strong id="monthlyCardAmount">₱0.00</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
     <div class="modal-overlay" id="paymentModal">
       <div class="payment-modal">
         <div class="modal-header">
           <div>
-            <span class="modal-label"> FINANCE </span>
+            <span class="modal-label">FINANCE</span>
 
             <h2 id="modalTitle">Record Payment</h2>
           </div>
@@ -456,13 +471,9 @@
 
               <select id="paymentMethod" required>
                 <option value="">Select method</option>
-
                 <option value="Cash">Cash</option>
-
                 <option value="GCash">GCash</option>
-
                 <option value="Bank Transfer">Bank Transfer</option>
-
                 <option value="Card">Card</option>
               </select>
             </div>
@@ -480,7 +491,7 @@
           </div>
 
           <div class="form-group full-width">
-            <label for="paymentNotes"> Notes </label>
+            <label for="paymentNotes">Notes</label>
 
             <textarea
               id="paymentNotes"
@@ -507,12 +518,11 @@
       </div>
     </div>
 
-    <!-- PAYMENT DETAILS MODAL -->
     <div class="modal-overlay" id="detailsModal">
       <div class="details-modal">
         <div class="modal-header">
           <div>
-            <span class="modal-label"> TRANSACTION </span>
+            <span class="modal-label">TRANSACTION</span>
 
             <h2>Payment Details</h2>
           </div>
@@ -524,51 +534,51 @@
 
         <div class="details-content">
           <div class="transaction-reference">
-            <span> Transaction ID </span>
+            <span>Transaction ID</span>
 
-            <strong id="detailTransactionId"> - </strong>
+            <strong id="detailTransactionId">-</strong>
           </div>
 
           <div class="details-grid">
             <div>
               <span>Patient</span>
 
-              <strong id="detailPatient"> - </strong>
+              <strong id="detailPatient">-</strong>
             </div>
 
             <div>
               <span>Service</span>
 
-              <strong id="detailService"> - </strong>
+              <strong id="detailService">-</strong>
             </div>
 
             <div>
               <span>Amount</span>
 
-              <strong id="detailAmount"> ₱0.00 </strong>
+              <strong id="detailAmount">₱0.00</strong>
             </div>
 
             <div>
               <span>Payment Method</span>
 
-              <strong id="detailMethod"> - </strong>
+              <strong id="detailMethod">-</strong>
             </div>
 
             <div>
               <span>Date</span>
 
-              <strong id="detailDate"> - </strong>
+              <strong id="detailDate">-</strong>
             </div>
 
             <div>
               <span>Status</span>
 
-              <strong id="detailStatus"> - </strong>
+              <strong id="detailStatus">-</strong>
             </div>
           </div>
 
           <div class="details-note">
-            <span> Notes </span>
+            <span>Notes</span>
 
             <p id="detailNotes">No notes.</p>
           </div>
@@ -586,10 +596,8 @@
       </div>
     </div>
 
-    <!-- SIDEBAR -->
     <script src="../../navigation_bar/sidebar.js"></script>
 
-    <!-- FINANCE JS -->
     <script src="finance.js"></script>
   </body>
 </html>

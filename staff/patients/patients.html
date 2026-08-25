@@ -184,10 +184,8 @@
               <div class="form-field">
                 <label for="patientGender">Gender</label>
                 <select id="patientGender" name="patientGender" required>
-                  <option value="">Select gender</option>
                   <option value="Male">Male</option>
                   <option value="Female">Female</option>
-                  <option value="Other">Other</option>
                 </select>
               </div>
 
@@ -199,6 +197,11 @@
                   name="phone"
                   autocomplete="tel"
                   placeholder="09XXXXXXXXX"
+                  inputmode="numeric"
+                  maxlength="11"
+                  minlength="11"
+                  pattern="09[0-9]{9}"
+                  required
                 />
               </div>
 

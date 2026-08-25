@@ -226,18 +226,23 @@ function setupPatientFormValidation() {
   if (phoneField) {
     phoneField.type = "tel";
     phoneField.required = true;
-    phoneField.pattern = "^(09\\d{9}|\\+639\\d{9})$";
-    phoneField.title =
-      "Please enter a valid Philippine phone number (09XXXXXXXXX or +639XXXXXXXXX).";
+    phoneField.maxLength = 11;
+    phoneField.minLength = 11;
+    phoneField.pattern = "^09\\d{9}$";
+    phoneField.inputMode = "numeric";
+    phoneField.title = "Please enter exactly 11 digits starting with 09.";
     phoneField.setAttribute("placeholder", "09XXXXXXXXX");
   }
   const emergencyContactField = $("emergencyContact");
   if (emergencyContactField) {
     emergencyContactField.type = "tel";
     emergencyContactField.required = true;
-    emergencyContactField.pattern = "^(09\\d{9}|\\+639\\d{9})$";
+    emergencyContactField.maxLength = 11;
+    emergencyContactField.minLength = 11;
+    emergencyContactField.pattern = "^09\\d{9}$";
+    emergencyContactField.inputMode = "numeric";
     emergencyContactField.title =
-      "Please enter a valid Philippine emergency contact number (09XXXXXXXXX or +639XXXXXXXXX).";
+      "Please enter exactly 11 digits starting with 09.";
     emergencyContactField.setAttribute("placeholder", "09XXXXXXXXX");
   }
   const emailField = $("email");
@@ -1047,50 +1052,42 @@ function renderAppointment(appointment) {
   const assignedDoctor =
     dentistNames[String(appointment.dentist || "").toLowerCase()] || "";
   const doctorDisplay = assignedDoctor
-    ? `<span class="appointment-doctor"><i class="fa-solid fa-user-doctor"></i>${escapeHTML(assignedDoctor)}</span>`
+    ? `
+      <span class="appointment-doctor">
+        <i class="fa-solid fa-user-doctor"></i>
+        ${escapeHTML(assignedDoctor)}
+      </span>
+    `
     : "";
   const status = appointment.status || "pending";
   const isCompleted = status === "completed";
   const isToday = isAppointmentToday(appointment);
-  const statusDisplay = `
-    <div
-      class="appointment-status-row"
-      style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-top:6px;"
-    >
-      ${
-        isToday
-          ? `
-            <div
-              class="appointment-status appointment-status-today"
-              style="display:inline-flex;align-items:center;justify-content:center;min-height:20px;padding:0 6px;border:1px solid #c8e7d4;border-radius:6px;background:#edf8f1;color:#19733f;font-size:8px;font-weight:600;line-height:1;box-sizing:border-box;"
-            >
-              <span>Today</span>
-            </div>
-          `
-          : ""
-      }
-      ${
-        isCompleted
-          ? `
-            <div
-              class="appointment-status appointment-status-completed"
-              style="display:inline-flex;align-items:center;justify-content:center;min-height:20px;padding:0 6px;border-radius:6px;box-sizing:border-box;font-size:8px;font-weight:600;line-height:1;"
-            >
-              <span>Completed</span>
-            </div>
-          `
-          : ""
-      }
-    </div>
-  `;
+  const todayDisplay = isToday
+    ? `
+      <span class="appointment-status appointment-status-today">
+        Today
+      </span>
+    `
+    : "";
+  const completedDisplay = isCompleted
+    ? `
+      <span class="appointment-status appointment-status-completed completed">
+        Completed
+      </span>
+    `
+    : "";
   return `
     <div class="appointment-date">
       ${escapeHTML(formatDate(appointment.date))}
     </div>
     <div class="appointment-time">
-      ${escapeHTML(timeDisplay)}${doctorDisplay}
+      ${escapeHTML(timeDisplay)}
     </div>
-    ${statusDisplay}
+    <div class="appointment-meta">
+      ${doctorDisplay}
+      ${todayDisplay}
+      ${completedDisplay}
+    </div>
   `;
 }
 patientTableBody?.addEventListener("click", (event) => {
