@@ -45,11 +45,11 @@ button {
 
 .inventory-panel {
   width: 100%;
-  overflow: hidden;
-  background: #ffffff;
-  border: 1px solid #e4ebe7;
-  border-radius: 16px;
-  box-shadow: 0 4px 18px rgba(20, 32, 26, 0.035);
+  overflow: visible;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .btn-primary,
@@ -81,7 +81,7 @@ button {
   box-shadow: 0 3px 10px rgba(23, 107, 56, 0.1);
 }
 
-.btn-primary\:hover {
+.btn-primary:hover {
   background: #12552d;
   border-color: #12552d;
   transform: translateY(-1px);
@@ -94,20 +94,20 @@ button {
   color: #44534b;
 }
 
-.btn-secondary\:hover {
+.btn-secondary:hover {
   background: #f6faf7;
   border-color: #cbd9d0;
   color: #176b38;
   transform: translateY(-1px);
 }
 
-.btn-primary\:active,
-.btn-secondary\:active {
+.btn-primary:active,
+.btn-secondary:active {
   transform: translateY(0);
 }
 
-.btn-primary\:focus-visible,
-.btn-secondary\:focus-visible {
+.btn-primary:focus-visible,
+.btn-secondary:focus-visible {
   outline: none;
   border-color: #5aa879;
   box-shadow: 0 0 0 3px rgba(23, 107, 56, 0.08);
@@ -119,14 +119,17 @@ button {
 }
 
 .panel-header {
-  min-height: 72px;
+  min-height: 70px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
-  padding: 15px 20px;
-  border-bottom: 1px solid #edf1ee;
+  gap: 16px;
+  margin-bottom: 14px;
+  padding: 14px 22px;
+  border: 1px solid #e4ebe7;
+  border-radius: 16px;
   background: #ffffff;
+  box-shadow: 0 4px 18px rgba(20, 32, 26, 0.035);
 }
 
 .panel-header-left {
@@ -135,15 +138,15 @@ button {
 }
 
 .panel-header-left h2 {
-  margin: 0;
+  margin: 0 0 4px;
   color: #18251e;
   font-size: 0.95rem;
   font-weight: 700;
-  line-height: 1.3;
+  line-height: 1.25;
 }
 
 .panel-header-left p {
-  margin: 3px 0 0;
+  margin: 0;
   color: #7c8881;
   font-size: 0.61rem;
   line-height: 1.4;
@@ -153,7 +156,7 @@ button {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 9px;
+  gap: 8px;
   flex-shrink: 0;
 }
 
@@ -161,6 +164,28 @@ button {
   display: flex;
   align-items: center;
   gap: 7px;
+}
+
+.panel-header .inventory-header-actions .btn-primary {
+  min-height: 36px;
+  padding: 0 13px;
+  border-radius: 8px;
+  font-size: 0.64rem;
+}
+
+.panel-header .inventory-header-actions .btn-primary i {
+  font-size: 0.65rem;
+}
+
+.panel-header .inventory-header-actions .btn-secondary {
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-size: 0.62rem;
+}
+
+.panel-header .inventory-header-actions .btn-secondary i {
+  font-size: 0.64rem;
 }
 
 .item-count {
@@ -177,10 +202,6 @@ button {
   font-weight: 600;
   white-space: nowrap;
 }
-
-/* =========================================================
-   INVENTORY PAGE SECTIONS
-   ========================================================= */
 
 .inventory-page-section {
   display: none;
@@ -244,7 +265,7 @@ button {
     box-shadow 0.18s ease;
 }
 
-.search-wrapper input\:focus {
+.search-wrapper input:focus {
   border-color: #5aa879;
   box-shadow: 0 0 0 3px rgba(23, 107, 56, 0.07);
 }
@@ -269,7 +290,7 @@ button {
     box-shadow 0.18s ease;
 }
 
-.filter-select\:focus {
+.filter-select:focus {
   border-color: #5aa879;
   box-shadow: 0 0 0 3px rgba(23, 107, 56, 0.07);
 }
@@ -301,13 +322,13 @@ button {
   white-space: nowrap;
 }
 
-.inventory-table th\:first-child,
-.inventory-table td\:first-child {
+.inventory-table th:first-child,
+.inventory-table td:first-child {
   padding-left: 20px;
 }
 
-.inventory-table th\:last-child,
-.inventory-table td\:last-child {
+.inventory-table th:last-child,
+.inventory-table td:last-child {
   padding-right: 20px;
 }
 
@@ -324,11 +345,11 @@ button {
   transition: background-color 0.15s ease;
 }
 
-.inventory-table tbody tr\:hover {
+.inventory-table tbody tr:hover {
   background: #fbfdfc;
 }
 
-.inventory-table tbody tr\:last-child td {
+.inventory-table tbody tr:last-child td {
   border-bottom: none;
 }
 
@@ -491,7 +512,7 @@ button {
     transform 0.18s ease;
 }
 
-.action-button\:hover {
+.action-button:hover {
   background: #f1f7f3;
   border-color: #cfe0d5;
   color: #176b38;
@@ -556,7 +577,7 @@ button {
   background: #ffffff;
 }
 
-.prototype-header > div\:first-child {
+.prototype-header > div:first-child {
   min-width: 0;
   flex: 1;
 }
@@ -626,13 +647,13 @@ button {
   white-space: nowrap;
 }
 
-#inventoryPage2 .forecast-table th\:first-child,
-#inventoryPage2 .forecast-table td\:first-child {
+#inventoryPage2 .forecast-table th:first-child,
+#inventoryPage2 .forecast-table td:first-child {
   padding-left: 20px;
 }
 
-#inventoryPage2 .forecast-table th\:last-child,
-#inventoryPage2 .forecast-table td\:last-child {
+#inventoryPage2 .forecast-table th:last-child,
+#inventoryPage2 .forecast-table td:last-child {
   padding-right: 20px;
 }
 
@@ -650,11 +671,11 @@ button {
   transition: background-color 0.15s ease;
 }
 
-#inventoryPage2 .forecast-table tbody tr\:hover td {
+#inventoryPage2 .forecast-table tbody tr:hover td {
   background: #fbfdfc;
 }
 
-#inventoryPage2 .forecast-table tbody tr\:last-child td {
+#inventoryPage2 .forecast-table tbody tr:last-child td {
   border-bottom: none;
 }
 
@@ -743,14 +764,14 @@ button {
     transform 0.18s ease;
 }
 
-#inventoryPage2 .forecast-history-btn\:hover {
+#inventoryPage2 .forecast-history-btn:hover {
   background: #eaf7ef;
   border-color: #bcd8c7;
   color: #12552d;
   transform: translateY(-1px);
 }
 
-#inventoryPage2 .forecast-history-btn\:focus-visible {
+#inventoryPage2 .forecast-history-btn:focus-visible {
   outline: none;
   border-color: #5aa879;
   box-shadow: 0 0 0 3px rgba(23, 107, 56, 0.08);
@@ -830,8 +851,8 @@ button {
     transform 0.18s ease;
 }
 
-#inventoryPage2 .historical-usage-info\:hover,
-#inventoryPage2 .historical-usage-info\:focus {
+#inventoryPage2 .historical-usage-info:hover,
+#inventoryPage2 .historical-usage-info:focus {
   background: #eaf7ef;
   border-color: #bcd8c7;
   color: #12552d;
@@ -865,13 +886,13 @@ button {
 }
 
 #inventoryPage2
-  .historical-usage-info\:hover
+  .historical-usage-info:hover
   + .historical-usage-tooltip-content,
 #inventoryPage2
-  .historical-usage-tooltip\:hover
+  .historical-usage-tooltip:hover
   .historical-usage-tooltip-content,
 #inventoryPage2
-  .historical-usage-tooltip\:focus-within
+  .historical-usage-tooltip:focus-within
   .historical-usage-tooltip-content {
   opacity: 1;
   visibility: visible;
@@ -893,10 +914,6 @@ button {
 #inventoryPage2 .historical-usage-tooltip-content p {
   margin: 6px 0 0;
 }
-
-/* =========================================================
-   MODALS
-   ========================================================= */
 
 .modal-backdrop {
   position: fixed;
@@ -967,7 +984,7 @@ button {
   border-bottom: 1px solid #edf1ee;
 }
 
-.modal-header > div\:first-child {
+.modal-header > div:first-child {
   min-width: 0;
   flex: 1;
 }
@@ -1010,18 +1027,18 @@ button {
     transform 0.18s ease;
 }
 
-.modal-close\:hover {
+.modal-close:hover {
   background: #f4f7f5;
   border-color: #d9e2dc;
   color: #26352d;
   transform: translateY(-1px);
 }
 
-.modal-close\:active {
+.modal-close:active {
   transform: translateY(0);
 }
 
-.modal-close\:focus-visible {
+.modal-close:focus-visible {
   outline: none;
   border-color: #5aa879;
   box-shadow: 0 0 0 3px rgba(23, 107, 56, 0.08);
@@ -1069,13 +1086,13 @@ button {
     color 0.18s ease;
 }
 
-.form-group input\:hover,
-.form-group select\:hover {
+.form-group input:hover,
+.form-group select:hover {
   border-color: #cfdcd4;
 }
 
-.form-group input\:focus,
-.form-group select\:focus {
+.form-group input:focus,
+.form-group select:focus {
   border-color: #5aa879;
   background: #ffffff;
   box-shadow: 0 0 0 3px rgba(23, 107, 56, 0.07);
@@ -1085,8 +1102,8 @@ button {
   color: #a2aba6;
 }
 
-.form-group input\:disabled,
-.form-group select\:disabled {
+.form-group input:disabled,
+.form-group select:disabled {
   background: #f3f6f4;
   border-color: #e2e8e4;
   color: #9aa49f;
@@ -1095,7 +1112,7 @@ button {
   opacity: 1;
 }
 
-.form-group input\:disabled::placeholder {
+.form-group input:disabled::placeholder {
   color: #b3bbb6;
 }
 
@@ -1137,26 +1154,22 @@ button {
     transform 0.18s ease;
 }
 
-.btn-modal-cancel\:hover {
+.btn-modal-cancel:hover {
   background: #eef2ef;
   border-color: #d7e0da;
   color: #39483f;
   transform: translateY(-1px);
 }
 
-.btn-modal-cancel\:active {
+.btn-modal-cancel:active {
   transform: translateY(0);
 }
 
-.btn-modal-cancel\:focus-visible {
+.btn-modal-cancel:focus-visible {
   outline: none;
   border-color: #5aa879;
   box-shadow: 0 0 0 3px rgba(23, 107, 56, 0.08);
 }
-
-/* =========================================================
-   ACTION MENU
-   ========================================================= */
 
 .action-menu {
   position: fixed;
@@ -1202,7 +1215,7 @@ button {
   cursor: pointer;
 }
 
-.action-menu button\:hover {
+.action-menu button:hover {
   background: #f2f7f4;
   color: #176b38;
 }
@@ -1217,14 +1230,10 @@ button {
   color: #d34d4d;
 }
 
-.action-menu .danger-action\:hover {
+.action-menu .danger-action:hover {
   background: #fff1f1;
   color: #c63f3f;
 }
-
-/* =========================================================
-   PAGE NAVIGATION
-   ========================================================= */
 
 .inventory-page-navigation {
   position: fixed;
@@ -1263,7 +1272,7 @@ button {
     transform 0.15s ease;
 }
 
-.inventory-page-btn\:hover {
+.inventory-page-btn:hover {
   border-color: #a9c9b5;
   background: #f1f8f3;
   color: #176b38;
@@ -1277,11 +1286,11 @@ button {
   box-shadow: 0 4px 14px rgba(23, 107, 56, 0.2);
 }
 
-.inventory-page-btn\:active {
+.inventory-page-btn:active {
   transform: scale(0.94);
 }
 
-.inventory-page-btn\:focus-visible {
+.inventory-page-btn:focus-visible {
   outline: none;
   border-color: #5aa879;
   box-shadow:
@@ -1292,10 +1301,6 @@ button {
 #stockStatusIcon {
   display: none !important;
 }
-
-/* =========================================================
-   INVENTORY TOAST
-   ========================================================= */
 
 .inventory-toast {
   position: fixed;
@@ -1338,10 +1343,6 @@ button {
   visibility: visible;
   transform: translateY(0);
 }
-
-/* =========================================================
-   RESPONSIVE
-   ========================================================= */
 
 @media (max-width: 1200px) {
   .inventory-main {
@@ -1391,7 +1392,7 @@ button {
   .panel-header {
     align-items: flex-start;
     flex-direction: column;
-    gap: 12px;
+    gap: 10px;
   }
 
   .panel-header-right {
@@ -1433,7 +1434,7 @@ button {
   }
 
   .panel-header {
-    padding: 15px;
+    padding: 14px 15px;
   }
 
   .panel-header-right {
@@ -1511,13 +1512,13 @@ button {
     padding-bottom: 9px;
   }
 
-  #inventoryPage2 .forecast-table th\:first-child,
-  #inventoryPage2 .forecast-table td\:first-child {
+  #inventoryPage2 .forecast-table th:first-child,
+  #inventoryPage2 .forecast-table td:first-child {
     padding-left: 17px;
   }
 
-  #inventoryPage2 .forecast-table th\:last-child,
-  #inventoryPage2 .forecast-table td\:last-child {
+  #inventoryPage2 .forecast-table th:last-child,
+  #inventoryPage2 .forecast-table td:last-child {
     padding-right: 17px;
   }
 
@@ -1557,7 +1558,7 @@ button {
     margin-left: 0;
   }
 
-  #inventoryPage2 .prototype-header > div\:first-child {
+  #inventoryPage2 .prototype-header > div:first-child {
     padding-right: 40px;
   }
 
@@ -1574,7 +1575,16 @@ button {
   .panel-header {
     align-items: flex-start;
     flex-direction: column;
-    gap: 11px;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+
+  .panel-header-left h2 {
+    font-size: 0.93rem;
+  }
+
+  .panel-header-left p {
+    font-size: 0.59rem;
   }
 
   .panel-header-right {

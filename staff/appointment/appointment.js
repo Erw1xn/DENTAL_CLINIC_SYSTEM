@@ -7,7 +7,7 @@ const END_HOUR = 20;
 const SLOT_MIN = 30;
 const NO_SHOW_GRACE_PERIOD_MIN = 15;
 const NO_SHOW_TESTING_MODE = false;
-const FINANCE_PAGE_URL = "../../finance/finance.html";
+const FINANCE_PAGE_URL = "../finance/finance.html";
 const FINANCE_PENDING_PAYMENT_KEY = "dentaNuevaPendingPayment";
 const RESCHEDULE_REQUESTS_STORAGE_KEY = "dentanueva_reschedule_requests";
 const SERVICE_DURATIONS = {
@@ -105,7 +105,8 @@ function handleStorageChange(event) {
   }
   if (
     event.key === APPOINTMENTS_STORAGE_KEY ||
-    event.key === LEGACY_STORAGE_KEY
+    event.key === LEGACY_STORAGE_KEY ||
+    event.key === RESCHEDULE_REQUESTS_STORAGE_KEY
   ) {
     loadAppointments();
     renderAll();
@@ -459,7 +460,9 @@ function loadAppointments() {
   linkExistingAppointmentsToPatients();
 }
 function saveAppointmentsToStorage() {
-  localStorage.setItem(APPOINTMENTS_STORAGE_KEY, JSON.stringify(appointments));
+  const data = JSON.stringify(appointments);
+  localStorage.setItem(APPOINTMENTS_STORAGE_KEY, data);
+  localStorage.setItem(LEGACY_STORAGE_KEY, data);
 }
 function removeAppointmentsForDeletedPatients() {
   if (!Array.isArray(appointments) || !Array.isArray(patients)) {
@@ -482,9 +485,11 @@ function removeAppointmentsForDeletedPatients() {
   }
 }
 function normalizeAppointment(appt) {
-  let patientId = appt.patientId || appt.patient_id || "";
+  let patientId = appt.patientId || appt.patient_id || appt.patientID || "";
   if (!patientId && appt.patient) {
-    const matchedPatient = findPatientByName(appt.patient);
+    const matchedPatient = findPatientByName(
+      String(appt.patient).split(" · ")[0],
+    );
     if (matchedPatient) {
       patientId = matchedPatient.id;
     }
@@ -492,24 +497,52 @@ function normalizeAppointment(appt) {
   const linkedPatient = findPatientById(patientId);
   const patientName = linkedPatient
     ? getPatientFullName(linkedPatient)
-    : appt.patient || "Unknown Patient";
+    : appt.patient || appt.patientName || "Unknown Patient";
+  const rawStatus = String(appt.status || appt.appointmentStatus || "scheduled")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "_");
+  const statusMap = {
+    scheduled: APPOINTMENT_STATUS.SCHEDULED,
+    pending: APPOINTMENT_STATUS.SCHEDULED,
+    confirmed: APPOINTMENT_STATUS.SCHEDULED,
+    in_consultation: APPOINTMENT_STATUS.IN_CONSULTATION,
+    "in-consultation": APPOINTMENT_STATUS.IN_CONSULTATION,
+    ready_complete: APPOINTMENT_STATUS.READY_COMPLETE,
+    "ready-to-complete": APPOINTMENT_STATUS.READY_COMPLETE,
+    ready_to_complete: APPOINTMENT_STATUS.READY_COMPLETE,
+    complete: APPOINTMENT_STATUS.COMPLETED,
+    completed: APPOINTMENT_STATUS.COMPLETED,
+    no_show: APPOINTMENT_STATUS.NO_SHOW,
+    "no-show": APPOINTMENT_STATUS.NO_SHOW,
+  };
   const normalized = {
     ...appt,
     id:
-      appt.id || `appt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      appt.id ||
+      appt.appointmentId ||
+      appt.appointment_id ||
+      `appt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    appointmentId: appt.appointmentId || appt.appointment_id || appt.id || null,
     patientId: patientId || null,
     patient: patientName,
-    date: appt.date || "",
-    start: appt.start || appt.time || "10:00",
-    type: appt.type || appt.service || "Consultation",
-    dentist: appt.dentist || "santos",
+    date: appt.date || appt.appointmentDate || appt.appointment_date || "",
+    start:
+      appt.start ||
+      appt.time ||
+      appt.appointmentTime ||
+      appt.appointment_time ||
+      "10:00",
+    type: appt.type || appt.service || appt.serviceType || "Consultation",
+    dentist: appt.dentist || appt.dentistId || appt.dentist_id || "santos",
     duration: Number(
       appt.duration ||
         SERVICE_DURATIONS[appt.type] ||
         SERVICE_DURATIONS[appt.service] ||
+        SERVICE_DURATIONS[appt.serviceType] ||
         30,
     ),
-    status: appt.status || APPOINTMENT_STATUS.SCHEDULED,
+    status: statusMap[rawStatus] || APPOINTMENT_STATUS.SCHEDULED,
     checkedIn: appt.checkedIn === true,
     checkedInAt: appt.checkedInAt || null,
     consultationStarted: appt.consultationStarted === true,
@@ -518,14 +551,12 @@ function normalizeAppointment(appt) {
     paymentAmount: Number(appt.paymentAmount) || 0,
     rescheduleRequest: appt.rescheduleRequest || null,
   };
+  normalized.appointmentId = normalized.id;
   if (!dentists[normalized.dentist]) {
     normalized.dentist = "santos";
   }
   if (!Number.isFinite(normalized.duration) || normalized.duration <= 0) {
     normalized.duration = 30;
-  }
-  if (!Object.values(APPOINTMENT_STATUS).includes(normalized.status)) {
-    normalized.status = APPOINTMENT_STATUS.SCHEDULED;
   }
   if (
     normalized.status === APPOINTMENT_STATUS.IN_CONSULTATION ||
@@ -576,11 +607,19 @@ function synchronizeAllPatientAppointments() {
     const appointmentRecords = linkedAppointments.map((appt) => ({
       id: appt.id,
       appointmentId: appt.id,
+      appointment_id: appt.id,
+      patientId: appt.patientId,
+      patient_id: appt.patientId,
       date: appt.date,
+      appointmentDate: appt.date,
       time: appt.start,
+      appointmentTime: appt.start,
+      start: appt.start,
       type: appt.type,
       service: appt.type,
+      serviceType: appt.type,
       dentist: appt.dentist,
+      dentistId: appt.dentist,
       duration: appt.duration,
       status: appt.status,
       checkedIn: appt.checkedIn === true,
@@ -648,11 +687,19 @@ function syncAppointmentToPatient(appt) {
   const record = {
     id: appt.id,
     appointmentId: appt.id,
+    appointment_id: appt.id,
+    patientId: appt.patientId,
+    patient_id: appt.patientId,
     date: appt.date,
+    appointmentDate: appt.date,
     time: appt.start,
+    appointmentTime: appt.start,
+    start: appt.start,
     type: appt.type,
     service: appt.type,
+    serviceType: appt.type,
     dentist: appt.dentist,
+    dentistId: appt.dentist,
     duration: appt.duration,
     status: appt.status,
     checkedIn: appt.checkedIn === true,
@@ -845,8 +892,11 @@ function getStatusLabel(status) {
 function handleServiceChange() {
   const service = document.getElementById("f_type").value.trim();
   const durationInput = document.getElementById("f_duration");
-  if (SERVICE_DURATIONS[service] && durationInput) {
-    durationInput.value = SERVICE_DURATIONS[service];
+  if (durationInput) {
+    if (SERVICE_DURATIONS[service]) {
+      durationInput.value = SERVICE_DURATIONS[service];
+    }
+    durationInput.disabled = true;
   }
   updateAvailableTimeSlots();
   checkCurrentFormConflict();
@@ -1373,6 +1423,10 @@ function setFormReadOnly(readOnly) {
 }
 function resetFormEditable() {
   setFormReadOnly(false);
+  const durationInput = document.getElementById("f_duration");
+  if (durationInput) {
+    durationInput.disabled = true;
+  }
 }
 function closeModal() {
   const overlay = document.getElementById("overlay");
@@ -1556,12 +1610,20 @@ function saveAppt() {
   if (modalMode === "new") {
     const newAppointment = {
       id: `appt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      appointmentId: null,
       patientId: patient.id,
+      patient_id: patient.id,
       patient: getPatientFullName(patient),
       date,
+      appointmentDate: date,
       start,
+      time: start,
+      appointmentTime: start,
       type,
+      service: type,
+      serviceType: type,
       dentist,
+      dentistId: dentist,
       duration,
       status: APPOINTMENT_STATUS.SCHEDULED,
       checkedIn: false,
@@ -1571,6 +1633,7 @@ function saveAppt() {
       paymentStatus: "unpaid",
       paymentAmount: 0,
     };
+    newAppointment.appointmentId = newAppointment.id;
     appointments.push(newAppointment);
     saveAppointmentsToStorage();
     syncAppointmentToPatient(newAppointment);
@@ -1594,11 +1657,18 @@ function saveAppt() {
   const oldDentist = existing.dentist;
   const oldPatient = existing.patient;
   existing.patientId = patient.id;
+  existing.patient_id = patient.id;
   existing.patient = getPatientFullName(patient);
   existing.date = date;
+  existing.appointmentDate = date;
   existing.start = start;
+  existing.time = start;
+  existing.appointmentTime = start;
   existing.type = type;
+  existing.service = type;
+  existing.serviceType = type;
   existing.dentist = dentist;
+  existing.dentistId = dentist;
   existing.duration = duration;
   saveAppointmentsToStorage();
   syncAppointmentToPatient(existing);
@@ -1814,6 +1884,114 @@ function submitRescheduleRequest() {
   closeModal();
   renderAll();
   showToast(`Reschedule request sent to ${getPatientFullName(patient)}.`);
+}
+function getPendingRescheduleRequests() {
+  return loadRescheduleRequests().filter(
+    (request) => request.status === "pending",
+  );
+}
+
+function approveRescheduleRequest(requestId, newDate, newTime) {
+  const requests = loadRescheduleRequests();
+  const requestIndex = requests.findIndex(
+    (request) => String(request.id) === String(requestId),
+  );
+
+  if (requestIndex === -1) {
+    showToast("Reschedule request could not be found.");
+    return;
+  }
+
+  const request = requests[requestIndex];
+
+  const appointment = appointments.find(
+    (appt) => String(appt.id) === String(request.appointmentId),
+  );
+
+  if (!appointment) {
+    showToast("The appointment could not be found.");
+    return;
+  }
+
+  if (!newDate || !newTime) {
+    showToast("Please select a valid date and time.");
+    return;
+  }
+
+  if (isPastDate(newDate)) {
+    showToast("The selected date has already passed.");
+    return;
+  }
+
+  const duration = Number(appointment.duration) || SLOT_MIN;
+
+  const startMinutes = timeToMinutes(newTime);
+  const endMinutes = startMinutes + duration;
+  const clinicStart = START_HOUR * 60;
+  const clinicEnd = END_HOUR * 60;
+
+  if (
+    startMinutes < clinicStart ||
+    endMinutes > clinicEnd ||
+    startMinutes % SLOT_MIN !== 0
+  ) {
+    showToast("The selected time is outside clinic hours.");
+    return;
+  }
+
+  const conflict = findDentistConflict(
+    newDate,
+    newTime,
+    appointment.duration,
+    appointment.dentist,
+    appointment.id,
+  );
+
+  if (conflict) {
+    showToast("The selected time is already occupied.");
+    return;
+  }
+
+  appointment.date = newDate;
+  appointment.start = newTime;
+  appointment.appointmentDate = newDate;
+  appointment.appointmentTime = newTime;
+  appointment.appointment_id = appointment.id;
+  appointment.appointmentId = appointment.id;
+
+  request.status = "approved";
+  request.approvedAt = new Date().toISOString();
+  request.approvedDate = newDate;
+  request.approvedTime = newTime;
+
+  requests[requestIndex] = request;
+
+  saveRescheduleRequests(requests);
+  saveAppointmentsToStorage();
+  syncAppointmentToPatient(appointment);
+  renderAll();
+
+  showToast(`${appointment.patient}'s reschedule request was approved.`);
+}
+
+function rejectRescheduleRequest(requestId) {
+  const requests = loadRescheduleRequests();
+
+  const requestIndex = requests.findIndex(
+    (request) => String(request.id) === String(requestId),
+  );
+
+  if (requestIndex === -1) {
+    showToast("Reschedule request could not be found.");
+    return;
+  }
+
+  requests[requestIndex].status = "rejected";
+  requests[requestIndex].rejectedAt = new Date().toISOString();
+
+  saveRescheduleRequests(requests);
+
+  showToast("Reschedule request was rejected.");
 }
 function deleteAppt() {
   if (!editingId) return;

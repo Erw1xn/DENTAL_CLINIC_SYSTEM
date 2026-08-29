@@ -20,6 +20,7 @@
 
     <link rel="stylesheet" href="../../navigation_bar/sidebar.css" />
     <link rel="stylesheet" href="appointment.css" />
+    <link rel="stylesheet" href="../profile/profile.css" />
   </head>
 
   <body>
@@ -27,6 +28,28 @@
       <aside id="sidebar-container"></aside>
 
       <main class="main-content">
+        <header class="appointments-page-header">
+          <div class="appointments-page-header-content">
+            <div class="appointments-page-heading">
+              <h1>Appointments</h1>
+              <p>
+                Manage and organize today's patient appointments and schedules.
+              </p>
+            </div>
+
+            <div class="appointments-page-actions">
+              <button
+                class="btn-new-appointment page-header-new-appointment"
+                type="button"
+                onclick="openNewModal()"
+              >
+                <i class="fa-solid fa-plus"></i>
+                <span>New Appointment</span>
+              </button>
+            </div>
+          </div>
+        </header>
+
         <div class="appointments-layout">
           <div class="left-col-stack">
             <section class="panel schedule-panel">
@@ -66,15 +89,6 @@
                       autocomplete="off"
                     />
                   </div>
-
-                  <button
-                    class="btn-new-appointment"
-                    type="button"
-                    onclick="openNewModal()"
-                  >
-                    <i class="fa-solid fa-plus"></i>
-                    <span>New Appointment</span>
-                  </button>
                 </div>
               </div>
 
@@ -477,7 +491,6 @@
 
             <select id="rescheduleReason" class="form-control">
               <option value="dentist_unavailable">Dentist unavailable</option>
-
               <option value="other">Other</option>
             </select>
           </div>
@@ -589,15 +602,13 @@
 
     <script src="../../navigation_bar/sidebar.js"></script>
     <script src="appointment.js"></script>
+    <script src="../profile/profile.js"></script>
 
     <script>
       function showAppointmentSideSection(section) {
         const waitingHeader = document.getElementById("waitingQueueHeader");
-
         const dentistsHeader = document.getElementById("dentistsHeader");
-
         const waitingPage = document.getElementById("waitingQueuePage");
-
         const dentistsPage = document.getElementById(
           "dentistsAvailabilityPage",
         );

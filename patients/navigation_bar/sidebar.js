@@ -10,15 +10,15 @@ async function loadSidebar(activePageKey) {
   }
 
   try {
-    const response = await fetch("../../navigation_bar/sidebar.html");
+    const response = await fetch("../navigation_bar/sidebar.html");
 
     if (!response.ok) {
       throw new Error("Network response was not ok");
     }
 
     const html = await response.text();
-
     const tempDiv = document.createElement("div");
+
     tempDiv.innerHTML = html;
 
     const logoutModal = tempDiv.querySelector("#logoutModalBackdrop");
@@ -33,7 +33,7 @@ async function loadSidebar(activePageKey) {
       document.body.appendChild(logoutModal);
     }
 
-    loadActiveStaffProfile();
+    loadActivePatientProfile();
 
     let pageKey = activePageKey;
 
@@ -44,14 +44,10 @@ async function loadSidebar(activePageKey) {
         pageKey = "dashboard";
       } else if (currentPath.includes("appointment")) {
         pageKey = "appointment";
-      } else if (currentPath.includes("patient")) {
-        pageKey = "patients";
-      } else if (currentPath.includes("inventory")) {
-        pageKey = "inventory";
-      } else if (currentPath.includes("sms")) {
-        pageKey = "sms";
-      } else if (currentPath.includes("finance")) {
-        pageKey = "finance";
+      } else if (currentPath.includes("medical_records")) {
+        pageKey = "medical_records";
+      } else if (currentPath.includes("payments")) {
+        pageKey = "payments";
       }
     }
 
@@ -66,7 +62,7 @@ async function loadSidebar(activePageKey) {
     applySavedSidebarState();
     initSidebarLogic();
   } catch (error) {
-    console.error("Failed to load sidebar navigation:", error);
+    console.error("Failed to load patient sidebar navigation:", error);
   }
 }
 
@@ -80,13 +76,13 @@ function getCurrentUser() {
 
 function getInitials(name) {
   if (!name) {
-    return "ST";
+    return "PT";
   }
 
   const cleanName = String(name).trim();
 
   if (!cleanName) {
-    return "ST";
+    return "PT";
   }
 
   const parts = cleanName.split(/\s+/);
@@ -98,10 +94,10 @@ function getInitials(name) {
   return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
 }
 
-function loadActiveStaffProfile() {
-  const nameEl = document.getElementById("activeStaffName");
-  const imageEl = document.getElementById("activeStaffImage");
-  const initialsEl = document.getElementById("activeStaffInitials");
+function loadActivePatientProfile() {
+  const nameEl = document.getElementById("activePatientName");
+  const imageEl = document.getElementById("activePatientImage");
+  const initialsEl = document.getElementById("activePatientInitials");
 
   if (!nameEl) {
     return;
@@ -110,14 +106,14 @@ function loadActiveStaffProfile() {
   const currentUser = getCurrentUser();
 
   if (!currentUser) {
-    nameEl.textContent = "Staff";
+    nameEl.textContent = "Patient";
 
     if (imageEl) {
       imageEl.style.display = "none";
     }
 
     if (initialsEl) {
-      initialsEl.textContent = "ST";
+      initialsEl.textContent = "PT";
       initialsEl.style.display = "flex";
     }
 
@@ -135,7 +131,7 @@ function loadActiveStaffProfile() {
 
   const initials = getInitials(fullName);
 
-  nameEl.textContent = fullName || "Staff";
+  nameEl.textContent = fullName || "Patient";
 
   if (currentUser.profileImage && imageEl) {
     imageEl.src = currentUser.profileImage;
@@ -166,7 +162,7 @@ function applySavedSidebarState() {
     return;
   }
 
-  const savedState = localStorage.getItem("sidebarState");
+  const savedState = localStorage.getItem("patientSidebarState");
 
   if (window.innerWidth > 768) {
     if (savedState === "collapsed") {
@@ -197,13 +193,13 @@ function initSidebarLogic() {
       sidebar.classList.toggle("collapsed");
 
       if (sidebar.classList.contains("collapsed")) {
-        localStorage.setItem("sidebarState", "collapsed");
+        localStorage.setItem("patientSidebarState", "collapsed");
 
         if (toggleIcon) {
           toggleIcon.className = "fa-solid fa-chevron-right";
         }
       } else {
-        localStorage.setItem("sidebarState", "expanded");
+        localStorage.setItem("patientSidebarState", "expanded");
 
         if (toggleIcon) {
           toggleIcon.className = "fa-solid fa-chevron-left";
@@ -229,7 +225,7 @@ function initSidebarLogic() {
     });
   }
 
-  const profileTrigger = document.getElementById("activeStaffProfileTrigger");
+  const profileTrigger = document.getElementById("activePatientProfileTrigger");
 
   if (profileTrigger) {
     profileTrigger.addEventListener("click", (event) => {
@@ -248,7 +244,6 @@ document.addEventListener("click", (e) => {
   const logoutBtn = e.target.closest(".btn-logout");
   const cancelBtn = e.target.closest("#logoutCancelBtn");
   const confirmBtn = e.target.closest("#logoutConfirmBtn");
-
   const backdrop = document.getElementById("logoutModalBackdrop");
 
   if (logoutBtn) {

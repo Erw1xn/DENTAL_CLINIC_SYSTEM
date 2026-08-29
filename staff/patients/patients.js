@@ -15,6 +15,7 @@ const patientCountLabel = $("patientCount");
 const patientSearch = $("patientSearch");
 const sortPatients = $("sortPatients");
 const patientActionMenu = $("patientActionMenu");
+
 document.addEventListener("DOMContentLoaded", () => {
   loadPatients();
   bindPatientEvents();
@@ -27,6 +28,7 @@ document.addEventListener("DOMContentLoaded", () => {
   startAppointmentRealtimeRefresh();
   setupModalLayout();
 });
+
 function setupModalLayout() {
   if (document.getElementById("dentaNuevaModalLayout")) {
     return;
@@ -182,6 +184,7 @@ function setupModalLayout() {
   `;
   document.head.appendChild(style);
 }
+
 function startAppointmentRealtimeRefresh() {
   if (appointmentRefreshInterval) {
     clearInterval(appointmentRefreshInterval);
@@ -191,6 +194,7 @@ function startAppointmentRealtimeRefresh() {
     renderPatients();
   }, 1000);
 }
+
 window.addEventListener("storage", (event) => {
   if (
     event.key === PATIENT_STORAGE_KEY ||
@@ -200,17 +204,17 @@ window.addEventListener("storage", (event) => {
     renderPatients();
   }
 });
+
 function removeMedicalFormFromActionMenu() {
   document
     .querySelectorAll(
-      '#patientActionMenu [data-action="medicalForm"], ' +
-        '#patientActionMenu button[data-action="medicalForm"], ' +
-        '[data-action-menu] [data-action="medicalForm"]',
+      '#patientActionMenu [data-action="medicalForm"], #patientActionMenu button[data-action="medicalForm"], [data-action-menu] [data-action="medicalForm"]',
     )
     .forEach((button) => {
       button.remove();
     });
 }
+
 function setupPatientFormValidation() {
   const form = $("patientForm");
   if (!form) {
@@ -301,6 +305,7 @@ function setupPatientFormValidation() {
     }
   });
 }
+
 function loadPatients() {
   try {
     const stored = localStorage.getItem(PATIENT_STORAGE_KEY);
@@ -312,6 +317,8 @@ function loadPatients() {
     const parsed = JSON.parse(stored);
     patients = Array.isArray(parsed) ? parsed : [];
     patients = patients.map((patient) => normalizePatient(patient));
+    patients = mergePatientRecords(patients);
+    localStorage.setItem(PATIENT_STORAGE_KEY, JSON.stringify(patients));
     localStorage.setItem(TOTAL_PATIENTS_STORAGE_KEY, String(patients.length));
   } catch (error) {
     console.error("Unable to load DentaNueva patients:", error);
@@ -319,6 +326,7 @@ function loadPatients() {
     localStorage.setItem(TOTAL_PATIENTS_STORAGE_KEY, "0");
   }
 }
+
 function normalizePatient(patient) {
   const normalized = {
     ...patient,
@@ -330,6 +338,21 @@ function normalizePatient(patient) {
   if (!normalized.id) {
     normalized.id = normalized.patientId;
   }
+  if (!normalized.fullName) {
+    normalized.fullName = [normalized.firstName, normalized.lastName]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+  }
+  if ((!normalized.firstName || !normalized.lastName) && normalized.fullName) {
+    const nameParts = String(normalized.fullName).trim().split(/\s+/);
+    if (!normalized.firstName) {
+      normalized.firstName = nameParts.shift() || "";
+    }
+    if (!normalized.lastName) {
+      normalized.lastName = nameParts.join(" ");
+    }
+  }
   if (!normalized.gender && normalized.patientGender) {
     normalized.gender = normalized.patientGender;
   }
@@ -339,8 +362,78 @@ function normalizePatient(patient) {
   if (!Array.isArray(normalized.appointments)) {
     normalized.appointments = [];
   }
+  if (!normalized.medicalForm) {
+    normalized.medicalForm = null;
+  }
   return normalized;
 }
+
+function getPatientIdentityKeys(patient) {
+  const keys = [];
+  const patientId = String(patient.patientId || patient.id || "")
+    .trim()
+    .toLowerCase();
+  const userId = String(patient.userId || patient.userIdRef || "")
+    .trim()
+    .toLowerCase();
+  const email = String(patient.email || "")
+    .trim()
+    .toLowerCase();
+  if (patientId) {
+    keys.push(`patient:${patientId}`);
+  }
+  if (userId) {
+    keys.push(`user:${userId}`);
+  }
+  if (email) {
+    keys.push(`email:${email}`);
+  }
+  return keys;
+}
+
+function mergePatientRecords(records) {
+  const merged = [];
+  const keyMap = new Map();
+  records.forEach((record) => {
+    const patient = normalizePatient(record);
+    const keys = getPatientIdentityKeys(patient);
+    let existingIndex = -1;
+    for (const key of keys) {
+      if (keyMap.has(key)) {
+        existingIndex = keyMap.get(key);
+        break;
+      }
+    }
+    if (existingIndex === -1) {
+      const index = merged.length;
+      merged.push(patient);
+      keys.forEach((key) => keyMap.set(key, index));
+      return;
+    }
+    const existing = merged[existingIndex];
+    const mergedPatient = normalizePatient({
+      ...existing,
+      ...patient,
+      id: existing.id || patient.id || existing.patientId || patient.patientId,
+      patientId:
+        existing.patientId || patient.patientId || existing.id || patient.id,
+      appointments: patient.appointments?.length
+        ? patient.appointments
+        : existing.appointments || [],
+      medicalForm: patient.medicalForm || existing.medicalForm || null,
+      createdAt:
+        existing.createdAt || patient.createdAt || new Date().toISOString(),
+      updatedAt:
+        patient.updatedAt || existing.updatedAt || new Date().toISOString(),
+    });
+    merged[existingIndex] = mergedPatient;
+    getPatientIdentityKeys(mergedPatient).forEach((key) =>
+      keyMap.set(key, existingIndex),
+    );
+  });
+  return merged;
+}
+
 function savePatients() {
   try {
     localStorage.setItem(PATIENT_STORAGE_KEY, JSON.stringify(patients));
@@ -350,6 +443,7 @@ function savePatients() {
     console.error("Unable to save DentaNueva patients:", error);
   }
 }
+
 function updateTotalPatientCount() {
   const totalPatients = patients.length;
   try {
@@ -374,6 +468,7 @@ function updateTotalPatientCount() {
     }`;
   }
 }
+
 function generatePatientId() {
   let maxNumber = 0;
   patients.forEach((patient) => {
@@ -384,6 +479,7 @@ function generatePatientId() {
   });
   return `PN-${String(maxNumber + 1).padStart(4, "0")}`;
 }
+
 function calculateAge(dateOfBirth) {
   if (!dateOfBirth) {
     return "";
@@ -403,6 +499,7 @@ function calculateAge(dateOfBirth) {
   }
   return Math.max(age, 0);
 }
+
 function formatDate(dateString) {
   if (!dateString) {
     return "Not provided";
@@ -417,6 +514,7 @@ function formatDate(dateString) {
     year: "numeric",
   });
 }
+
 function formatDateTime(value) {
   if (!value) {
     return "";
@@ -433,6 +531,7 @@ function formatDateTime(value) {
     minute: "2-digit",
   });
 }
+
 function escapeHTML(value) {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -441,20 +540,36 @@ function escapeHTML(value) {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
 }
+
 function getFullName(patient) {
-  return [patient.firstName, patient.lastName].filter(Boolean).join(" ").trim();
+  return (
+    [patient.firstName, patient.lastName].filter(Boolean).join(" ").trim() ||
+    patient.fullName ||
+    patient.name ||
+    patient.patientName ||
+    ""
+  ).trim();
 }
+
 function getInitials(patient) {
-  const first = patient.firstName?.charAt(0) || "";
-  const last = patient.lastName?.charAt(0) || "";
-  return (first + last).toUpperCase();
+  const name = getFullName(patient);
+  if (!name) {
+    return "PT";
+  }
+  const parts = name.split(/\s+/);
+  if (parts.length === 1) {
+    return parts[0].substring(0, 2).toUpperCase();
+  }
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
 }
+
 function valueOrNone(value) {
   if (value === undefined || value === null || String(value).trim() === "") {
     return "Not provided";
   }
   return String(value);
 }
+
 function arrayValue(value) {
   if (Array.isArray(value)) {
     return value;
@@ -464,6 +579,7 @@ function arrayValue(value) {
   }
   return [value];
 }
+
 function findPatient(patientId) {
   if (patientId === undefined || patientId === null || patientId === "") {
     return null;
@@ -476,6 +592,7 @@ function findPatient(patientId) {
     ) || null
   );
 }
+
 function findPatientById(patientId) {
   if (!patientId) {
     return null;
@@ -488,6 +605,7 @@ function findPatientById(patientId) {
     ) || null
   );
 }
+
 function findPatientByName(name) {
   if (!name) {
     return null;
@@ -499,6 +617,7 @@ function findPatientByName(name) {
     ) || null
   );
 }
+
 function setupPatientDatalist() {
   const patientInput = document.getElementById("f_patient");
   if (!patientInput) {
@@ -513,6 +632,7 @@ function setupPatientDatalist() {
   patientInput.setAttribute("list", "appointmentPatientList");
   refreshPatientSelector();
 }
+
 function refreshPatientSelector() {
   const patientInput = document.getElementById("f_patient");
   if (!patientInput) {
@@ -538,6 +658,7 @@ function refreshPatientSelector() {
     });
   patientInput.setAttribute("list", "appointmentPatientList");
 }
+
 function handlePatientInputChange() {
   const patientInput = document.getElementById("f_patient");
   if (!patientInput) {
@@ -548,6 +669,7 @@ function handlePatientInputChange() {
     patientInput.value = getFullName(patient);
   }
 }
+
 function getCurrentFormPatient() {
   const patientInput = document.getElementById("f_patient");
   if (!patientInput) {
@@ -559,6 +681,7 @@ function getCurrentFormPatient() {
   }
   return findPatientByName(value);
 }
+
 function bindPatientEvents() {
   $("addPatientBtn")?.addEventListener("click", () => {
     openAddPatientModal();
@@ -583,6 +706,7 @@ function bindPatientEvents() {
   patientSearch?.addEventListener("input", renderPatients);
   sortPatients?.addEventListener("change", renderPatients);
 }
+
 function openAddPatientModal() {
   currentPatientId = null;
   const form = $("patientForm");
@@ -596,6 +720,7 @@ function openAddPatientModal() {
     $("firstName")?.focus();
   }, 50);
 }
+
 function openEditPatientModal(patientId) {
   const patient = findPatient(patientId);
   if (!patient) {
@@ -617,6 +742,7 @@ function openEditPatientModal(patientId) {
   $("patientModalBackdrop").classList.add("open");
   $("patientModalBackdrop").setAttribute("aria-hidden", "false");
 }
+
 function savePatientFromForm(event) {
   event.preventDefault();
   const form = $("patientForm");
@@ -660,9 +786,18 @@ function savePatientFromForm(event) {
   if (emergencyContactField) {
     emergencyContactField.setCustomValidity("");
   }
+  const emailValue = String($("email")?.value || "")
+    .trim()
+    .toLowerCase();
   const existingPatient = currentPatientId
     ? findPatient(currentPatientId)
-    : null;
+    : patients.find(
+        (item) =>
+          emailValue &&
+          String(item.email || "")
+            .trim()
+            .toLowerCase() === emailValue,
+      ) || null;
   const patientId = existingPatient?.patientId || generatePatientId();
   const id = existingPatient?.id || patientId;
   const now = new Date().toISOString();
@@ -672,6 +807,9 @@ function savePatientFromForm(event) {
     patientId,
     firstName: $("firstName").value.trim(),
     lastName: $("lastName").value.trim(),
+    fullName: `${$("firstName").value.trim()} ${$(
+      "lastName",
+    ).value.trim()}`.trim(),
     dateOfBirth: $("dateOfBirth").value,
     gender: $("patientGender").value,
     patientGender: $("patientGender").value,
@@ -703,11 +841,13 @@ function savePatientFromForm(event) {
   closePatientModal();
   renderPatients();
 }
+
 function closePatientModal() {
   $("patientModalBackdrop")?.classList.remove("open");
   $("patientModalBackdrop")?.setAttribute("aria-hidden", "true");
   currentPatientId = null;
 }
+
 function renderPatients() {
   if (!patientTableBody) {
     return;
@@ -776,13 +916,14 @@ function renderPatients() {
     }`;
   }
 }
+
 function createPatientRow(patient) {
   const name = getFullName(patient) || "Unnamed Patient";
   const patientId = patient.patientId || patient.id || "N/A";
   const age = calculateAge(patient.dateOfBirth);
   const gender = patient.gender || patient.patientGender || "Not specified";
   const medicalForm = patient.medicalForm || null;
-  const hasMedicalForm = !!medicalForm;
+  const hasMedicalForm = !!medicalForm && medicalForm.completed !== false;
   const medicalButtonClass = hasMedicalForm ? "completed" : "pending";
   const medicalButtonText = hasMedicalForm ? "View Form" : "Fill Form";
   const nextAppointment = getNextAppointment(patient);
@@ -824,10 +965,7 @@ function createPatientRow(patient) {
     <td>
       <button
         type="button"
-        class="
-          medical-form-button
-          ${medicalButtonClass}
-        "
+        class="medical-form-button ${medicalButtonClass}"
         data-medical-form-id="${escapeHTML(patient.id || patient.patientId)}"
       >
         ${medicalButtonText}
@@ -846,12 +984,14 @@ function createPatientRow(patient) {
     </td>
   `;
 }
+
 function getLocalDateString(date = new Date()) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
+
 function createAppointmentDateTime(date, time) {
   if (!date) {
     return null;
@@ -863,6 +1003,7 @@ function createAppointmentDateTime(date, time) {
   }
   return dateTime;
 }
+
 function getAppointmentStatus(appointment) {
   const status = String(
     appointment.status ||
@@ -886,17 +1027,21 @@ function getAppointmentStatus(appointment) {
   }
   return "pending";
 }
+
 function isAppointmentToday(appointment) {
   return appointment.date === getLocalDateString(new Date());
 }
+
 function isFutureAppointment(appointment) {
   const today = getLocalDateString(new Date());
   return appointment.date > today;
 }
+
 function isPastAppointmentDate(appointment) {
   const today = getLocalDateString(new Date());
   return appointment.date < today;
 }
+
 function getNextAppointment(patient) {
   const appointments = Array.isArray(patient.appointments)
     ? patient.appointments
@@ -958,10 +1103,10 @@ function getNextAppointment(patient) {
   if (todaysAppointments.length) {
     const activeToday = todaysAppointments
       .filter((appointment) => {
-        if (appointment.status === "completed") {
-          return false;
-        }
-        if (appointment.status === "no_show") {
+        if (
+          appointment.status === "completed" ||
+          appointment.status === "no_show"
+        ) {
           return false;
         }
         if (appointment.endDateTime) {
@@ -1006,6 +1151,7 @@ function getNextAppointment(patient) {
   }
   return null;
 }
+
 function formatTime12Hour(timeString) {
   if (!timeString) {
     return "";
@@ -1030,6 +1176,7 @@ function formatTime12Hour(timeString) {
   }
   return `${hours}:${minutes} ${period}`;
 }
+
 function renderAppointment(appointment) {
   if (!appointment) {
     return `
@@ -1090,6 +1237,7 @@ function renderAppointment(appointment) {
     </div>
   `;
 }
+
 patientTableBody?.addEventListener("click", (event) => {
   const medicalButton = event.target.closest("[data-medical-form-id]");
   if (medicalButton) {
@@ -1111,6 +1259,7 @@ patientTableBody?.addEventListener("click", (event) => {
     openActionMenu(actionTrigger, patientId);
   }
 });
+
 function bindActionMenuEvents() {
   patientActionMenu?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-action]");
@@ -1139,6 +1288,7 @@ function bindActionMenuEvents() {
   window.addEventListener("resize", closeActionMenu);
   window.addEventListener("scroll", closeActionMenu, true);
 }
+
 function openActionMenu(trigger, patientId) {
   removeMedicalFormFromActionMenu();
   currentActionPatientId = patientId;
@@ -1164,6 +1314,7 @@ function openActionMenu(trigger, patientId) {
     .forEach((button) => button.classList.remove("active"));
   trigger.classList.add("active");
 }
+
 function closeActionMenu() {
   patientActionMenu?.classList.remove("open");
   document
@@ -1171,6 +1322,7 @@ function closeActionMenu() {
     .forEach((button) => button.classList.remove("active"));
   currentActionPatientId = null;
 }
+
 function handlePatientAction(action, patientId) {
   const patient = findPatient(patientId);
   if (!patient) {
@@ -1188,6 +1340,7 @@ function handlePatientAction(action, patientId) {
       break;
   }
 }
+
 function openPatientDetails(patient) {
   const name = getFullName(patient);
   const age = calculateAge(patient.dateOfBirth);
@@ -1263,10 +1416,12 @@ function openPatientDetails(patient) {
   $("patientDetailsModalBackdrop").classList.add("open");
   $("patientDetailsModalBackdrop").setAttribute("aria-hidden", "false");
 }
+
 function closePatientDetailsModal() {
   $("patientDetailsModalBackdrop")?.classList.remove("open");
   $("patientDetailsModalBackdrop")?.setAttribute("aria-hidden", "true");
 }
+
 function bindMedicalFormEvents() {
   $("closeMedicalFormModal")?.addEventListener("click", closeMedicalForm);
   $("cancelMedicalFormBtn")?.addEventListener("click", closeMedicalForm);
@@ -1292,6 +1447,7 @@ function bindMedicalFormEvents() {
   $("medicalForm")?.addEventListener("submit", saveMedicalForm);
   $("medConsent")?.addEventListener("change", updateSubmitButton);
 }
+
 function openMedicalForm(patient, step = 1) {
   currentMedicalPatientId = patient.id || patient.patientId;
   currentMedicalStep = Math.min(Math.max(step, 1), 5);
@@ -1309,6 +1465,7 @@ function openMedicalForm(patient, step = 1) {
     }
   }, 0);
 }
+
 function resetMedicalForm() {
   $("medicalForm")?.reset();
   $("medFormPatientId").value = "";
@@ -1333,6 +1490,7 @@ function resetMedicalForm() {
   $("medicalLastUpdated").textContent = "";
   $("medformReview").innerHTML = "";
 }
+
 function populateMedicalProfile(patient) {
   const name = getFullName(patient);
   const age = calculateAge(patient.dateOfBirth);
@@ -1347,6 +1505,7 @@ function populateMedicalProfile(patient) {
   $("medEmergencyName").value = patient.emergencyName || "";
   $("medEmergencyContact").value = patient.emergencyContact || "";
 }
+
 function populateExistingMedicalForm(medical) {
   setCheckboxValues("dentalConcern", medical.dentalConcern);
   if (medical.dentalConcernOther) {
@@ -1377,12 +1536,14 @@ function populateExistingMedicalForm(medical) {
     )}`;
   }
 }
+
 function setCheckboxValues(name, values) {
   const normalized = arrayValue(values);
   document.querySelectorAll(`input[name="${name}"]`).forEach((checkbox) => {
     checkbox.checked = normalized.includes(checkbox.value);
   });
 }
+
 function setRadioValue(name, value) {
   if (!value) {
     return;
@@ -1394,6 +1555,7 @@ function setRadioValue(name, value) {
     radio.checked = true;
   }
 }
+
 function updateMedicalStep() {
   document.querySelectorAll(".medform-step").forEach((step) => {
     const stepNumber = Number(step.dataset.step);
@@ -1451,6 +1613,7 @@ function updateMedicalStep() {
   }
   updateSubmitButton();
 }
+
 function updateSubmitButton() {
   const submitButton = $("medformSubmitBtn");
   if (!submitButton) {
@@ -1462,6 +1625,7 @@ function updateSubmitButton() {
   }
   submitButton.disabled = !$("medConsent").checked;
 }
+
 function buildMedicalReview() {
   const data = collectMedicalFormData(false);
   $("medformReview").innerHTML = `
@@ -1482,13 +1646,11 @@ function buildMedicalReview() {
         data.medLastVisit ? formatDate(data.medLastVisit) : "Not provided",
       )}
       ${reviewRow("Last Treatment", data.medLastTreatment || "Not provided")}
-            ${reviewRow("Current Medications", data.currentMedications || "No")}
+      ${reviewRow("Current Medications", data.currentMedications || "No")}
       ${reviewRow("Medication List", data.currentMedicationsList || "None")}
     </div>
     <div class="review-card">
-      <h4>
-        Medical History &amp; Allergies
-      </h4>
+      <h4>Medical History &amp; Allergies</h4>
       ${reviewRow(
         "Medical Conditions",
         data.medicalHistory.join(", ") || "None reported",
@@ -1499,6 +1661,7 @@ function buildMedicalReview() {
     </div>
   `;
 }
+
 function reviewRow(label, value) {
   return `
     <div class="review-row">
@@ -1511,6 +1674,7 @@ function reviewRow(label, value) {
     </div>
   `;
 }
+
 function collectMedicalFormData(includeConsent = true) {
   return {
     dentalConcern: Array.from(
@@ -1538,6 +1702,7 @@ function collectMedicalFormData(includeConsent = true) {
     consent: includeConsent ? $("medConsent").checked : false,
   };
 }
+
 function saveMedicalForm(event) {
   event.preventDefault();
   if (currentMedicalStep !== 5) {
@@ -1564,6 +1729,7 @@ function saveMedicalForm(event) {
   closeMedicalForm();
   renderPatients();
 }
+
 function closeMedicalForm() {
   $("medicalFormModalBackdrop")?.classList.remove("open");
   $("medicalFormModalBackdrop")?.setAttribute("aria-hidden", "true");
@@ -1585,6 +1751,7 @@ function closeMedicalForm() {
     submitButton.style.setProperty("display", "none", "important");
   }
 }
+
 function openMedicalResult(patient) {
   const medical = patient.medicalForm;
   if (!medical) {
@@ -1615,6 +1782,7 @@ function openMedicalResult(patient) {
   $("medicalResultModalBackdrop").classList.add("open");
   $("medicalResultModalBackdrop").setAttribute("aria-hidden", "false");
 }
+
 function buildMedicalResult(patient, medical) {
   const concerns = [...arrayValue(medical.dentalConcern)];
   if (medical.dentalConcernOther) {
@@ -1736,6 +1904,7 @@ function buildMedicalResult(patient, medical) {
     </div>
   `;
 }
+
 function renderResultTags(values) {
   const cleanValues = values.filter((value) => value && String(value).trim());
   if (!cleanValues.length) {
@@ -1759,13 +1928,17 @@ function renderResultTags(values) {
     </div>
   `;
 }
+
 $("closeMedicalResultModal")?.addEventListener("click", closeMedicalResult);
+
 $("closeMedicalResultBtn")?.addEventListener("click", closeMedicalResult);
+
 $("medicalResultModalBackdrop")?.addEventListener("click", (event) => {
   if (event.target === $("medicalResultModalBackdrop")) {
     closeMedicalResult();
   }
 });
+
 $("editMedicalResultBtn")?.addEventListener("click", () => {
   const patientId = $("editMedicalResultBtn").dataset.patientId;
   const mode = $("editMedicalResultBtn").dataset.mode;
@@ -1778,10 +1951,12 @@ $("editMedicalResultBtn")?.addEventListener("click", () => {
     openMedicalForm(patient, 1);
   }
 });
+
 function closeMedicalResult() {
   $("medicalResultModalBackdrop")?.classList.remove("open");
   $("medicalResultModalBackdrop")?.setAttribute("aria-hidden", "true");
 }
+
 function deletePatient(patientId) {
   const patient = findPatient(patientId);
   if (!patient) {
@@ -1802,6 +1977,7 @@ function deletePatient(patientId) {
   savePatients();
   renderPatients();
 }
+
 document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") {
     return;

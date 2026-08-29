@@ -1,0 +1,538 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DentaNueva - My Appointments</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+    />
+    <link rel="stylesheet" href="../navigation_bar/sidebar.css" />
+    <link rel="stylesheet" href="appointment.css" />
+  </head>
+  <body>
+    <div class="dashboard-wrapper">
+      <aside id="sidebar-container"></aside>
+
+      <main class="main-content">
+        <div class="page-shell">
+          <section class="page-header">
+            <div class="page-heading">
+              <h1>My Appointments</h1>
+              <p>
+                Manage your dental appointments, schedules, and appointment
+                history.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              class="btn-primary header-book-btn"
+              id="openBookingBtn"
+            >
+              <i class="fa-solid fa-calendar-plus"></i>
+              Book Appointment
+            </button>
+          </section>
+
+          <section class="reschedule-alert" id="rescheduleAlert" hidden>
+            <div class="reschedule-alert-icon">
+              <i class="fa-solid fa-calendar-days"></i>
+            </div>
+
+            <div class="reschedule-alert-content">
+              <div class="reschedule-alert-title">
+                <strong>Schedule change request</strong>
+                <span id="rescheduleReasonBadge">Pending</span>
+              </div>
+
+              <p id="rescheduleMessage">
+                Your appointment has a pending schedule change.
+              </p>
+
+              <div
+                class="reschedule-alert-details"
+                id="rescheduleAlertDetails"
+              ></div>
+            </div>
+
+            <button
+              type="button"
+              class="btn-secondary alert-action"
+              id="rescheduleAlertButton"
+            >
+              View Request
+            </button>
+          </section>
+
+          <div class="top-layout">
+            <section class="panel upcoming-panel">
+              <div class="panel-header upcoming-panel-header">
+                <div class="upcoming-panel-heading">
+                  <h2>Upcoming Appointment</h2>
+                  <p>Your next scheduled dental appointment.</p>
+                </div>
+              </div>
+
+              <div class="upcoming-content" id="upcomingAppointment">
+                <div class="empty-upcoming">
+                  <div class="empty-upcoming-icon">
+                    <i class="fa-regular fa-calendar-xmark"></i>
+                  </div>
+
+                  <h3>No appointments scheduled for today</h3>
+
+                  <p>You currently have no scheduled dental appointment.</p>
+                </div>
+              </div>
+            </section>
+
+            <section class="panel calendar-panel">
+              <div class="calendar-header">
+                <h4 id="calendarMonthLabel">August 2026</h4>
+
+                <div class="calendar-nav-btns">
+                  <button
+                    type="button"
+                    id="calendarPrevBtn"
+                    aria-label="Previous month"
+                  >
+                    <i class="fa-solid fa-chevron-left"></i>
+                  </button>
+
+                  <button
+                    type="button"
+                    id="calendarNextBtn"
+                    aria-label="Next month"
+                  >
+                    <i class="fa-solid fa-chevron-right"></i>
+                  </button>
+                </div>
+              </div>
+
+              <div class="calendar-grid-days" id="calGrid"></div>
+
+              <div class="calendar-legend">
+                <span>
+                  <i class="fa-solid fa-circle"></i>
+                  Appointment
+                </span>
+              </div>
+            </section>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <div class="modal-overlay" id="bookingModal" aria-hidden="true">
+      <div class="modal-container">
+        <div class="modal-header">
+          <div>
+            <h3 id="modalTitle">New Appointment</h3>
+            <span class="modal-subtitle">Create a new appointment</span>
+          </div>
+
+          <button
+            type="button"
+            class="modal-close"
+            id="closeBookingModal"
+            aria-label="Close"
+          >
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="serviceInput">Service Type</label>
+
+            <div class="service-select-wrapper" id="serviceSelectWrapper">
+              <input
+                type="text"
+                id="serviceInput"
+                class="form-control service-select-input"
+                placeholder="e.g. Dental Cleaning"
+                autocomplete="off"
+              />
+
+              <i class="fa-solid fa-chevron-down service-select-arrow"></i>
+
+              <div class="service-dropdown" id="serviceDropdown"></div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="dateSelect">Date</label>
+
+              <input type="date" id="dateSelect" class="form-control" />
+            </div>
+
+            <div class="form-group">
+              <label for="dentistSelect">Dentist</label>
+
+              <select id="dentistSelect" class="form-control">
+                <option value="santos">Dr. M. Santos</option>
+                <option value="cruz">Dr. L. Cruz</option>
+                <option value="ramos">Dr. J. Ramos</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="durationInput">Duration</label>
+
+            <div class="duration-input-wrapper">
+              <input
+                type="number"
+                id="durationInput"
+                class="form-control"
+                min="5"
+                max="480"
+                step="5"
+                placeholder="e.g. 45"
+              />
+
+              <span class="duration-unit">minutes</span>
+            </div>
+
+            <small class="duration-help">
+              Service selection automatically suggests the duration.
+            </small>
+          </div>
+
+          <div class="form-group available-time-group">
+            <label for="timeTrigger">Available Time</label>
+
+            <div class="time-field-wrapper" id="timeFieldWrapper">
+              <div class="time-picker-dropdown" id="timeDropdown"></div>
+
+              <button
+                type="button"
+                id="timeTrigger"
+                class="available-time-control time-trigger-btn"
+              >
+                <div class="available-time-icon">
+                  <i class="fa-regular fa-clock"></i>
+                </div>
+
+                <span class="time-trigger-label" id="timeTriggerLabel">
+                  Select an available time
+                </span>
+
+                <i
+                  class="fa-solid fa-chevron-down available-time-arrow time-trigger-arrow"
+                ></i>
+              </button>
+            </div>
+
+            <small
+              id="availableTimeSummary"
+              class="available-time-summary"
+            ></small>
+          </div>
+
+          <div id="scheduleConflictNotice" class="schedule-conflict-notice">
+            <i class="fa-solid fa-circle-exclamation"></i>
+
+            <div>
+              <strong>Schedule conflict</strong>
+
+              <span id="scheduleConflictText">
+                This dentist already has an appointment during the selected
+                time.
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="cancelBooking">
+            Cancel
+          </button>
+
+          <button
+            type="button"
+            class="btn-primary"
+            id="confirmBooking"
+            disabled
+          >
+            <i class="fa-solid fa-calendar-check"></i>
+            Confirm Booking
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay" id="appointmentModal" aria-hidden="true">
+      <div class="modal-container appointment-detail-modal">
+        <div class="modal-header">
+          <div>
+            <span class="modal-kicker">Appointment</span>
+            <h3>Appointment Details</h3>
+            <p id="appointmentModalSubtitle">Appointment information</p>
+          </div>
+
+          <button
+            type="button"
+            class="modal-close"
+            id="closeAppointmentModal"
+            aria-label="Close"
+          >
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <div class="modal-body" id="appointmentDetailBody"></div>
+
+        <div class="modal-actions detail-actions">
+          <button
+            type="button"
+            class="btn-secondary"
+            id="closeAppointmentDetail"
+          >
+            Close
+          </button>
+
+          <button type="button" class="btn-request" id="requestRescheduleBtn">
+            <i class="fa-solid fa-calendar-days"></i>
+            Request Reschedule
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay" id="rescheduleRequestModal" aria-hidden="true">
+      <div class="modal-container">
+        <div class="modal-header">
+          <div>
+            <span class="modal-kicker">Schedule Request</span>
+            <h3>Request Reschedule</h3>
+            <p>Send a schedule change request to the clinic staff.</p>
+          </div>
+
+          <button
+            type="button"
+            class="modal-close"
+            id="closeRescheduleRequestModal"
+            aria-label="Close"
+          >
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <div
+            class="current-appointment-box"
+            id="requestCurrentAppointment"
+          ></div>
+
+          <div class="form-group">
+            <label for="requestReason">Reason</label>
+
+            <div class="input-wrapper">
+              <i class="fa-solid fa-circle-question field-icon"></i>
+
+              <select id="requestReason" class="form-control">
+                <option value="personal_schedule">
+                  Personal schedule conflict
+                </option>
+
+                <option value="transportation">Transportation issue</option>
+
+                <option value="health_reason">Health or personal matter</option>
+
+                <option value="other">Other</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="requestDate">Preferred New Date</label>
+
+            <div class="input-wrapper">
+              <i class="fa-regular fa-calendar field-icon"></i>
+
+              <input type="date" id="requestDate" class="form-control" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <div class="time-label-row">
+              <label>Preferred New Time</label>
+
+              <span id="requestAvailabilityCount"> Select a date </span>
+            </div>
+
+            <div class="time-grid request-time-grid" id="requestTimeGrid">
+              <div class="time-empty">
+                <i class="fa-regular fa-clock"></i>
+
+                <span> Select a preferred date to view available times. </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="requestMessage">Message to Clinic</label>
+
+            <textarea
+              id="requestMessage"
+              class="form-control textarea-control"
+              rows="4"
+              placeholder="Tell the clinic why you need to reschedule."
+            ></textarea>
+
+            <small>
+              Your request will be sent to the staff for review. Your current
+              appointment will remain unchanged until the clinic processes the
+              request.
+            </small>
+          </div>
+
+          <div class="request-info-box">
+            <i class="fa-solid fa-circle-info"></i>
+
+            <span>
+              Submitting this request does not immediately change your
+              appointment schedule.
+            </span>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button
+            type="button"
+            class="btn-secondary"
+            id="cancelRescheduleRequest"
+          >
+            Cancel
+          </button>
+
+          <button type="button" class="btn-primary" id="sendRescheduleRequest">
+            <i class="fa-solid fa-paper-plane"></i>
+            Send Request
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay" id="staffRescheduleModal" aria-hidden="true">
+      <div class="modal-container">
+        <div class="modal-header">
+          <div>
+            <span class="modal-kicker">Schedule Request</span>
+            <h3>Reschedule Request from Clinic</h3>
+            <p>
+              Review the clinic's request and select your new preferred
+              schedule.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            class="modal-close"
+            id="closeStaffRescheduleModal"
+            aria-label="Close"
+          >
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <div
+            class="current-appointment-box"
+            id="staffRequestCurrentAppointment"
+          ></div>
+
+          <div class="form-group">
+            <label for="staffRequestReason">Reason for Schedule Change</label>
+
+            <div class="input-wrapper">
+              <i class="fa-solid fa-circle-question field-icon"></i>
+
+              <input
+                type="text"
+                id="staffRequestReason"
+                class="form-control"
+                disabled
+              />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="staffRequestMessage">Message from Clinic</label>
+
+            <textarea
+              id="staffRequestMessage"
+              class="form-control textarea-control"
+              rows="4"
+              disabled
+            ></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="staffRequestDate">Preferred New Date</label>
+
+            <div class="input-wrapper">
+              <i class="fa-regular fa-calendar field-icon"></i>
+
+              <input type="date" id="staffRequestDate" class="form-control" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <div class="time-label-row">
+              <label>Preferred New Time</label>
+
+              <span id="staffRequestAvailabilityCount"> Select a date </span>
+            </div>
+
+            <div class="time-grid" id="staffRequestTimeGrid">
+              <div class="time-empty">
+                <i class="fa-regular fa-clock"></i>
+
+                <span> Select a preferred date to view available times. </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="request-info-box">
+            <i class="fa-solid fa-circle-info"></i>
+
+            <span>
+              Confirming will set this as your new appointment schedule.
+            </span>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button
+            type="button"
+            class="btn-secondary"
+            id="cancelStaffReschedule"
+          >
+            Cancel
+          </button>
+
+          <button type="button" class="btn-primary" id="confirmStaffReschedule">
+            <i class="fa-solid fa-calendar-check"></i>
+            Confirm New Schedule
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script src="../navigation_bar/sidebar.js"></script>
+    <script src="appointment.js"></script>
+  </body>
+</html>

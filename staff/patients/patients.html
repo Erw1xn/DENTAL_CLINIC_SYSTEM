@@ -3,22 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
     <title>Patients | DentaNueva Dental Clinic</title>
-
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
     />
-
+    <link rel="stylesheet" href="../profile/profile.css" />
     <link rel="stylesheet" href="../../navigation_bar/sidebar.css" />
     <link rel="stylesheet" href="patients.css" />
   </head>
@@ -29,29 +25,28 @@
 
       <main class="patients-main">
         <div class="patients-content">
+          <section class="patient-page-header">
+            <div class="patient-page-title">
+              <h1>Patients</h1>
+              <p>
+                Manage patient information and keep track of their clinic
+                records.
+              </p>
+            </div>
+
+            <button type="button" class="btn-add-patient" id="addPatientBtn">
+              <i class="fa-solid fa-user-plus"></i>
+              <span>Add Patient</span>
+            </button>
+          </section>
+
           <section class="patient-list-card">
             <div class="patient-card-header">
-              <div class="patient-card-title">
-                <h1>Patients</h1>
-
-                <p>
-                  Manage patient information and keep track of their clinic
-                  records.
-                </p>
-              </div>
+              <div class="patient-card-title"></div>
 
               <div class="patient-card-header-right">
-                <span
-                  class="patient-count-label"
-                  id="patientCount"
-                  aria-live="polite"
-                >
-                  0 patients
-                </span>
-
                 <div class="patient-search">
                   <i class="fa-solid fa-magnifying-glass"></i>
-
                   <input
                     type="search"
                     id="patientSearch"
@@ -60,6 +55,14 @@
                     placeholder="Search patient..."
                   />
                 </div>
+
+                <span
+                  class="patient-count-label"
+                  id="patientCount"
+                  aria-live="polite"
+                >
+                  0 patients
+                </span>
 
                 <select
                   id="sortPatients"
@@ -72,15 +75,6 @@
                   <option value="oldest">Oldest</option>
                   <option value="withSchedule">Scheduled</option>
                 </select>
-
-                <button
-                  type="button"
-                  class="btn-add-patient"
-                  id="addPatientBtn"
-                >
-                  <i class="fa-solid fa-user-plus"></i>
-                  <span>Add Patient</span>
-                </button>
               </div>
             </div>
 
@@ -104,9 +98,7 @@
                 <div class="empty-icon">
                   <i class="fa-solid fa-user-group"></i>
                 </div>
-
                 <h3>No patients found</h3>
-
                 <p>Try changing your search or add a new patient.</p>
               </div>
             </div>
@@ -402,7 +394,6 @@
 
                 <div class="medform-profile-note">
                   <i class="fa-solid fa-circle-info"></i>
-
                   <span>
                     These details are managed from the patient's profile. Use
                     <strong>Edit Patient</strong> from the Actions menu to
@@ -486,9 +477,7 @@
 
                   <label class="medform-checkbox medform-checkbox-other">
                     <input type="checkbox" id="dentalConcernOtherCheck" />
-
                     <span>Others:</span>
-
                     <input
                       type="text"
                       id="dentalConcernOther"
@@ -546,8 +535,7 @@
                 <h3>Dental History</h3>
 
                 <div class="form-field">
-                  <label for="medLastVisit"> Date of last dental visit </label>
-
+                  <label for="medLastVisit">Date of last dental visit</label>
                   <input type="date" id="medLastVisit" name="medLastVisit" />
                 </div>
 
@@ -666,9 +654,7 @@
 
                   <label class="medform-checkbox medform-checkbox-other">
                     <input type="checkbox" id="medicalOtherCheck" />
-
                     <span>Other Medical Condition:</span>
-
                     <input
                       type="text"
                       id="medicalOther"
@@ -717,9 +703,7 @@
 
                   <label class="medform-checkbox medform-checkbox-other">
                     <input type="checkbox" id="allergyOtherCheck" />
-
                     <span>Other Medication / Allergy:</span>
-
                     <input
                       type="text"
                       id="allergyOther"
@@ -760,11 +744,10 @@
                     name="medConsent"
                     required
                   />
-
                   <span>
                     By checking this, you confirm that the information provided
                     is accurate and agree to DentaNueva's
-                    <a href="#" target="_blank" rel="noopener"> Consent </a>.
+                    <a href="#" target="_blank" rel="noopener">Consent</a>.
                   </span>
                 </label>
               </div>
@@ -919,5 +902,6 @@
 
     <script src="patients.js"></script>
     <script src="../../navigation_bar/sidebar.js"></script>
+    <script src="../profile/profile.js"></script>
   </body>
 </html>

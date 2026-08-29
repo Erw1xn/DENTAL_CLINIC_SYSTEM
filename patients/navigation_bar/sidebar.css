@@ -55,7 +55,7 @@
   min-height: 0;
 }
 
-.sidebar-staff-profile {
+.sidebar-patient-profile {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -69,12 +69,12 @@
   transition: background-color 0.2s ease;
 }
 
-.sidebar-staff-profile:hover {
+.sidebar-patient-profile:hover {
   background-color: rgba(255, 255, 255, 0.05);
   border-radius: 8px;
 }
 
-.sidebar-staff-avatar {
+.sidebar-patient-avatar {
   width: 40px;
   height: 40px;
   min-width: 40px;
@@ -87,7 +87,7 @@
   overflow: hidden;
 }
 
-.sidebar-staff-avatar img {
+.sidebar-patient-avatar img {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -95,14 +95,14 @@
   display: none;
 }
 
-.sidebar-staff-avatar #activeStaffInitials {
+.sidebar-patient-avatar #activePatientInitials {
   color: #176b38;
   font-size: 0.66rem;
   font-weight: 700;
   line-height: 1;
 }
 
-.sidebar-staff-info {
+.sidebar-patient-info {
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -110,7 +110,7 @@
   line-height: 1.15;
 }
 
-.sidebar-staff-name {
+.sidebar-patient-name {
   display: block;
   color: #ffffff;
   font-size: 0.76rem;
@@ -121,7 +121,7 @@
   text-overflow: ellipsis;
 }
 
-.sidebar-staff-status {
+.sidebar-patient-status {
   display: flex;
   align-items: center;
   gap: 5px;
@@ -133,7 +133,7 @@
   white-space: nowrap;
 }
 
-.staff-status-dot {
+.patient-status-dot {
   width: 5px;
   height: 5px;
   min-width: 5px;
@@ -296,7 +296,7 @@
   visibility: visible;
 }
 
-.staff-profile-modal-backdrop {
+.patient-profile-modal-backdrop {
   position: fixed;
   inset: 0;
   width: 100vw;
@@ -313,12 +313,12 @@
   transition: all 0.25s ease;
 }
 
-.staff-profile-modal-backdrop.active {
+.patient-profile-modal-backdrop.active {
   opacity: 1;
   visibility: visible;
 }
 
-.staff-profile-modal {
+.patient-profile-modal {
   position: relative;
   width: 90%;
   max-width: 380px;
@@ -331,11 +331,11 @@
   transition: transform 0.25s ease;
 }
 
-.staff-profile-modal-backdrop.active .staff-profile-modal {
+.patient-profile-modal-backdrop.active .patient-profile-modal {
   transform: translateY(0);
 }
 
-.staff-profile-modal-close {
+.patient-profile-modal-close {
   position: absolute;
   top: 14px;
   right: 14px;
@@ -352,12 +352,12 @@
   font-size: 0.8rem;
 }
 
-.staff-profile-modal-close:hover {
+.patient-profile-modal-close:hover {
   background: #e5e7eb;
   color: #374151;
 }
 
-.staff-profile-modal-avatar {
+.patient-profile-modal-avatar {
   width: 72px;
   height: 72px;
   margin: 0 auto 12px;
@@ -370,27 +370,27 @@
   overflow: hidden;
 }
 
-.staff-profile-modal-avatar img {
+.patient-profile-modal-avatar img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: none;
 }
 
-.staff-profile-modal-avatar span {
+.patient-profile-modal-avatar span {
   color: #176b38;
   font-size: 1rem;
   font-weight: 700;
 }
 
-.staff-profile-modal h3 {
+.patient-profile-modal h3 {
   color: #14201a;
   font-size: 1.15rem;
   font-weight: 700;
   line-height: 1.2;
 }
 
-.staff-profile-modal-role {
+.patient-profile-modal-role {
   display: block;
   margin-top: 3px;
   color: #6b7280;
@@ -398,7 +398,7 @@
   font-weight: 500;
 }
 
-.staff-profile-modal-status {
+.patient-profile-modal-status {
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -408,25 +408,25 @@
   font-weight: 500;
 }
 
-.staff-profile-modal-divider {
+.patient-profile-modal-divider {
   width: 100%;
   height: 1px;
   margin: 20px 0;
   background-color: #e5e7eb;
 }
 
-.staff-profile-modal-info {
+.patient-profile-modal-info {
   text-align: left;
 }
 
-.staff-profile-info-item {
+.patient-profile-info-item {
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 10px 4px;
 }
 
-.staff-profile-info-item > i {
+.patient-profile-info-item > i {
   width: 34px;
   height: 34px;
   display: flex;
@@ -438,20 +438,20 @@
   font-size: 0.9rem;
 }
 
-.staff-profile-info-item > div {
+.patient-profile-info-item > div {
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.staff-profile-info-label {
+.patient-profile-info-label {
   color: #6b7280;
   font-size: 0.62rem;
   font-weight: 500;
 }
 
-.staff-profile-info-value {
+.patient-profile-info-value {
   color: #1f2937;
   font-size: 0.76rem;
   font-weight: 600;
@@ -563,18 +563,18 @@
     width: 72px;
   }
 
-  .sidebar.collapsed .sidebar-staff-profile {
+  .sidebar.collapsed .sidebar-patient-profile {
     width: calc(100% - 20px);
     margin: 0 10px 14px 10px;
     padding: 9px 0 12px 0;
     justify-content: center;
   }
 
-  .sidebar.collapsed .sidebar-staff-info {
+  .sidebar.collapsed .sidebar-patient-info {
     display: none;
   }
 
-  .sidebar.collapsed .sidebar-staff-avatar {
+  .sidebar.collapsed .sidebar-patient-avatar {
     width: 38px;
     height: 38px;
     min-width: 38px;
@@ -650,7 +650,7 @@
     display: none !important;
   }
 
-  .sidebar-staff-profile {
+  .sidebar-patient-profile {
     width: calc(100% - 30px);
     margin: 0 15px 14px 15px;
   }
@@ -660,7 +660,7 @@
     margin-top: 8px;
   }
 
-  .staff-profile-modal {
+  .patient-profile-modal {
     max-width: 350px;
     padding: 25px 22px;
   }

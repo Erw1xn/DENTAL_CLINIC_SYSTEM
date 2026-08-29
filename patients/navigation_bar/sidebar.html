@@ -14,19 +14,19 @@
   </button>
 
   <div class="sidebar-top">
-    <div class="sidebar-staff-profile" id="activeStaffProfileTrigger">
-      <div class="sidebar-staff-avatar">
-        <img id="activeStaffImage" src="" alt="Staff profile" />
-        <span id="activeStaffInitials">EJ</span>
+    <div class="sidebar-patient-profile" id="activePatientProfileTrigger">
+      <div class="sidebar-patient-avatar">
+        <img id="activePatientImage" src="" alt="Patient profile" />
+        <span id="activePatientInitials">PT</span>
       </div>
 
-      <div class="sidebar-staff-info">
-        <span class="sidebar-staff-name" id="activeStaffName">
-          Erwin Jacaba
+      <div class="sidebar-patient-info">
+        <span class="sidebar-patient-name" id="activePatientName">
+          Patient
         </span>
 
-        <span class="sidebar-staff-status">
-          <span class="staff-status-dot"></span>
+        <span class="sidebar-patient-status">
+          <span class="patient-status-dot"></span>
           Active now
         </span>
       </div>
@@ -34,7 +34,7 @@
 
     <nav class="sidebar-menu">
       <a
-        href="/staff/dashboard/dashboard.html"
+        href="/patients/dashboard/dashboard.html"
         class="menu-item"
         data-page="dashboard"
         title="Dashboard"
@@ -44,7 +44,7 @@
       </a>
 
       <a
-        href="/staff/appointment/appointment.html"
+        href="/patients/appointment/appointment.html"
         class="menu-item"
         data-page="appointment"
         title="Appointment"
@@ -54,43 +54,23 @@
       </a>
 
       <a
-        href="/staff/patients/patients.html"
+        href="/patients/medical_records/medical_records.html"
         class="menu-item"
-        data-page="patients"
-        title="Patients"
+        data-page="medical_records"
+        title="Medical Records"
       >
-        <i class="fa-solid fa-user-doctor"></i>
-        <span class="menu-text">Patients</span>
+        <i class="fa-solid fa-file-medical"></i>
+        <span class="menu-text">Medical Records</span>
       </a>
 
       <a
-        href="/staff/inventory/inventory.html"
+        href="/patients/payments/payments.html"
         class="menu-item"
-        data-page="inventory"
-        title="Inventory"
-      >
-        <i class="fa-solid fa-boxes-stacked"></i>
-        <span class="menu-text">Inventory</span>
-      </a>
-
-      <a
-        href="/staff/sms_notifications/sms_notifications.html"
-        class="menu-item"
-        data-page="sms"
-        title="SMS"
-      >
-        <i class="fa-regular fa-comment-dots"></i>
-        <span class="menu-text">SMS</span>
-      </a>
-
-      <a
-        href="/staff/finance/finance.html"
-        class="menu-item"
-        data-page="finance"
-        title="Finance"
+        data-page="payments"
+        title="Payments"
       >
         <i class="fa-regular fa-credit-card"></i>
-        <span class="menu-text">Finance</span>
+        <span class="menu-text">Payments</span>
       </a>
 
       <a

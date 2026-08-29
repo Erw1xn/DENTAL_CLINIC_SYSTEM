@@ -32,7 +32,7 @@ button {
   width: 0;
   min-width: 0;
   min-height: 100vh;
-  padding: 32px 38px 90px;
+  padding: 24px 28px 36px;
   background: #f5f8f6;
   overflow-x: hidden;
 }
@@ -41,6 +41,26 @@ button {
   width: 100%;
   max-width: 1500px;
   margin: 0 auto;
+}
+
+.notification-header-card {
+  width: 100%;
+  margin-bottom: 18px;
+  overflow: hidden;
+  border: 1px solid #e3ebe6;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 5px 22px rgba(20, 32, 26, 0.035);
+}
+
+.notification-header-card .card-header {
+  min-height: 86px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 20px 24px;
+  background: #ffffff;
 }
 
 .notification-card {
@@ -59,7 +79,6 @@ button {
   justify-content: space-between;
   gap: 24px;
   padding: 20px 24px;
-  border-bottom: 1px solid #edf1ee;
   background: #ffffff;
 }
 
@@ -877,7 +896,7 @@ button {
 
 @media (max-width: 1200px) {
   .sms-main {
-    padding: 30px 28px 90px;
+    padding: 22px 24px 34px;
   }
 
   .filters {
@@ -897,7 +916,11 @@ button {
 
 @media (max-width: 900px) {
   .sms-main {
-    padding: 28px 22px 88px;
+    padding: 20px 20px 32px;
+  }
+
+  .notification-header-card {
+    margin-bottom: 16px;
   }
 
   .card-header {
@@ -929,12 +952,21 @@ button {
   .sms-main {
     width: 100%;
     min-height: calc(100vh - 57px);
-    padding: 22px 16px 84px;
+    padding: 18px 14px 30px;
   }
 
   .sms-page {
     width: 100%;
     max-width: none;
+  }
+
+  .notification-header-card {
+    margin-bottom: 14px;
+    border-radius: 15px;
+  }
+
+  .notification-card {
+    border-radius: 15px;
   }
 
   .card-header {
@@ -970,11 +1002,16 @@ button {
 
 @media (max-width: 600px) {
   .sms-main {
-    padding: 20px 14px 80px;
+    padding: 16px 12px 28px;
+  }
+
+  .notification-header-card {
+    margin-bottom: 12px;
+    border-radius: 14px;
   }
 
   .notification-card {
-    border-radius: 15px;
+    border-radius: 14px;
   }
 
   .card-header {
@@ -1008,7 +1045,11 @@ button {
 
 @media (max-width: 480px) {
   .sms-main {
-    padding: 18px 12px 78px;
+    padding: 14px 10px 26px;
+  }
+
+  .notification-header-card {
+    margin-bottom: 10px;
   }
 
   .card-header {
@@ -1067,7 +1108,11 @@ button {
 
 @media (max-width: 360px) {
   .sms-main {
-    padding: 16px 10px 74px;
+    padding: 12px 9px 24px;
+  }
+
+  .notification-header-card {
+    margin-bottom: 9px;
   }
 
   .card-header {
