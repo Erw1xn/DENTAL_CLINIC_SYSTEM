@@ -20,15 +20,12 @@
         <div class="auth-tag">Welcome Back</div>
         <h1 class="auth-title">Log In to Your Account</h1>
       </div>
-
-      <!-- INLINE ERROR MESSAGE CONTAINER -->
       <div id="loginErrorMsg" class="error-message-box" style="display: none">
         <i class="fa-solid fa-circle-exclamation"></i>
         <span id="errorText"
           >Incorrect email or password. Please try again.</span
         >
       </div>
-
       <form class="auth-form" action="login_process.php" method="POST">
         <div class="form-group">
           <label class="form-label" for="email">Email Address</label>
@@ -44,7 +41,6 @@
             />
           </div>
         </div>
-
         <div class="form-group">
           <label class="form-label" for="password">Password</label>
           <div class="input-with-icon">
@@ -67,16 +63,13 @@
             </button>
           </div>
         </div>
-
         <div class="form-options">
           <label class="remember-me">
             <input type="checkbox" name="remember" /> Remember me
           </label>
           <a href="#" class="forgot-link">Forgot password?</a>
         </div>
-
         <button type="submit" class="btn-submit">Log In</button>
-
         <p class="auth-footer-text">
           Don't have an account yet? <a href="../signup/signup.html">Sign Up</a>
         </p>

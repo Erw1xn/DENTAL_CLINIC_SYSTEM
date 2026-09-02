@@ -6,6 +6,7 @@ const SMS_STORAGE_KEY = "sms_notifications";
 const APPOINTMENTS_STORAGE_KEY = "appointments";
 const PATIENTS_STORAGE_KEY = "dentanueva_patients";
 const SMS_RESET_KEY = "sms_notifications_reset_v3";
+const SMS_PAGE_SIZE = 10;
 
 let smsNotifications = [];
 let patients = [];
@@ -14,6 +15,7 @@ let deleteNotificationId = null;
 let toastTimeout = null;
 let smsProcessingIds = new Set();
 let simulateNextSMSFailureFlag = false;
+let smsCurrentPage = 1;
 
 function initializeSMSPage() {
   resetSMSDataOnce();
@@ -69,11 +71,8 @@ function getPatientName(patient) {
   if (!patient) return "";
 
   if (patient.fullName) return patient.fullName;
-
   if (patient.full_name) return patient.full_name;
-
   if (patient.patientName) return patient.patientName;
-
   if (patient.name) return patient.name;
 
   return [patient.firstName, patient.middleName, patient.lastName]
@@ -162,6 +161,7 @@ function getNotificationDate(notification) {
   }
 
   const appointmentDate = notification.appointmentDate || "";
+
   const appointmentTime = notification.appointmentTime || "00:00";
 
   if (appointmentDate) {
@@ -184,9 +184,13 @@ function getNotificationDate(notification) {
 }
 
 function syncAppointmentNotifications() {
-  if (!Array.isArray(appointments) || !appointments.length) return;
+  if (!Array.isArray(appointments) || !appointments.length) {
+    return;
+  }
 
-  if (!Array.isArray(patients) || !patients.length) return;
+  if (!Array.isArray(patients) || !patients.length) {
+    return;
+  }
 
   let changed = false;
 
@@ -198,6 +202,7 @@ function syncAppointmentNotifications() {
     if (!patient) return;
 
     const patientName = getPatientName(patient);
+
     const phone = getPatientPhone(patient);
 
     if (!patientName || !phone) return;
@@ -262,12 +267,16 @@ function syncAppointmentNotifications() {
           appointmentTime,
         );
 
-        if (createdReschedule) changed = true;
+        if (createdReschedule) {
+          changed = true;
+        }
 
         const removedReminder =
           removeUndeliveredReminderNotifications(appointmentId);
 
-        if (removedReminder) changed = true;
+        if (removedReminder) {
+          changed = true;
+        }
       }
     }
 
@@ -283,7 +292,9 @@ function syncAppointmentNotifications() {
         appointmentTime,
       );
 
-      if (createdConfirmation) changed = true;
+      if (createdConfirmation) {
+        changed = true;
+      }
 
       const reminderType = getReminderTypeForAppointment(
         appointmentDate,
@@ -306,7 +317,9 @@ function syncAppointmentNotifications() {
             reminderDueAt.toISOString(),
           );
 
-          if (createdReminder) changed = true;
+          if (createdReminder) {
+            changed = true;
+          }
         }
       }
     }
@@ -315,7 +328,9 @@ function syncAppointmentNotifications() {
       const removedReminder =
         removeUndeliveredReminderNotifications(appointmentId);
 
-      if (removedReminder) changed = true;
+      if (removedReminder) {
+        changed = true;
+      }
 
       const createdCancellation = createAutomaticNotificationIfMissing(
         appointment,
@@ -325,7 +340,9 @@ function syncAppointmentNotifications() {
         appointmentTime,
       );
 
-      if (createdCancellation) changed = true;
+      if (createdCancellation) {
+        changed = true;
+      }
     }
 
     updateAppointmentNotificationSnapshots(
@@ -334,7 +351,9 @@ function syncAppointmentNotifications() {
     );
   });
 
-  if (changed) saveSMSNotifications();
+  if (changed) {
+    saveSMSNotifications();
+  }
 }
 
 function getAppointmentStatus(appointment) {
@@ -443,7 +462,9 @@ function updateAppointmentNotificationSnapshots(
   notifications,
   appointmentSnapshot,
 ) {
-  if (!Array.isArray(notifications)) return;
+  if (!Array.isArray(notifications)) {
+    return;
+  }
 
   notifications.forEach((notification) => {
     notification.appointmentSnapshot = appointmentSnapshot;
@@ -453,7 +474,9 @@ function updateAppointmentNotificationSnapshots(
 function getReminderTypeForAppointment(appointmentDate, appointmentTime) {
   const normalizedAppointmentDate = normalizeDateForInput(appointmentDate);
 
-  if (!normalizedAppointmentDate) return null;
+  if (!normalizedAppointmentDate) {
+    return null;
+  }
 
   const appointmentDateTime = createLocalDateTimeFromDateAndTime(
     normalizedAppointmentDate,
@@ -509,7 +532,9 @@ function getReminderDueAt(appointmentDate, appointmentTime) {
 function createLocalDateFromDateString(dateString) {
   const normalized = normalizeDateForInput(dateString);
 
-  if (!normalized) return null;
+  if (!normalized) {
+    return null;
+  }
 
   const [year, month, day] = normalized.split("-").map(Number);
 
@@ -521,7 +546,9 @@ function createLocalDateTimeFromDateAndTime(dateString, timeString) {
 
   const normalizedTime = normalizeTimeForInput(timeString);
 
-  if (!normalizedDate) return null;
+  if (!normalizedDate) {
+    return null;
+  }
 
   const [year, month, day] = normalizedDate.split("-").map(Number);
 
@@ -539,7 +566,9 @@ function getLocalDateOnly(date) {
 }
 
 function getDateDifferenceInDays(startDate, endDate) {
-  if (!startDate || !endDate) return null;
+  if (!startDate || !endDate) {
+    return null;
+  }
 
   const millisecondsPerDay = 24 * 60 * 60 * 1000;
 
@@ -558,21 +587,24 @@ function createAutomaticNotificationIfMissing(
 ) {
   const appointmentId = getAppointmentId(appointment);
 
-  if (!appointmentId) return false;
+  if (!appointmentId) {
+    return false;
+  }
 
   const isReminder =
     notificationType === "Appointment Reminder" ||
     notificationType === "Same-Day Reminder";
 
-  const alreadyExists = smsNotifications.some((notification) => {
-    return (
+  const alreadyExists = smsNotifications.some(
+    (notification) =>
       notification.source === "appointment" &&
       String(notification.appointmentId || "") === String(appointmentId) &&
-      String(notification.type || "") === String(notificationType)
-    );
-  });
+      String(notification.type || "") === String(notificationType),
+  );
 
-  if (alreadyExists) return false;
+  if (alreadyExists) {
+    return false;
+  }
 
   const patientName = getPatientName(patient);
 
@@ -587,15 +619,15 @@ function createAutomaticNotificationIfMissing(
 
   const notification = {
     id: createID(),
-    appointmentId: appointmentId,
+    appointmentId,
     patientId: getPatientId(patient),
-    patientName: patientName,
-    phone: phone,
-    message: message,
+    patientName,
+    phone,
+    message,
     type: notificationType,
     appointmentType: notificationType,
-    appointmentDate: appointmentDate,
-    appointmentTime: appointmentTime,
+    appointmentDate,
+    appointmentTime,
     status: "Pending",
     deliveryStatus: "Pending",
     createdAt: new Date().toISOString(),
@@ -695,11 +727,11 @@ function cleanupOrphanedNotifications() {
     }
 
     if (notification.source === "appointment" && notification.appointmentId) {
-      const appointmentStillExists = appointments.some((appointment) => {
-        const appointmentId = getAppointmentId(appointment);
-
-        return String(appointmentId) === String(notification.appointmentId);
-      });
+      const appointmentStillExists = appointments.some(
+        (appointment) =>
+          String(getAppointmentId(appointment)) ===
+          String(notification.appointmentId),
+      );
 
       if (!appointmentStillExists) {
         changed = true;
@@ -716,7 +748,9 @@ function cleanupOrphanedNotifications() {
 }
 
 function findPatientForAppointment(appointment) {
-  if (!appointment) return null;
+  if (!appointment) {
+    return null;
+  }
 
   const appointmentPatientId =
     appointment.patientId ||
@@ -853,7 +887,9 @@ function processPendingSMSNotifications() {
   const currentTime = Date.now();
 
   const pendingNotifications = smsNotifications.filter((notification) => {
-    if (!notification) return false;
+    if (!notification) {
+      return false;
+    }
 
     if (String(notification.status || "").toLowerCase() !== "pending") {
       return false;
@@ -894,7 +930,9 @@ function syncDueReminderNotifications() {
   let changed = false;
 
   appointments.forEach((appointment) => {
-    if (!appointment) return;
+    if (!appointment) {
+      return;
+    }
 
     const status = getAppointmentStatus(appointment);
 
@@ -904,11 +942,15 @@ function syncDueReminderNotifications() {
 
     const appointmentId = getAppointmentId(appointment);
 
-    if (!appointmentId) return;
+    if (!appointmentId) {
+      return;
+    }
 
     const patient = findPatientForAppointment(appointment);
 
-    if (!patient) return;
+    if (!patient) {
+      return;
+    }
 
     const appointmentDate = normalizeDateForInput(
       appointment.date ||
@@ -935,11 +977,15 @@ function syncDueReminderNotifications() {
       appointmentTime,
     );
 
-    if (!reminderType) return;
+    if (!reminderType) {
+      return;
+    }
 
     const reminderDueAt = getReminderDueAt(appointmentDate, appointmentTime);
 
-    if (!reminderDueAt) return;
+    if (!reminderDueAt) {
+      return;
+    }
 
     const existingReminder = smsNotifications.some(
       (notification) =>
@@ -975,7 +1021,9 @@ function processSMSNotification(notificationId, isRetry = false) {
     (item) => String(item.id) === String(notificationId),
   );
 
-  if (!notification) return;
+  if (!notification) {
+    return;
+  }
 
   if (notification.status !== "Pending" && !isRetry) {
     return;
@@ -1003,7 +1051,9 @@ function processSMSNotification(notificationId, isRetry = false) {
   smsProcessingIds.add(String(notificationId));
 
   notification.status = "Pending";
+
   notification.deliveryStatus = "Pending";
+
   notification.failureReason = null;
 
   saveSMSNotifications();
@@ -1059,7 +1109,9 @@ function retrySMSNotification(notificationId) {
     (item) => String(item.id) === String(notificationId),
   );
 
-  if (!notification) return;
+  if (!notification) {
+    return;
+  }
 
   if (notification.status !== "Failed") {
     return;
@@ -1081,8 +1133,11 @@ function retrySMSNotification(notificationId) {
   }
 
   notification.status = "Pending";
+
   notification.deliveryStatus = "Pending";
+
   notification.failedAt = null;
+
   notification.failureReason = null;
 
   saveSMSNotifications();
@@ -1098,7 +1153,9 @@ function updateSMSDeliveryStatus(notificationId, status, failureReason = null) {
     (item) => String(item.id) === String(notificationId),
   );
 
-  if (!notification) return false;
+  if (!notification) {
+    return false;
+  }
 
   const normalizedStatus = String(status || "")
     .trim()
@@ -1106,21 +1163,33 @@ function updateSMSDeliveryStatus(notificationId, status, failureReason = null) {
 
   if (normalizedStatus === "sent") {
     notification.status = "Sent";
+
     notification.deliveryStatus = "Sent";
+
     notification.sentAt = new Date().toISOString();
+
     notification.failedAt = null;
+
     notification.failureReason = null;
   } else if (normalizedStatus === "failed") {
     notification.status = "Failed";
+
     notification.deliveryStatus = "Failed";
+
     notification.failedAt = new Date().toISOString();
+
     notification.sentAt = null;
+
     notification.failureReason = failureReason || "SMS delivery failed.";
   } else {
     notification.status = "Pending";
+
     notification.deliveryStatus = "Pending";
+
     notification.sentAt = null;
+
     notification.failedAt = null;
+
     notification.failureReason = null;
   }
 
@@ -1141,17 +1210,37 @@ function renderNotifications() {
 
   const recordCount = document.getElementById("recordCount");
 
-  if (!tableBody) return;
+  if (!tableBody) {
+    return;
+  }
 
   const filtered = getFilteredNotifications();
 
   const sorted = sortSMSNotifications(filtered);
 
+  const totalItems = sorted.length;
+
+  const totalPages = Math.max(Math.ceil(totalItems / SMS_PAGE_SIZE), 1);
+
+  if (smsCurrentPage > totalPages) {
+    smsCurrentPage = totalPages;
+  }
+
+  if (smsCurrentPage < 1) {
+    smsCurrentPage = 1;
+  }
+
+  const startIndex = (smsCurrentPage - 1) * SMS_PAGE_SIZE;
+
+  const pageItems = sorted.slice(startIndex, startIndex + SMS_PAGE_SIZE);
+
   tableBody.innerHTML = "";
 
   if (recordCount) {
-    recordCount.textContent = sorted.length;
+    recordCount.textContent = totalItems;
   }
+
+  renderPagination(totalItems, totalPages);
 
   if (!sorted.length) {
     emptyState?.classList.add("show");
@@ -1161,13 +1250,59 @@ function renderNotifications() {
 
   emptyState?.classList.remove("show");
 
-  sorted.forEach((notification) => {
+  pageItems.forEach((notification) => {
     const row = document.createElement("tr");
 
     row.innerHTML = createNotificationRow(notification);
 
     tableBody.appendChild(row);
   });
+}
+
+function renderPagination(totalItems, totalPages) {
+  const paginationBar = document.getElementById("paginationBar");
+
+  const paginationSummary = document.getElementById("paginationSummary");
+
+  const paginationPageInfo = document.getElementById("paginationPageInfo");
+
+  const prevPageBtn = document.getElementById("prevPageBtn");
+
+  const nextPageBtn = document.getElementById("nextPageBtn");
+
+  if (
+    !paginationBar ||
+    !paginationSummary ||
+    !paginationPageInfo ||
+    !prevPageBtn ||
+    !nextPageBtn
+  ) {
+    return;
+  }
+
+  if (totalItems <= SMS_PAGE_SIZE) {
+    paginationBar.style.display = "none";
+
+    prevPageBtn.disabled = true;
+
+    nextPageBtn.disabled = true;
+
+    return;
+  }
+
+  paginationBar.style.display = "flex";
+
+  const startItem = (smsCurrentPage - 1) * SMS_PAGE_SIZE + 1;
+
+  const endItem = Math.min(smsCurrentPage * SMS_PAGE_SIZE, totalItems);
+
+  paginationSummary.textContent = `Showing ${startItem}–${endItem} of ${totalItems} notifications`;
+
+  paginationPageInfo.textContent = `Page ${smsCurrentPage} of ${totalPages}`;
+
+  prevPageBtn.disabled = smsCurrentPage <= 1;
+
+  nextPageBtn.disabled = smsCurrentPage >= totalPages;
 }
 
 function createNotificationRow(notification) {
@@ -1193,21 +1328,39 @@ function createNotificationRow(notification) {
   const isProcessing = smsProcessingIds.has(String(notification.id));
 
   let actions = `
-    <button class="action-btn" type="button" title="View" data-action="view" data-id="${escapeAttribute(notification.id)}">
+    <button
+      class="action-btn"
+      type="button"
+      title="View"
+      data-action="view"
+      data-id="${escapeAttribute(notification.id)}"
+    >
       <i class="fa-solid fa-eye"></i>
     </button>
   `;
 
   if (notification.status === "Failed") {
     actions += `
-      <button class="action-btn retry" type="button" title="Retry SMS" data-action="retry" data-id="${escapeAttribute(notification.id)}">
+      <button
+        class="action-btn retry"
+        type="button"
+        title="Retry SMS"
+        data-action="retry"
+        data-id="${escapeAttribute(notification.id)}"
+      >
         <i class="fa-solid fa-rotate-right"></i>
       </button>
     `;
   }
 
   actions += `
-    <button class="action-btn delete" type="button" title="Delete" data-action="delete" data-id="${escapeAttribute(notification.id)}">
+    <button
+      class="action-btn delete"
+      type="button"
+      title="Delete"
+      data-action="delete"
+      data-id="${escapeAttribute(notification.id)}"
+    >
       <i class="fa-solid fa-trash"></i>
     </button>
   `;
@@ -1215,31 +1368,65 @@ function createNotificationRow(notification) {
   return `
     <td>
       <div class="patient-cell">
-        <div class="patient-avatar">${escapeHTML(initials)}</div>
+        <div class="patient-avatar">
+          ${escapeHTML(initials)}
+        </div>
+
         <div class="patient-info">
-          <div class="patient-name">${escapeHTML(notification.patientName)}</div>
-          <div class="patient-id">${escapeHTML(notification.patientId || "No ID")}</div>
+          <div class="patient-name">
+            ${escapeHTML(notification.patientName)}
+          </div>
+
+          <div class="patient-id">
+            ${escapeHTML(notification.patientId || "No ID")}
+          </div>
         </div>
       </div>
     </td>
-    <td>${escapeHTML(notification.phone || "-")}</td>
-    <td class="message-cell">
-      <div class="message-preview" title="${escapeAttribute(message)}">${escapeHTML(preview)}</div>
-    </td>
-    <td><span class="type-badge ${typeClass}">${escapeHTML(notification.type || "-")}</span></td>
+
     <td>
-      <div class="appointment-cell">
-        <strong>${escapeHTML(appointmentDate)}</strong>
-        <span>${escapeHTML(appointmentTime)}</span>
+      ${escapeHTML(notification.phone || "-")}
+    </td>
+
+    <td class="message-cell">
+      <div
+        class="message-preview"
+        title="${escapeAttribute(message)}"
+      >
+        ${escapeHTML(preview)}
       </div>
     </td>
+
+    <td>
+      <span class="type-badge ${typeClass}">
+        ${escapeHTML(notification.type || "-")}
+      </span>
+    </td>
+
+    <td>
+      <div class="appointment-cell">
+        <strong>
+          ${escapeHTML(appointmentDate)}
+        </strong>
+
+        <span>
+          ${escapeHTML(appointmentTime)}
+        </span>
+      </div>
+    </td>
+
     <td>
       <span class="status-badge ${statusClass}">
         <span class="status-dot"></span>
         ${escapeHTML(isProcessing ? "Sending..." : notification.status)}
       </span>
     </td>
-    <td><div class="action-buttons">${actions}</div></td>
+
+    <td>
+      <div class="action-buttons">
+        ${actions}
+      </div>
+    </td>
   `;
 }
 
@@ -1308,7 +1495,9 @@ function getFilteredNotifications() {
 function handleTableAction(event) {
   const button = event.target.closest("[data-action]");
 
-  if (!button) return;
+  if (!button) {
+    return;
+  }
 
   const action = button.dataset.action;
 
@@ -1332,37 +1521,65 @@ function viewNotification(id) {
     (item) => String(item.id) === String(id),
   );
 
-  if (!notification) return;
+  if (!notification) {
+    return;
+  }
 
   const details = document.getElementById("notificationDetails");
 
-  if (!details) return;
+  if (!details) {
+    return;
+  }
 
   details.innerHTML = `
     <div class="detail-row">
-      <div class="detail-label">Patient</div>
-      <div class="detail-value">${escapeHTML(notification.patientName)}</div>
+      <div class="detail-label">
+        Patient
+      </div>
+      <div class="detail-value">
+        ${escapeHTML(notification.patientName)}
+      </div>
     </div>
+
     <div class="detail-row">
-      <div class="detail-label">Patient ID</div>
-      <div class="detail-value">${escapeHTML(notification.patientId || "Not specified")}</div>
+      <div class="detail-label">
+        Patient ID
+      </div>
+      <div class="detail-value">
+        ${escapeHTML(notification.patientId || "Not specified")}
+      </div>
     </div>
+
     <div class="detail-row">
-      <div class="detail-label">Phone Number</div>
-      <div class="detail-value">${escapeHTML(notification.phone || "Not specified")}</div>
+      <div class="detail-label">
+        Phone Number
+      </div>
+      <div class="detail-value">
+        ${escapeHTML(notification.phone || "Not specified")}
+      </div>
     </div>
+
     <div class="detail-row">
-      <div class="detail-label">Notification Type</div>
-      <div class="detail-value">${escapeHTML(notification.type || "Not specified")}</div>
+      <div class="detail-label">
+        Notification Type
+      </div>
+      <div class="detail-value">
+        ${escapeHTML(notification.type || "Not specified")}
+      </div>
     </div>
+
     <div class="detail-row">
-      <div class="detail-label">Appointment</div>
+      <div class="detail-label">
+        Appointment
+      </div>
+
       <div class="detail-value">
         ${
           notification.appointmentDate
             ? escapeHTML(formatDate(notification.appointmentDate))
             : "Date not specified"
         }
+
         ${
           notification.appointmentTime
             ? " at " + escapeHTML(formatTime(notification.appointmentTime))
@@ -1370,54 +1587,110 @@ function viewNotification(id) {
         }
       </div>
     </div>
+
     <div class="detail-row">
-      <div class="detail-label">Status</div>
-      <div class="detail-value">${escapeHTML(notification.status)}</div>
+      <div class="detail-label">
+        Status
+      </div>
+
+      <div class="detail-value">
+        ${escapeHTML(notification.status)}
+      </div>
     </div>
+
     <div class="detail-row">
-      <div class="detail-label">Source</div>
-      <div class="detail-value">${notification.source === "appointment" ? "Automatic Appointment Workflow" : "Manual"}</div>
+      <div class="detail-label">
+        Source
+      </div>
+
+      <div class="detail-value">
+        ${
+          notification.source === "appointment"
+            ? "Automatic Appointment Workflow"
+            : "Manual"
+        }
+      </div>
     </div>
+
     ${
       notification.scheduledFor
         ? `
-      <div class="detail-row">
-        <div class="detail-label">Scheduled For</div>
-        <div class="detail-value">${formatDateTime(notification.scheduledFor)}</div>
-      </div>
-    `
+          <div class="detail-row">
+            <div class="detail-label">
+              Scheduled For
+            </div>
+
+            <div class="detail-value">
+              ${formatDateTime(notification.scheduledFor)}
+            </div>
+          </div>
+        `
         : ""
     }
+
     <div class="detail-row">
-      <div class="detail-label">Message</div>
-      <div class="detail-value">${escapeHTML(notification.message || "")}</div>
+      <div class="detail-label">
+        Message
+      </div>
+
+      <div class="detail-value">
+        ${escapeHTML(notification.message || "")}
+      </div>
     </div>
+
     <div class="detail-row">
-      <div class="detail-label">Created</div>
-      <div class="detail-value">${formatDateTime(notification.createdAt)}</div>
+      <div class="detail-label">
+        Created
+      </div>
+
+      <div class="detail-value">
+        ${formatDateTime(notification.createdAt)}
+      </div>
     </div>
+
     <div class="detail-row">
-      <div class="detail-label">Sent At</div>
-      <div class="detail-value">${notification.sentAt ? formatDateTime(notification.sentAt) : "Not processed"}</div>
+      <div class="detail-label">
+        Sent At
+      </div>
+
+      <div class="detail-value">
+        ${
+          notification.sentAt
+            ? formatDateTime(notification.sentAt)
+            : "Not processed"
+        }
+      </div>
     </div>
+
     ${
       notification.failedAt
         ? `
-      <div class="detail-row">
-        <div class="detail-label">Failed At</div>
-        <div class="detail-value">${formatDateTime(notification.failedAt)}</div>
-      </div>
-    `
+          <div class="detail-row">
+            <div class="detail-label">
+              Failed At
+            </div>
+
+            <div class="detail-value">
+              ${formatDateTime(notification.failedAt)}
+            </div>
+          </div>
+        `
         : ""
     }
+
     ${
       notification.failureReason
         ? `
-      <div class="detail-row">
-        <div class="detail-label">Failure Reason</div>
-        <div class="detail-value">${escapeHTML(notification.failureReason)}</div>
-      </div>
-    `
+          <div class="detail-row">
+            <div class="detail-label">
+              Failure Reason
+            </div>
+
+            <div class="detail-value">
+              ${escapeHTML(notification.failureReason)}
+            </div>
+          </div>
+        `
         : ""
     }
   `;
@@ -1454,7 +1727,9 @@ function confirmDelete() {
 function openModal(id) {
   const modal = document.getElementById(id);
 
-  if (!modal) return;
+  if (!modal) {
+    return;
+  }
 
   modal.classList.add("show");
 }
@@ -1492,17 +1767,38 @@ function bindEvents() {
     .getElementById("confirmDeleteBtn")
     ?.addEventListener("click", confirmDelete);
 
-  document
-    .getElementById("searchInput")
-    ?.addEventListener("input", renderNotifications);
+  document.getElementById("searchInput")?.addEventListener("input", () => {
+    smsCurrentPage = 1;
+    renderNotifications();
+  });
 
-  document
-    .getElementById("statusFilter")
-    ?.addEventListener("change", renderNotifications);
+  document.getElementById("statusFilter")?.addEventListener("change", () => {
+    smsCurrentPage = 1;
+    renderNotifications();
+  });
 
-  document
-    .getElementById("typeFilter")
-    ?.addEventListener("change", renderNotifications);
+  document.getElementById("typeFilter")?.addEventListener("change", () => {
+    smsCurrentPage = 1;
+    renderNotifications();
+  });
+
+  document.getElementById("prevPageBtn")?.addEventListener("click", () => {
+    if (smsCurrentPage > 1) {
+      smsCurrentPage--;
+      renderNotifications();
+    }
+  });
+
+  document.getElementById("nextPageBtn")?.addEventListener("click", () => {
+    const filtered = getFilteredNotifications();
+
+    const totalPages = Math.max(Math.ceil(filtered.length / SMS_PAGE_SIZE), 1);
+
+    if (smsCurrentPage < totalPages) {
+      smsCurrentPage++;
+      renderNotifications();
+    }
+  });
 
   document
     .getElementById("notificationTableBody")
@@ -1609,7 +1905,9 @@ function getTypeClass(type) {
 }
 
 function normalizeDateForInput(date) {
-  if (!date) return "";
+  if (!date) {
+    return "";
+  }
 
   const value = String(date).trim();
 
@@ -1633,7 +1931,9 @@ function normalizeDateForInput(date) {
 }
 
 function normalizeTimeForInput(time) {
-  if (!time) return "";
+  if (!time) {
+    return "";
+  }
 
   const value = String(time).trim();
 

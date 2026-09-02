@@ -14,7 +14,6 @@ body {
   padding: 10px;
 }
 
-/* --- CLEAN LOGIN CARD --- */
 .auth-card {
   background: #ffffff;
   padding: 40px 32px;
@@ -47,7 +46,6 @@ body {
   margin-bottom: 6px;
 }
 
-/* --- INLINE ERROR BOX STYLING --- */
 .error-message-box {
   background-color: #fef2f2;
   border: 1px solid #fecaca;

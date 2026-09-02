@@ -19,9 +19,7 @@
       <div class="auth-header">
         <h1 class="auth-title">Create an Account</h1>
       </div>
-
       <form class="auth-form" action="signup_process.php" method="POST">
-        <!-- FIRST NAME & LAST NAME ROW -->
         <div class="name-row">
           <div class="form-group">
             <label class="form-label" for="firstname">First Name</label>
@@ -37,7 +35,6 @@
               />
             </div>
           </div>
-
           <div class="form-group">
             <label class="form-label" for="lastname">Last Name</label>
             <div class="input-with-icon">
@@ -53,7 +50,6 @@
             </div>
           </div>
         </div>
-
         <div class="form-group">
           <label class="form-label" for="email">Email Address</label>
           <div class="input-with-icon">
@@ -68,7 +64,6 @@
             />
           </div>
         </div>
-
         <div class="form-group">
           <label class="form-label" for="password">Password</label>
           <div class="input-with-icon">
@@ -90,7 +85,6 @@
               <i class="fa-regular fa-eye" id="eyeIcon"></i>
             </button>
           </div>
-          <!-- Live Password Requirements Helper Text -->
           <ul id="passwordRequirements" class="password-rules">
             <li id="lengthRule" class="invalid">At least 8 characters</li>
             <li id="upperRule" class="invalid">
@@ -102,7 +96,6 @@
             </li>
           </ul>
         </div>
-
         <div class="form-group">
           <label class="form-label" for="confirm_password"
             >Confirm Password</label
@@ -127,15 +120,12 @@
             </button>
           </div>
         </div>
-
         <button type="submit" class="btn-submit">Sign Up</button>
-
         <p class="auth-footer-text">
           Already have an account? <a href="../login/login.html">Log In</a>
         </p>
       </form>
     </div>
-
     <script src="signup.js"></script>
   </body>
 </html>

@@ -8,7 +8,6 @@ if (togglePasswordBtn) {
       passwordInput.getAttribute("type") === "password" ? "text" : "password";
 
     passwordInput.setAttribute("type", type);
-
     eyeIcon.classList.toggle("fa-eye");
     eyeIcon.classList.toggle("fa-eye-slash");
   });
@@ -24,7 +23,6 @@ document.addEventListener("DOMContentLoaded", () => {
       e.preventDefault();
 
       const email = document.getElementById("email").value.trim().toLowerCase();
-
       const password = document.getElementById("password").value;
 
       let users = [];
@@ -42,10 +40,8 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!userWithEmail) {
         if (errorBox && errorText) {
           errorText.textContent = "Account not found. Please try again.";
-
           errorBox.style.display = "flex";
         }
-
         return;
       }
 
@@ -57,19 +53,53 @@ document.addEventListener("DOMContentLoaded", () => {
       );
 
       if (validUser) {
+        const firstname = validUser.firstname || validUser.firstName || "";
+
+        const lastname = validUser.lastname || validUser.lastName || "";
+
+        const fullName =
+          validUser.name ||
+          validUser.full_name ||
+          `${firstname} ${lastname}`.trim();
+
+        const currentUser = {
+          ...validUser,
+          firstname: firstname,
+          lastname: lastname,
+          name: fullName || "Staff",
+          role: validUser.role || "Staff",
+          department: validUser.department || "Clinic Operations",
+          staffId: validUser.staffId || validUser.staff_id || "STF-0001",
+          accessLevel:
+            validUser.accessLevel ||
+            validUser.access_level ||
+            validUser.role ||
+            "Staff",
+          status: validUser.status || "Active",
+          profileImage:
+            validUser.profileImage ||
+            validUser.profile_image ||
+            validUser.image ||
+            "",
+          contact:
+            validUser.contact ||
+            validUser.contactNumber ||
+            validUser.contact_number ||
+            "",
+        };
+
         if (errorBox) {
           errorBox.style.display = "none";
         }
 
         localStorage.setItem("isLoggedIn", "true");
-        localStorage.setItem("currentUser", JSON.stringify(validUser));
+        localStorage.setItem("currentUser", JSON.stringify(currentUser));
 
         window.top.location.href = "../staff/dashboard/dashboard.html";
       } else {
         if (errorBox && errorText) {
           errorText.textContent =
             "Email or Password is incorrect. Please try again.";
-
           errorBox.style.display = "flex";
         }
       }

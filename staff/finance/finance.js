@@ -36,6 +36,7 @@ document.addEventListener("DOMContentLoaded", function () {
   let selectedPatientId = "";
   let selectedOutstandingTransactionId = "";
   let paymentProcessConfirmed = false;
+  let paymentProcessEditing = false;
   let appointmentPaymentMode = false;
   let additionalPaymentMode = false;
   let pendingAppointmentPayment = null;
@@ -111,6 +112,12 @@ document.addEventListener("DOMContentLoaded", function () {
     "monthlyCollectionPage",
   );
   const customCollectionPage = document.getElementById("customCollectionPage");
+  const todayCollectionDescription = document.getElementById(
+    "todayCollectionDescription",
+  );
+  const customCollectionDescription = document.getElementById(
+    "customCollectionDescription",
+  );
   const paymentHistoryCount = document.getElementById("paymentHistoryCount");
   const paymentHistoryList = document.getElementById("paymentHistoryList");
   const paymentHistoryEmpty = document.getElementById("paymentHistoryEmpty");
@@ -120,13 +127,13 @@ document.addEventListener("DOMContentLoaded", function () {
   const paymentProcessBox = document.getElementById("paymentProcessBox");
   const savePaymentBtn = document.getElementById("savePaymentBtn");
   initialize();
-
   function initialize() {
     loadPatients();
     setupPatientSelector();
     setupServiceSelector();
     loadTransactions();
     setDefaultPaymentDate();
+    updateTodayCollectionDescription();
     updateMonthlyCollectionDescription();
     setDefaultCustomRange();
     renderTransactions();
@@ -140,7 +147,6 @@ document.addEventListener("DOMContentLoaded", function () {
     setupEventListeners();
     loadPendingPaymentFromAppointment();
   }
-
   function setupEventListeners() {
     recordPaymentBtn.addEventListener("click", function () {
       openPaymentModal();
@@ -157,6 +163,16 @@ document.addEventListener("DOMContentLoaded", function () {
     detailsCloseButton.addEventListener("click", function () {
       closeDetailsModal();
     });
+    const closePaymentVerificationBtn = document.getElementById(
+      "closePaymentVerificationBtn",
+    );
+    if (closePaymentVerificationBtn) {
+      closePaymentVerificationBtn.addEventListener("click", function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        closePaymentVerificationModal();
+      });
+    }
     if (printReceiptBtn) {
       printReceiptBtn.addEventListener("click", function () {
         printReceipt();
@@ -225,6 +241,17 @@ document.addEventListener("DOMContentLoaded", function () {
         applyCustomCollectionRange();
       });
     }
+    if (customDateFrom) {
+      customDateFrom.addEventListener("change", function () {
+        updateCustomCollectionDescription();
+      });
+    }
+
+    if (customDateTo) {
+      customDateTo.addEventListener("change", function () {
+        updateCustomCollectionDescription();
+      });
+    }
     paymentForm.addEventListener("submit", function (event) {
       event.preventDefault();
       savePayment();
@@ -256,7 +283,7 @@ document.addEventListener("DOMContentLoaded", function () {
     });
     paymentMethodInput.addEventListener("change", function () {
       paymentProcessConfirmed = false;
-      renderPaymentProcessSection();
+      renderPaymentProcessSection(true);
     });
     paymentModal.addEventListener("click", function (event) {
       if (event.target === paymentModal) {
@@ -344,7 +371,6 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     });
   }
-
   function loadPatients() {
     try {
       const stored = localStorage.getItem(PATIENT_STORAGE_KEY);
@@ -363,7 +389,6 @@ document.addEventListener("DOMContentLoaded", function () {
       patients = [];
     }
   }
-
   function normalizePatient(patient) {
     const normalized = { ...patient };
     if (!normalized.patientId) {
@@ -374,7 +399,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     return normalized;
   }
-
   function getPatientFullName(patient) {
     if (!patient) {
       return "";
@@ -389,7 +413,6 @@ document.addEventListener("DOMContentLoaded", function () {
       patient.fullName || patient.name || patient.patientName || "",
     ).trim();
   }
-
   function getPatientDisplayValue(patient) {
     if (!patient) {
       return "";
@@ -404,7 +427,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     return `${name} · ${patientId}`;
   }
-
   function getPatientMatches(query) {
     const trimmed = String(query || "")
       .trim()
@@ -433,7 +455,6 @@ document.addEventListener("DOMContentLoaded", function () {
       );
     });
   }
-
   function findPatientById(patientId) {
     if (!patientId) {
       return null;
@@ -447,7 +468,6 @@ document.addEventListener("DOMContentLoaded", function () {
       }) || null
     );
   }
-
   function findPatientByName(name) {
     if (!name) {
       return null;
@@ -459,7 +479,6 @@ document.addEventListener("DOMContentLoaded", function () {
       }) || null
     );
   }
-
   function setupPatientSelector() {
     if (!patientNameInput || !patientDropdown) {
       return;
@@ -468,7 +487,6 @@ document.addEventListener("DOMContentLoaded", function () {
     patientNameInput.setAttribute("aria-expanded", "false");
     refreshPatientSelector();
   }
-
   function refreshPatientSelector() {
     if (!patientNameInput || !patientDropdown) {
       return;
@@ -492,7 +510,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     renderPatientDropdown(patientNameInput.value);
   }
-
   function renderPatientDropdown(query = "") {
     if (!patientDropdown || appointmentPaymentMode || additionalPaymentMode) {
       return;
@@ -529,7 +546,6 @@ document.addEventListener("DOMContentLoaded", function () {
       patientDropdown.appendChild(item);
     });
   }
-
   function openPatientDropdown() {
     if (
       appointmentPaymentMode ||
@@ -543,7 +559,6 @@ document.addEventListener("DOMContentLoaded", function () {
     patientSelectWrapper.classList.add("open");
     patientNameInput.setAttribute("aria-expanded", "true");
   }
-
   function closePatientDropdown() {
     if (!patientSelectWrapper) {
       return;
@@ -553,7 +568,6 @@ document.addEventListener("DOMContentLoaded", function () {
       patientNameInput.setAttribute("aria-expanded", "false");
     }
   }
-
   function selectPatientOption(patient) {
     if (
       appointmentPaymentMode ||
@@ -580,7 +594,6 @@ document.addEventListener("DOMContentLoaded", function () {
     renderPaymentProcessSection();
     patientNameInput.focus();
   }
-
   function handlePatientInputChange() {
     if (appointmentPaymentMode || additionalPaymentMode || !patientNameInput) {
       return;
@@ -594,7 +607,6 @@ document.addEventListener("DOMContentLoaded", function () {
     renderPatientDropdown(patientNameInput.value);
     openPatientDropdown();
   }
-
   function handlePatientInputKeydown(event) {
     if (appointmentPaymentMode || additionalPaymentMode || !patientNameInput) {
       return;
@@ -625,7 +637,6 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     }
   }
-
   function setFinancePatientId(patientId) {
     let hiddenPatientId = document.getElementById("financePatientId");
     if (!hiddenPatientId && patientNameInput?.parentElement) {
@@ -639,7 +650,6 @@ document.addEventListener("DOMContentLoaded", function () {
       hiddenPatientId.value = patientId || "";
     }
   }
-
   function getFinancePatientId() {
     const hiddenPatientId = document.getElementById("financePatientId");
     return (
@@ -650,7 +660,6 @@ document.addEventListener("DOMContentLoaded", function () {
       ""
     );
   }
-
   function selectPatientById(patientId) {
     const patient = findPatientById(patientId);
     if (!patient || !patientNameInput) {
@@ -672,7 +681,6 @@ document.addEventListener("DOMContentLoaded", function () {
     renderPaymentProcessSection();
     return true;
   }
-
   function loadPatientFromUrl() {
     if (appointmentPaymentMode) {
       return;
@@ -686,7 +694,6 @@ document.addEventListener("DOMContentLoaded", function () {
     loadPatients();
     selectPatientById(patientId);
   }
-
   function setupServiceSelector() {
     if (!serviceNameInput || !serviceDropdown) {
       return;
@@ -694,7 +701,6 @@ document.addEventListener("DOMContentLoaded", function () {
     serviceNameInput.setAttribute("aria-expanded", "false");
     renderServiceDropdown(serviceNameInput.value);
   }
-
   function getServiceMatches(query) {
     const allServices = Object.keys(SERVICE_DURATIONS);
     const trimmed = String(query || "")
@@ -709,7 +715,6 @@ document.addEventListener("DOMContentLoaded", function () {
       return name.toLowerCase().includes(trimmed);
     });
   }
-
   function renderServiceDropdown(query = "") {
     if (!serviceDropdown || appointmentPaymentMode || additionalPaymentMode) {
       return;
@@ -743,7 +748,6 @@ document.addEventListener("DOMContentLoaded", function () {
       serviceDropdown.appendChild(item);
     });
   }
-
   function openServiceDropdown() {
     if (
       appointmentPaymentMode ||
@@ -757,7 +761,6 @@ document.addEventListener("DOMContentLoaded", function () {
     serviceSelectWrapper.classList.add("open");
     serviceNameInput.setAttribute("aria-expanded", "true");
   }
-
   function closeServiceDropdown() {
     if (!serviceSelectWrapper) {
       return;
@@ -767,7 +770,6 @@ document.addEventListener("DOMContentLoaded", function () {
       serviceNameInput.setAttribute("aria-expanded", "false");
     }
   }
-
   function selectServiceOption(name) {
     if (appointmentPaymentMode || additionalPaymentMode || !serviceNameInput) {
       return;
@@ -782,7 +784,6 @@ document.addEventListener("DOMContentLoaded", function () {
     closeServiceDropdown();
     serviceNameInput.focus();
   }
-
   function handleServiceInputChange() {
     if (appointmentPaymentMode || additionalPaymentMode || !serviceNameInput) {
       return;
@@ -794,7 +795,6 @@ document.addEventListener("DOMContentLoaded", function () {
     openServiceDropdown();
     renderPaymentProcessSection();
   }
-
   function handleServiceInputKeydown(event) {
     if (appointmentPaymentMode || additionalPaymentMode || !serviceNameInput) {
       return;
@@ -827,7 +827,6 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     }
   }
-
   function openCollectionDrawer() {
     if (!collectionDrawer || !collectionDrawerOverlay) {
       return;
@@ -840,7 +839,6 @@ document.addEventListener("DOMContentLoaded", function () {
       lucide.createIcons();
     }
   }
-
   function closeCollectionDrawer() {
     if (!collectionDrawer || !collectionDrawerOverlay) {
       return;
@@ -849,7 +847,6 @@ document.addEventListener("DOMContentLoaded", function () {
     collectionDrawerOverlay.classList.remove("active");
     document.body.style.overflow = "";
   }
-
   function loadTransactions() {
     try {
       const resetCompleted = localStorage.getItem(RESET_KEY);
@@ -876,7 +873,6 @@ document.addEventListener("DOMContentLoaded", function () {
       transactions = [];
     }
   }
-
   function mergeDuplicateTransactions(list) {
     const merged = new Map();
     list.forEach(function (rawTransaction) {
@@ -972,7 +968,6 @@ document.addEventListener("DOMContentLoaded", function () {
       });
     });
   }
-
   function normalizeTransaction(transaction) {
     const oldAmount = Number(transaction.amount) || 0;
     const totalValue = Number(transaction.total);
@@ -1042,7 +1037,6 @@ document.addEventListener("DOMContentLoaded", function () {
       paymentHistory: paymentHistory,
     };
   }
-
   function normalizePaymentHistory(transaction, fallback) {
     const history = Array.isArray(transaction.paymentHistory)
       ? transaction.paymentHistory
@@ -1080,7 +1074,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     return [];
   }
-
   function createPaymentHistoryEntry(
     amount,
     paymentMethod,
@@ -1099,7 +1092,6 @@ document.addEventListener("DOMContentLoaded", function () {
       createdAt: createdAt || new Date().toISOString(),
     };
   }
-
   function getTransactionPaymentHistory(transaction) {
     const normalized = normalizeTransaction(transaction);
     return Array.isArray(normalized.paymentHistory)
@@ -1114,7 +1106,6 @@ document.addEventListener("DOMContentLoaded", function () {
         })
       : [];
   }
-
   function getTransactionPaymentMethods(transaction) {
     const methods = getTransactionPaymentHistory(transaction)
       .map(function (payment) {
@@ -1123,7 +1114,6 @@ document.addEventListener("DOMContentLoaded", function () {
       .filter(Boolean);
     return [...new Set(methods)];
   }
-
   function getTransactionPaymentMethodLabel(transaction) {
     const methods = getTransactionPaymentMethods(transaction);
     if (!methods.length) {
@@ -1131,7 +1121,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     return methods.join(" + ");
   }
-
   function renderPaymentHistory(transaction) {
     if (!paymentHistoryList || !paymentHistoryCount) {
       return;
@@ -1171,7 +1160,6 @@ document.addEventListener("DOMContentLoaded", function () {
     });
     if (window.lucide) lucide.createIcons();
   }
-
   function saveTransactions() {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
@@ -1179,13 +1167,11 @@ document.addEventListener("DOMContentLoaded", function () {
       console.error("Unable to save finance transactions:", error);
     }
   }
-
   function createTransactionId() {
     const timestamp = Date.now().toString().slice(-8);
     const random = Math.floor(100 + Math.random() * 900);
     return "TXN-" + timestamp + random;
   }
-
   function getTodayString() {
     const today = new Date();
     const year = today.getFullYear();
@@ -1193,21 +1179,18 @@ document.addEventListener("DOMContentLoaded", function () {
     const day = String(today.getDate()).padStart(2, "0");
     return `${year}-${month}-${day}`;
   }
-
   function getMonthKey(dateString) {
     if (!dateString) {
       return "";
     }
     return dateString.substring(0, 7);
   }
-
   function getCurrentMonthKey() {
     const today = new Date();
     const year = today.getFullYear();
     const month = String(today.getMonth() + 1).padStart(2, "0");
     return `${year}-${month}`;
   }
-
   function formatCurrency(amount) {
     const number = Number(amount) || 0;
     return new Intl.NumberFormat("en-PH", {
@@ -1216,7 +1199,6 @@ document.addEventListener("DOMContentLoaded", function () {
       minimumFractionDigits: 2,
     }).format(number);
   }
-
   function formatDate(dateString) {
     if (!dateString) {
       return "-";
@@ -1231,7 +1213,6 @@ document.addEventListener("DOMContentLoaded", function () {
       year: "numeric",
     });
   }
-
   function formatShortDate(dateString) {
     if (!dateString) {
       return "-";
@@ -1245,7 +1226,6 @@ document.addEventListener("DOMContentLoaded", function () {
       day: "numeric",
     });
   }
-
   function getInitials(name) {
     if (!name) {
       return "PT";
@@ -1258,17 +1238,73 @@ document.addEventListener("DOMContentLoaded", function () {
       parts[0].charAt(0) + parts[parts.length - 1].charAt(0)
     ).toUpperCase();
   }
+  function formatCollectionDate(dateString) {
+    if (!dateString) {
+      return "";
+    }
+
+    const date = new Date(dateString + "T00:00:00");
+
+    if (isNaN(date.getTime())) {
+      return dateString;
+    }
+
+    return date.toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    });
+  }
+
+  function updateTodayCollectionDescription() {
+    if (!todayCollectionDescription) {
+      return;
+    }
+
+    const today = formatCollectionDate(getTodayString());
+
+    todayCollectionDescription.textContent = `Payment collection for ${today}.`;
+  }
 
   function updateMonthlyCollectionDescription() {
+    if (!monthlyCollectionDescription) {
+      return;
+    }
+
     const now = new Date();
+
     const monthName = now.toLocaleDateString("en-US", {
       month: "long",
       year: "numeric",
     });
-    document.getElementById("monthlyCollectionDescription").textContent =
-      `Payment collection for ${monthName}.`;
+
+    monthlyCollectionDescription.textContent = `Payment collection for ${monthName}.`;
   }
 
+  function updateCustomCollectionDescription() {
+    if (!customCollectionDescription || !customDateFrom || !customDateTo) {
+      return;
+    }
+
+    const fromDate = customDateFrom.value;
+    const toDate = customDateTo.value;
+
+    if (!fromDate || !toDate) {
+      customCollectionDescription.textContent =
+        "Pick a date range to view collections.";
+      return;
+    }
+
+    const formattedFrom = formatCollectionDate(fromDate);
+    const formattedTo = formatCollectionDate(toDate);
+
+    if (fromDate === toDate) {
+      customCollectionDescription.textContent = `Payment collection for ${formattedFrom}.`;
+      return;
+    }
+
+    customCollectionDescription.textContent = `Payment collection from ${formattedFrom} to ${formattedTo}.`;
+  }
   function calculateBalance(total, discount, paid) {
     const normalizedTotal = Math.max(Number(total) || 0, 0);
     const normalizedDiscount = Math.min(
@@ -1281,7 +1317,6 @@ document.addEventListener("DOMContentLoaded", function () {
     );
     return Math.max(normalizedTotal - normalizedDiscount - normalizedPaid, 0);
   }
-
   function getTransactionStatus(transaction) {
     const total = Math.max(Number(transaction.total) || 0, 0);
     const discount = Math.min(
@@ -1301,7 +1336,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     return "Unpaid";
   }
-
   function getStatusClass(status) {
     if (status === "Paid") {
       return "status-paid";
@@ -1311,7 +1345,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     return "status-unpaid";
   }
-
   function createPaymentMethodTotals(filterType) {
     const methods = {
       Cash: { amount: 0, count: 0 },
@@ -1344,7 +1377,6 @@ document.addEventListener("DOMContentLoaded", function () {
     });
     return methods;
   }
-
   function createCustomRangeTotals(fromDate, toDate) {
     const methods = {
       Cash: { amount: 0, count: 0 },
@@ -1368,7 +1400,6 @@ document.addEventListener("DOMContentLoaded", function () {
     });
     return methods;
   }
-
   function renderPaymentMethods() {
     const todayMethods = createPaymentMethodTotals("today");
     const monthlyMethods = createPaymentMethodTotals("month");
@@ -1385,7 +1416,6 @@ document.addEventListener("DOMContentLoaded", function () {
       );
     }
   }
-
   function renderTodayCollection(methods) {
     document.getElementById("todayCashAmount").textContent = formatCurrency(
       methods.Cash.amount,
@@ -1419,7 +1449,6 @@ document.addEventListener("DOMContentLoaded", function () {
     document.getElementById("todayPaymentMethodTotal").textContent =
       formatCurrency(total);
   }
-
   function renderMonthlyCollection(methods) {
     document.getElementById("monthlyCashAmount").textContent = formatCurrency(
       methods.Cash.amount,
@@ -1453,7 +1482,6 @@ document.addEventListener("DOMContentLoaded", function () {
     document.getElementById("monthlyPaymentMethodTotal").textContent =
       formatCurrency(total);
   }
-
   function renderCustomCollection(methods) {
     document.getElementById("customCashAmount").textContent = formatCurrency(
       methods.Cash.amount,
@@ -1487,32 +1515,36 @@ document.addEventListener("DOMContentLoaded", function () {
     document.getElementById("customPaymentMethodTotal").textContent =
       formatCurrency(total);
   }
-
   function setDefaultCustomRange() {
     if (!customDateFrom || !customDateTo) {
       return;
     }
+
     const today = getTodayString();
     customDateFrom.value = today;
     customDateTo.value = today;
     customDateFrom.max = today;
     customDateTo.max = today;
-  }
 
+    updateCustomCollectionDescription();
+  }
   function showCustomCollection() {
     todayCollectionPage.classList.remove("active");
     monthlyCollectionPage.classList.remove("active");
     customCollectionPage.classList.add("active");
+
+    updateCustomCollectionDescription();
+
     if (customDateFrom.value && customDateTo.value) {
       renderCustomCollection(
         createCustomRangeTotals(customDateFrom.value, customDateTo.value),
       );
     }
+
     if (window.lucide) {
       lucide.createIcons();
     }
   }
-
   function applyCustomCollectionRange() {
     const fromDate = customDateFrom.value;
     const toDate = customDateTo.value;
@@ -1524,37 +1556,40 @@ document.addEventListener("DOMContentLoaded", function () {
       showToast("The 'From' date must be before the 'To' date.");
       return;
     }
+    updateCustomCollectionDescription();
+
     renderCustomCollection(createCustomRangeTotals(fromDate, toDate));
   }
-
   function showMonthlyCollection() {
     todayCollectionPage.classList.remove("active");
     customCollectionPage.classList.remove("active");
     monthlyCollectionPage.classList.add("active");
+
+    updateMonthlyCollectionDescription();
+
     if (window.lucide) {
       lucide.createIcons();
     }
   }
-
   function showTodayCollection() {
     monthlyCollectionPage.classList.remove("active");
     customCollectionPage.classList.remove("active");
     todayCollectionPage.classList.add("active");
+
+    updateTodayCollectionDescription();
+
     if (window.lucide) {
       lucide.createIcons();
     }
   }
-
   function transactionText(count) {
     return `${count} ${count === 1 ? "transaction" : "transactions"}`;
   }
-
   function getFilteredTransactions() {
     const searchValue = searchInput.value.trim().toLowerCase();
     const methodValue = paymentMethodFilter.value;
     const dateValue = dateFilter.value;
-    const today = getTodayString();
-    const currentMonth = getCurrentMonthKey();
+
     return transactions
       .map(function (transaction) {
         return normalizeTransaction(transaction);
@@ -1564,22 +1599,27 @@ document.addEventListener("DOMContentLoaded", function () {
         const service = String(transaction.service || "").toLowerCase();
         const transactionId = String(transaction.id || "").toLowerCase();
         const patientId = String(transaction.patientId || "").toLowerCase();
+
         const matchesSearch =
           !searchValue ||
           patient.includes(searchValue) ||
           patientId.includes(searchValue) ||
           service.includes(searchValue) ||
           transactionId.includes(searchValue);
+
         const matchesMethod =
           methodValue === "all" ||
           getTransactionPaymentMethods(transaction).includes(methodValue);
-        let matchesDate = true;
-        if (dateValue === "today") {
-          matchesDate = transaction.date === today;
-        } else if (dateValue === "month") {
-          matchesDate = getMonthKey(transaction.date) === currentMonth;
+
+        let matchesStatus = true;
+
+        if (dateValue === "partial") {
+          matchesStatus = transaction.status === "Partial";
+        } else if (dateValue === "paid") {
+          matchesStatus = transaction.status === "Paid";
         }
-        return matchesSearch && matchesMethod && matchesDate;
+
+        return matchesSearch && matchesMethod && matchesStatus;
       })
       .sort(function (a, b) {
         const dateA = new Date(`${a.date}T${a.createdTime || "00:00:00"}`);
@@ -1587,7 +1627,6 @@ document.addEventListener("DOMContentLoaded", function () {
         return dateB - dateA;
       });
   }
-
   function renderPaginationBar(totalItems, totalPages) {
     if (!paginationInfo || !prevPageBtn || !nextPageBtn) {
       return;
@@ -1609,8 +1648,75 @@ document.addEventListener("DOMContentLoaded", function () {
     prevPageBtn.disabled = currentPage <= 1;
     nextPageBtn.disabled = currentPage >= totalPages;
   }
+  function updateFinanceOverview() {
+    const today = getTodayString();
+    const currentMonth = getCurrentMonthKey();
 
+    let todayCollection = 0;
+    let monthlyCollection = 0;
+    let outstandingBalance = 0;
+    let todayTransactions = 0;
+
+    transactions.forEach(function (transaction) {
+      const normalized = normalizeTransaction(transaction);
+
+      if (normalized.date === today) {
+        todayTransactions++;
+      }
+
+      outstandingBalance += calculateBalance(
+        normalized.total,
+        normalized.discount,
+        normalized.paid,
+      );
+
+      getTransactionPaymentHistory(normalized).forEach(function (payment) {
+        const amount = Number(payment.amount) || 0;
+
+        if (payment.date === today) {
+          todayCollection += amount;
+        }
+
+        if (getMonthKey(payment.date) === currentMonth) {
+          monthlyCollection += amount;
+        }
+      });
+    });
+
+    const todayCollectionValue = document.getElementById(
+      "overviewTodayCollection",
+    );
+
+    const outstandingBalanceValue = document.getElementById(
+      "overviewOutstandingBalance",
+    );
+
+    const todayTransactionsValue = document.getElementById(
+      "overviewTodayTransactions",
+    );
+
+    const monthlyCollectionValue = document.getElementById(
+      "overviewMonthlyCollection",
+    );
+
+    if (todayCollectionValue) {
+      todayCollectionValue.textContent = formatCurrency(todayCollection);
+    }
+
+    if (outstandingBalanceValue) {
+      outstandingBalanceValue.textContent = formatCurrency(outstandingBalance);
+    }
+
+    if (todayTransactionsValue) {
+      todayTransactionsValue.textContent = String(todayTransactions);
+    }
+
+    if (monthlyCollectionValue) {
+      monthlyCollectionValue.textContent = formatCurrency(monthlyCollection);
+    }
+  }
   function renderTransactions() {
+    updateFinanceOverview();
     const filtered = getFilteredTransactions();
     const totalItems = filtered.length;
     const totalPages = Math.max(Math.ceil(totalItems / PAGE_SIZE), 1);
@@ -1689,7 +1795,6 @@ document.addEventListener("DOMContentLoaded", function () {
       lucide.createIcons();
     }
   }
-
   function handleTransactionAction(action, id) {
     const transaction = transactions.find(function (item) {
       return item.id === id;
@@ -1709,7 +1814,6 @@ document.addEventListener("DOMContentLoaded", function () {
       deleteTransaction(transaction.id);
     }
   }
-
   function getTimeLabel(timeString) {
     if (!timeString) {
       return "";
@@ -1724,7 +1828,6 @@ document.addEventListener("DOMContentLoaded", function () {
     hour = hour % 12 || 12;
     return `${hour}:${minute} ${period}`;
   }
-
   function getOutstandingTransactions(patientId, service = "") {
     const targetPatientId = String(patientId || "");
     const targetService = String(service || "")
@@ -1754,12 +1857,10 @@ document.addEventListener("DOMContentLoaded", function () {
         return dateB - dateA;
       });
   }
-
   function findOutstandingTransaction(patientId, service = "") {
     const matches = getOutstandingTransactions(patientId, service);
     return matches.length ? matches[0] : null;
   }
-
   function loadOutstandingTransactionForCurrentSelection() {
     if (
       editingTransactionId ||
@@ -1792,7 +1893,6 @@ document.addEventListener("DOMContentLoaded", function () {
     renderPaymentProcessSection();
     return transaction;
   }
-
   function getSelectedOutstandingTransaction() {
     if (!selectedOutstandingTransactionId) {
       return null;
@@ -1811,7 +1911,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     return normalized;
   }
-
   function updatePaymentCalculation() {
     let total = Math.max(parseFloat(paymentTotalInput.value) || 0, 0);
     let discount = Math.max(parseFloat(paymentDiscountInput.value) || 0, 0);
@@ -1856,7 +1955,6 @@ document.addEventListener("DOMContentLoaded", function () {
       additionalPaid: paid,
     };
   }
-
   function updateSaveButtonState() {
     if (!savePaymentBtn) {
       return;
@@ -1875,7 +1973,6 @@ document.addEventListener("DOMContentLoaded", function () {
       !method ||
       !processReady;
   }
-
   function resetPaymentProcess() {
     paymentProcessConfirmed = false;
     if (paymentProcessBox) {
@@ -1886,7 +1983,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     updateSaveButtonState();
   }
-
   function renderPaymentProcessSection() {
     if (!paymentProcessWrapper || !paymentProcessBox) {
       return;
@@ -1906,7 +2002,6 @@ document.addEventListener("DOMContentLoaded", function () {
       0,
     );
     const amount = Math.max(Number(paymentPaidInput.value) || 0, 0);
-
     if (method === "Cash") {
       const row = document.createElement("div");
       row.className = "process-row";
@@ -1926,7 +2021,6 @@ document.addEventListener("DOMContentLoaded", function () {
       confirmButton.id = "confirmCashBtn";
       confirmButton.textContent = "Confirm Cash";
       paymentProcessBox.appendChild(confirmButton);
-
       cashReceivedInput?.addEventListener("input", function () {
         paymentProcessConfirmed = false;
         const received = Math.max(Number(cashReceivedInput.value) || 0, 0);
@@ -1942,7 +2036,6 @@ document.addEventListener("DOMContentLoaded", function () {
           );
         }
       });
-
       confirmButton.addEventListener("click", function () {
         const cashAmount = Math.max(Number(cashReceivedInput?.value) || 0, 0);
         if (cashAmount <= 0) {
@@ -1971,7 +2064,6 @@ document.addEventListener("DOMContentLoaded", function () {
       });
       return;
     }
-
     if (method === "GCash") {
       const qr = document.createElement("div");
       qr.className = "qr-placeholder";
@@ -2007,7 +2099,6 @@ document.addEventListener("DOMContentLoaded", function () {
       }
       return;
     }
-
     if (method === "Bank Transfer") {
       const bankInfo = document.createElement("div");
       bankInfo.className = "bank-info-box";
@@ -2040,7 +2131,6 @@ document.addEventListener("DOMContentLoaded", function () {
       });
       return;
     }
-
     if (method === "Card") {
       const row = document.createElement("div");
       row.className = "process-row";
@@ -2069,7 +2159,6 @@ document.addEventListener("DOMContentLoaded", function () {
       });
     }
   }
-
   function confirmPaymentProcess(referenceText, paymentAmount) {
     if (Number.isFinite(Number(paymentAmount)) && Number(paymentAmount) >= 0) {
       paymentPaidInput.value = Number(paymentAmount).toFixed(2);
@@ -2093,7 +2182,6 @@ document.addEventListener("DOMContentLoaded", function () {
     });
     updateSaveButtonState();
   }
-
   function setPaymentFieldsLocked(locked) {
     const isLocked = locked === true;
     if (patientNameInput) {
@@ -2135,17 +2223,14 @@ document.addEventListener("DOMContentLoaded", function () {
       closeServiceDropdown();
     }
   }
-
   function setAppointmentPaymentMode(enabled) {
     appointmentPaymentMode = enabled === true;
     setPaymentFieldsLocked(appointmentPaymentMode || additionalPaymentMode);
   }
-
   function setAdditionalPaymentMode(enabled) {
     additionalPaymentMode = enabled === true;
     setPaymentFieldsLocked(appointmentPaymentMode || additionalPaymentMode);
   }
-
   function renderAppointmentPaymentInfo() {
     const panel = document.getElementById("appointmentPaymentInfo");
     if (!panel) {
@@ -2180,7 +2265,6 @@ document.addEventListener("DOMContentLoaded", function () {
     document.getElementById("appointmentInfoDentist").textContent = dentistName;
     panel.classList.add("active");
   }
-
   function loadPendingPaymentFromAppointment() {
     try {
       const stored = localStorage.getItem(FINANCE_PENDING_PAYMENT_KEY);
@@ -2238,7 +2322,6 @@ document.addEventListener("DOMContentLoaded", function () {
       return false;
     }
   }
-
   function openAdditionalPaymentModal(transaction) {
     const normalized = normalizeTransaction(transaction);
     if (!normalized.id || normalized.balance <= 0) {
@@ -2284,7 +2367,6 @@ document.addEventListener("DOMContentLoaded", function () {
     updateSaveButtonState();
     renderAppointmentPaymentInfo();
   }
-
   function openPaymentModal(transaction = null) {
     if (transaction) {
       openAdditionalPaymentModal(transaction);
@@ -2330,7 +2412,6 @@ document.addEventListener("DOMContentLoaded", function () {
       }, 100);
     }
   }
-
   function closePaymentModal() {
     closePatientDropdown();
     closeServiceDropdown();
@@ -2351,7 +2432,6 @@ document.addEventListener("DOMContentLoaded", function () {
     renderAppointmentPaymentInfo();
     resetPaymentProcess();
   }
-
   function savePayment() {
     if (!editingTransactionId && !paymentProcessConfirmed) {
       showToast("Please complete the payment process first.");
@@ -2403,7 +2483,6 @@ document.addEventListener("DOMContentLoaded", function () {
     const date = paymentDateInput.value;
     const paymentMethod = paymentMethodInput.value;
     const notes = paymentNotesInput.value.trim();
-
     if (!appointmentPaymentMode && !patient) {
       showToast("Please select a registered patient.");
       patientNameInput.focus();
@@ -2446,7 +2525,6 @@ document.addEventListener("DOMContentLoaded", function () {
       showToast("Please select a payment method.");
       return;
     }
-
     const now = new Date();
     const createdTime = now.toTimeString().substring(0, 8);
     let matchingTransaction = additionalPaymentMode
@@ -2454,11 +2532,9 @@ document.addEventListener("DOMContentLoaded", function () {
       : appointmentPaymentMode
         ? null
         : getSelectedOutstandingTransaction();
-
     if (!appointmentPaymentMode && !matchingTransaction) {
       matchingTransaction = findOutstandingTransaction(patientId, service);
     }
-
     if (matchingTransaction) {
       const index = transactions.findIndex(function (item) {
         return item.id === matchingTransaction.id;
@@ -2582,12 +2658,10 @@ document.addEventListener("DOMContentLoaded", function () {
       transactions.unshift(newTransaction);
       showToast("Payment recorded successfully.");
     }
-
     transactions = transactions.map(function (transaction) {
       return normalizeTransaction(transaction);
     });
     saveTransactions();
-
     window.dispatchEvent(
       new CustomEvent("dentaNuevaPaymentUpdated", {
         detail: {
@@ -2600,13 +2674,11 @@ document.addEventListener("DOMContentLoaded", function () {
         },
       }),
     );
-
     closePaymentModal();
     renderPaymentMethods();
     currentPage = 1;
     renderTransactions();
   }
-
   function showTransactionDetails(transaction) {
     const normalized = normalizeTransaction(transaction);
     currentDetailsTransaction = normalized;
@@ -2621,7 +2693,6 @@ document.addEventListener("DOMContentLoaded", function () {
     const detailDate = document.getElementById("detailDate");
     const detailStatus = document.getElementById("detailStatus");
     const detailNotes = document.getElementById("detailNotes");
-
     if (detailTransactionId) {
       detailTransactionId.textContent = normalized.id || "-";
     }
@@ -2664,12 +2735,10 @@ document.addEventListener("DOMContentLoaded", function () {
       lucide.createIcons();
     }
   }
-
   function closeDetailsModal() {
     detailsModal.classList.remove("active");
     currentDetailsTransaction = null;
   }
-
   function printReceipt() {
     if (!currentDetailsTransaction) {
       return;
@@ -2691,7 +2760,6 @@ document.addEventListener("DOMContentLoaded", function () {
       getTransactionPaymentMethodLabel(t) ||
       "-";
     let referenceNumber = "N/A";
-
     if (latestPayment?.notes) {
       const referenceMatch = latestPayment.notes.match(
         /(?:GCash Ref|Bank Ref|Card Ref):\s*(.+)$/i,
@@ -2700,14 +2768,11 @@ document.addEventListener("DOMContentLoaded", function () {
         referenceNumber = referenceMatch[1].trim();
       }
     }
-
     const receiptWindow = window.open("", "_blank", "width=560,height=820");
-
     if (!receiptWindow) {
-      showToast("Please allow pop-ups to print the receipt.");
+      showToast("Please allow pop-ups to view the receipt.");
       return;
     }
-
     const receiptHtml = `
     <!doctype html>
     <html lang="en">
@@ -2865,6 +2930,26 @@ document.addEventListener("DOMContentLoaded", function () {
             font-weight: 400;
             line-height: 1.55;
           }
+          .receipt-actions {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+          }
+          .receipt-print-button {
+            min-width: 150px;
+            padding: 10px 18px;
+            border: 0;
+            border-radius: 6px;
+            background: #16803d;
+            color: #ffffff;
+            font-family: "Poppins", sans-serif;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+          }
+          .receipt-print-button:hover {
+            background: #126b33;
+          }
           @media print {
             @page {
               size: auto;
@@ -2883,6 +2968,9 @@ document.addEventListener("DOMContentLoaded", function () {
               max-width: none;
               margin: 0;
               border: 1px solid #dfe7e2;
+            }
+            .receipt-actions {
+              display: none;
             }
           }
           @media (max-width: 520px) {
@@ -2995,21 +3083,23 @@ document.addEventListener("DOMContentLoaded", function () {
               This receipt represents the selected payment transaction.
             </p>
           </footer>
+          <div class="receipt-actions">
+            <button
+              type="button"
+              class="receipt-print-button"
+              onclick="window.focus(); window.print();"
+            >
+              Print Receipt
+            </button>
+          </div>
         </div>
       </body>
     </html>
   `;
-
     receiptWindow.document.open();
     receiptWindow.document.write(receiptHtml);
     receiptWindow.document.close();
-
-    receiptWindow.onload = function () {
-      receiptWindow.focus();
-      receiptWindow.print();
-    };
   }
-
   function csvEscape(value) {
     const str = String(value ?? "");
     if (str.includes(",") || str.includes('"') || str.includes("\n")) {
@@ -3017,7 +3107,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     return str;
   }
-
   function exportTransactionsToCSV() {
     const filtered = getFilteredTransactions();
     if (filtered.length === 0) {
@@ -3070,7 +3159,6 @@ document.addEventListener("DOMContentLoaded", function () {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   }
-
   function deleteTransaction(id) {
     const transaction = transactions.find(function (item) {
       return item.id === id;
@@ -3102,12 +3190,10 @@ document.addEventListener("DOMContentLoaded", function () {
     renderTransactions();
     showToast("Payment record deleted successfully.");
   }
-
   function setDefaultPaymentDate() {
     paymentDateInput.value = getTodayString();
     paymentDateInput.max = getTodayString();
   }
-
   function showToast(message) {
     let toast = document.querySelector(".finance-toast");
     if (!toast) {
@@ -3122,7 +3208,6 @@ document.addEventListener("DOMContentLoaded", function () {
       toast.classList.remove("show");
     }, 2500);
   }
-
   function escapeHtml(value) {
     return String(value ?? "")
       .replace(/&/g, "&amp;")
@@ -3130,5 +3215,561 @@ document.addEventListener("DOMContentLoaded", function () {
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#039;");
+  }
+  function getPaymentVerificationState() {
+    if (!window.dentaNuevaFinancePaymentProcess) {
+      window.dentaNuevaFinancePaymentProcess = {
+        referenceNumber: "",
+        cashReceived: 0,
+        changeAmount: 0,
+        method: "",
+      };
+    }
+    return window.dentaNuevaFinancePaymentProcess;
+  }
+  function getPaymentVerificationElements() {
+    return {
+      modal: document.getElementById("paymentVerificationModal"),
+      box: document.getElementById("paymentVerificationBox"),
+      close: document.getElementById("closePaymentVerificationBtn"),
+    };
+  }
+  function closePaymentVerificationModal() {
+    const elements = getPaymentVerificationElements();
+    if (elements.modal) {
+      elements.modal.classList.remove("active");
+    }
+    if (paymentProcessEditing) {
+      paymentProcessEditing = false;
+      paymentProcessConfirmed = true;
+      showPaymentProcessStatus();
+      updateSaveButtonState();
+    }
+  }
+  function showPaymentProcessStatus() {
+    const method = paymentMethodInput?.value || "";
+    if (!method || !paymentProcessConfirmed) {
+      const existing = document.getElementById("paymentProcessStatus");
+      if (existing) {
+        existing.remove();
+      }
+      return;
+    }
+    const state = getPaymentVerificationState();
+    const existing = document.getElementById("paymentProcessStatus");
+    if (existing) {
+      existing.remove();
+    }
+    const status = document.createElement("div");
+    status.id = "paymentProcessStatus";
+    status.className = "payment-process-status";
+    const detail =
+      method === "Cash"
+        ? `Cash verified${
+            state.changeAmount > 0
+              ? ` · Change ${formatCurrency(state.changeAmount)}`
+              : ""
+          }`
+        : `${method} verified${
+            state.referenceNumber ? ` · Ref ${state.referenceNumber}` : ""
+          }`;
+    status.innerHTML = `<i data-lucide="check-circle"></i><span>${escapeHtml(
+      detail,
+    )}</span><button type="button" id="editPaymentProcessBtn">Edit</button>`;
+    paymentMethodInput?.parentElement?.appendChild(status);
+    document
+      .getElementById("editPaymentProcessBtn")
+      ?.addEventListener("click", function () {
+        paymentProcessEditing = true;
+        paymentProcessConfirmed = false;
+        openPaymentVerificationModal();
+      });
+    if (window.lucide) {
+      lucide.createIcons();
+    }
+  }
+  function resetPaymentProcess() {
+    paymentProcessConfirmed = false;
+    paymentProcessEditing = false;
+    const state = getPaymentVerificationState();
+    state.referenceNumber = "";
+    state.cashReceived = 0;
+    state.changeAmount = 0;
+    state.method = "";
+    closePaymentVerificationModal();
+    document.getElementById("paymentProcessStatus")?.remove();
+    if (paymentProcessBox) {
+      paymentProcessBox.innerHTML = "";
+    }
+    if (paymentProcessWrapper) {
+      paymentProcessWrapper.style.display = "none";
+    }
+    updateSaveButtonState();
+  }
+  function getCurrentPaymentDue() {
+    const calculation = updatePaymentCalculation();
+    return Math.max(calculation.balance + calculation.additionalPaid, 0);
+  }
+  function openPaymentVerificationModal() {
+    const elements = getPaymentVerificationElements();
+    const method = paymentMethodInput?.value || "";
+    if (!elements.modal || !elements.box || !method || editingTransactionId) {
+      closePaymentVerificationModal();
+      return;
+    }
+    const state = getPaymentVerificationState();
+    if (state.method !== method) {
+      state.referenceNumber = "";
+      state.cashReceived = 0;
+      state.changeAmount = 0;
+      state.method = method;
+    }
+    elements.box.innerHTML = "";
+    elements.modal.classList.add("active");
+    renderPaymentVerificationContent(method);
+    if (window.lucide) {
+      lucide.createIcons();
+    }
+  }
+  function renderPaymentVerificationContent(method) {
+    const elements = getPaymentVerificationElements();
+    if (!elements.box) {
+      return;
+    }
+    const state = getPaymentVerificationState();
+    const amountDue = getCurrentPaymentDue();
+    const currentAmount = Math.max(Number(paymentPaidInput.value) || 0, 0);
+    const methodConfig = {
+      Cash: [
+        "banknote",
+        "Cash Payment",
+        "Enter the cash received from the patient.",
+      ],
+      GCash: [
+        "smartphone",
+        "GCash Payment",
+        "Verify the GCash payment before recording it.",
+      ],
+      "Bank Transfer": [
+        "building-2",
+        "Bank Transfer",
+        "Verify the transfer reference before recording it.",
+      ],
+      Card: [
+        "credit-card",
+        "Card Payment",
+        "Verify the card authorization before recording it.",
+      ],
+    };
+    const config = methodConfig[method];
+    if (!config) {
+      return;
+    }
+    const header = document.createElement("div");
+    header.className = "payment-verification-header";
+    header.innerHTML = `<div class="payment-verification-icon"><i data-lucide="${config[0]}"></i></div><div><span class="payment-verification-label">PAYMENT VERIFICATION</span><h3>${escapeHtml(
+      config[1],
+    )}</h3><p>${escapeHtml(config[2])}</p></div>`;
+    elements.box.appendChild(header);
+    const summary = document.createElement("div");
+    summary.className = "payment-verification-summary";
+    summary.innerHTML = `<div><span>Remaining Balance</span><strong id="verificationRemainingBalance">${escapeHtml(
+      formatCurrency(amountDue),
+    )}</strong></div><div><span>Payment Amount</span><strong id="verificationPaymentAmount">${escapeHtml(
+      formatCurrency(currentAmount),
+    )}</strong></div>`;
+    elements.box.appendChild(summary);
+    if (method === "GCash") {
+      const qr = document.createElement("div");
+      qr.className = "verification-qr-placeholder";
+      qr.innerHTML = `<div class="verification-qr-box"><i data-lucide="qr-code"></i></div><strong>Clinic GCash QR</strong><span>Use the clinic's configured GCash QR code to receive payment.</span>`;
+      elements.box.appendChild(qr);
+    }
+    if (method === "Bank Transfer") {
+      const bankInfo = document.createElement("div");
+      bankInfo.className = "verification-bank-info";
+      bankInfo.innerHTML = `<div><span>Payment Type</span><strong>Bank Transfer</strong></div><div><span>Account Details</span><strong>Use the clinic's configured bank account.</strong></div>`;
+      elements.box.appendChild(bankInfo);
+    }
+    const fields = document.createElement("div");
+    fields.className = "payment-verification-fields";
+    if (method === "Cash") {
+      const receivedValue =
+        state.cashReceived > 0
+          ? state.cashReceived.toFixed(2)
+          : currentAmount > 0
+            ? currentAmount.toFixed(2)
+            : "";
+      fields.innerHTML = `<div class="verification-field"><label for="verificationAmountReceived">Amount Received</label><div class="verification-amount-input"><span>₱</span><input type="number" id="verificationAmountReceived" min="0" step="0.01" placeholder="0.00" value="${receivedValue}"></div></div><div class="verification-field"><label>Change</label><div class="verification-static-value" id="verificationChange">${escapeHtml(
+        formatCurrency(state.changeAmount),
+      )}</div></div>`;
+      elements.box.appendChild(fields);
+      const receivedInput = document.getElementById(
+        "verificationAmountReceived",
+      );
+      const changeOutput = document.getElementById("verificationChange");
+      const paymentOutput = document.getElementById(
+        "verificationPaymentAmount",
+      );
+      receivedInput?.addEventListener("input", function () {
+        paymentProcessConfirmed = false;
+        const received = Math.max(Number(receivedInput.value) || 0, 0);
+        const paymentAmount = Math.min(received, amountDue);
+        const change = Math.max(received - amountDue, 0);
+        state.cashReceived = received;
+        state.changeAmount = change;
+        paymentPaidInput.value = paymentAmount.toFixed(2);
+        updatePaymentCalculation();
+        if (paymentOutput) {
+          paymentOutput.textContent = formatCurrency(paymentAmount);
+        }
+        if (changeOutput) {
+          changeOutput.textContent = formatCurrency(change);
+        }
+        updateSaveButtonState();
+      });
+    } else {
+      const referenceLabel =
+        method === "GCash"
+          ? "GCash Reference Number"
+          : method === "Bank Transfer"
+            ? "Transfer Reference Number"
+            : "Authorization / Reference Number";
+      const referenceId =
+        method === "GCash"
+          ? "verificationGcashReference"
+          : method === "Bank Transfer"
+            ? "verificationBankReference"
+            : "verificationCardReference";
+      fields.innerHTML = `<div class="verification-field"><label for="verificationPaymentAmountInput">Payment Amount</label><div class="verification-amount-input"><span>₱</span><input type="number" id="verificationPaymentAmountInput" min="0.01" max="${amountDue.toFixed(
+        2,
+      )}" step="0.01" placeholder="0.00" value="${
+        currentAmount > 0 ? currentAmount.toFixed(2) : ""
+      }"></div></div><div class="verification-field"><label for="${referenceId}">${referenceLabel}</label><input type="text" id="${referenceId}" placeholder="Enter reference number" value="${escapeHtml(
+        state.referenceNumber,
+      )}"></div>`;
+      elements.box.appendChild(fields);
+      const amountInput = document.getElementById(
+        "verificationPaymentAmountInput",
+      );
+      const referenceInput = document.getElementById(referenceId);
+      const paymentOutput = document.getElementById(
+        "verificationPaymentAmount",
+      );
+      amountInput?.addEventListener("input", function () {
+        paymentProcessConfirmed = false;
+        const value = Math.min(
+          Math.max(Number(amountInput.value) || 0, 0),
+          amountDue,
+        );
+        paymentPaidInput.value = value.toFixed(2);
+        updatePaymentCalculation();
+        if (paymentOutput) {
+          paymentOutput.textContent = formatCurrency(value);
+        }
+        updateSaveButtonState();
+      });
+      referenceInput?.addEventListener("input", function () {
+        paymentProcessConfirmed = false;
+        state.referenceNumber = referenceInput.value.trim();
+        updateSaveButtonState();
+      });
+    }
+    const confirmButton = document.createElement("button");
+    confirmButton.type = "button";
+    confirmButton.className =
+      "confirm-process-button verification-confirm-button";
+    confirmButton.textContent =
+      method === "Cash"
+        ? "Confirm Cash"
+        : method === "GCash"
+          ? "Confirm GCash"
+          : method === "Bank Transfer"
+            ? "Confirm Transfer"
+            : "Confirm Card";
+    elements.box.appendChild(confirmButton);
+    confirmButton.addEventListener("click", function () {
+      const updated = updatePaymentCalculation();
+      const remainingDue = Math.max(
+        updated.balance + updated.additionalPaid,
+        0,
+      );
+      const paymentAmount = Math.max(Number(paymentPaidInput.value) || 0, 0);
+      if (remainingDue <= 0) {
+        showToast("This payment is already fully paid.");
+        return;
+      }
+      if (paymentAmount <= 0) {
+        showToast("Please enter the payment amount.");
+        return;
+      }
+      if (paymentAmount > remainingDue) {
+        showToast(
+          "Payment amount cannot be greater than the remaining balance.",
+        );
+        return;
+      }
+      if (method === "Cash") {
+        const received = Math.max(
+          Number(
+            document.getElementById("verificationAmountReceived")?.value,
+          ) || 0,
+          0,
+        );
+        if (received < paymentAmount) {
+          showToast("Amount received cannot be less than the payment amount.");
+          return;
+        }
+        state.cashReceived = received;
+        state.changeAmount = Math.max(received - paymentAmount, 0);
+        state.referenceNumber = "";
+        confirmPaymentProcess(
+          `Cash Received: ${formatCurrency(
+            received,
+          )} · Change: ${formatCurrency(state.changeAmount)}`,
+          paymentAmount,
+          "",
+        );
+        return;
+      }
+      const referenceId =
+        method === "GCash"
+          ? "verificationGcashReference"
+          : method === "Bank Transfer"
+            ? "verificationBankReference"
+            : "verificationCardReference";
+      const ref = document.getElementById(referenceId)?.value.trim() || "";
+      if (!ref) {
+        showToast(
+          `Please enter the ${
+            method === "GCash"
+              ? "GCash"
+              : method === "Bank Transfer"
+                ? "bank transfer"
+                : "card"
+          } reference number.`,
+        );
+        return;
+      }
+      state.referenceNumber = ref;
+      confirmPaymentProcess(
+        `${
+          method === "GCash"
+            ? "GCash Ref"
+            : method === "Bank Transfer"
+              ? "Bank Ref"
+              : "Card Ref"
+        }: ${ref}`,
+        paymentAmount,
+        ref,
+      );
+    });
+    if (window.lucide) {
+      lucide.createIcons();
+    }
+  }
+  function renderPaymentProcessSection(openVerification = false) {
+    if (paymentProcessWrapper) {
+      paymentProcessWrapper.style.display = "none";
+    }
+    if (paymentProcessBox) {
+      paymentProcessBox.innerHTML = "";
+    }
+    const method = paymentMethodInput?.value || "";
+    if (!method || editingTransactionId) {
+      closePaymentVerificationModal();
+      document.getElementById("paymentProcessStatus")?.remove();
+      updateSaveButtonState();
+      return;
+    }
+    const state = getPaymentVerificationState();
+    if (state.method !== method) {
+      state.method = method;
+      state.referenceNumber = "";
+      state.cashReceived = 0;
+      state.changeAmount = 0;
+      paymentProcessConfirmed = false;
+    }
+    if (openVerification && !paymentProcessConfirmed) {
+      openPaymentVerificationModal();
+    } else {
+      closePaymentVerificationModal();
+      showPaymentProcessStatus();
+    }
+    updateSaveButtonState();
+  }
+  function confirmPaymentProcess(
+    referenceText,
+    paymentAmount,
+    referenceNumber = "",
+  ) {
+    const state = getPaymentVerificationState();
+    if (Number.isFinite(Number(paymentAmount)) && Number(paymentAmount) >= 0) {
+      paymentPaidInput.value = Number(paymentAmount).toFixed(2);
+      updatePaymentCalculation();
+    }
+    state.referenceNumber = referenceNumber || state.referenceNumber || "";
+    paymentProcessConfirmed = true;
+    paymentProcessEditing = false;
+    closePaymentVerificationModal();
+    showPaymentProcessStatus();
+    updateSaveButtonState();
+    showToast("Payment process verified.");
+  }
+  function createPaymentHistoryEntry(
+    amount,
+    paymentMethod,
+    date,
+    notes,
+    createdTime,
+    createdAt,
+  ) {
+    const state = getPaymentVerificationState();
+    let historyNotes = notes || "";
+    if (paymentMethod === "GCash" && state.referenceNumber) {
+      historyNotes = `${historyNotes}${historyNotes ? " · " : ""}GCash Ref: ${
+        state.referenceNumber
+      }`;
+    }
+    if (paymentMethod === "Bank Transfer" && state.referenceNumber) {
+      historyNotes = `${historyNotes}${historyNotes ? " · " : ""}Bank Ref: ${
+        state.referenceNumber
+      }`;
+    }
+    if (paymentMethod === "Card" && state.referenceNumber) {
+      historyNotes = `${historyNotes}${historyNotes ? " · " : ""}Card Ref: ${
+        state.referenceNumber
+      }`;
+    }
+    return {
+      id: `PAY-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`,
+      amount: Math.max(Number(amount) || 0, 0),
+      paymentMethod: paymentMethod || "",
+      referenceNumber: state.referenceNumber || "",
+      cashReceived: Math.max(Number(state.cashReceived) || 0, 0),
+      changeAmount: Math.max(Number(state.changeAmount) || 0, 0),
+      date: date || "",
+      notes: historyNotes,
+      createdTime: createdTime || "",
+      createdAt: createdAt || new Date().toISOString(),
+    };
+  }
+  function normalizePaymentHistory(transaction, fallback) {
+    const history = Array.isArray(transaction.paymentHistory)
+      ? transaction.paymentHistory
+      : [];
+    if (history.length) {
+      return history
+        .map(function (payment, index) {
+          return {
+            id: payment.id || `${transaction.id || "PAY"}-${index + 1}`,
+            amount: Math.max(Number(payment.amount) || 0, 0),
+            paymentMethod:
+              payment.paymentMethod || fallback.paymentMethod || "",
+            referenceNumber:
+              payment.referenceNumber || fallback.referenceNumber || "",
+            cashReceived: Math.max(Number(payment.cashReceived) || 0, 0),
+            changeAmount: Math.max(Number(payment.changeAmount) || 0, 0),
+            date: payment.date || fallback.date || "",
+            notes: payment.notes || "",
+            createdTime: payment.createdTime || fallback.createdTime || "",
+            createdAt: payment.createdAt || fallback.createdAt || "",
+          };
+        })
+        .filter(function (payment) {
+          return payment.amount > 0;
+        });
+    }
+    if (fallback.paid > 0) {
+      return [
+        {
+          id: `${transaction.id || "PAY"}-1`,
+          amount: fallback.paid,
+          paymentMethod: fallback.paymentMethod || "",
+          referenceNumber: fallback.referenceNumber || "",
+          cashReceived: Math.max(Number(fallback.cashReceived) || 0, 0),
+          changeAmount: Math.max(Number(fallback.changeAmount) || 0, 0),
+          date: fallback.date || "",
+          notes: fallback.notes || "",
+          createdTime: fallback.createdTime || "",
+          createdAt: fallback.createdAt || "",
+        },
+      ];
+    }
+    return [];
+  }
+  function renderPaymentHistory(transaction) {
+    if (!paymentHistoryList || !paymentHistoryCount) {
+      return;
+    }
+    const history = getTransactionPaymentHistory(transaction);
+    paymentHistoryList.innerHTML = "";
+    paymentHistoryCount.textContent = `${history.length} ${
+      history.length === 1 ? "payment" : "payments"
+    }`;
+    if (!history.length) {
+      const empty = document.createElement("div");
+      empty.className = "payment-history-empty";
+      empty.innerHTML = `<div class="payment-history-empty-icon"><i data-lucide="history"></i></div><strong>No payment history</strong><p>Additional payments will appear here.</p>`;
+      paymentHistoryList.appendChild(empty);
+      if (window.lucide) {
+        lucide.createIcons();
+      }
+      return;
+    }
+    history.forEach(function (payment, index) {
+      const item = document.createElement("div");
+      item.className = "payment-history-item";
+      const icon =
+        payment.paymentMethod === "GCash"
+          ? "smartphone"
+          : payment.paymentMethod === "Bank Transfer"
+            ? "building-2"
+            : payment.paymentMethod === "Card"
+              ? "credit-card"
+              : "banknote";
+      const meta = [
+        formatDate(payment.date),
+        payment.createdTime ? getTimeLabel(payment.createdTime) : "",
+        payment.referenceNumber ? `Ref: ${payment.referenceNumber}` : "",
+        payment.paymentMethod === "Cash" && payment.changeAmount > 0
+          ? `Change: ${formatCurrency(payment.changeAmount)}`
+          : "",
+      ]
+        .filter(Boolean)
+        .join(" · ");
+      item.innerHTML = `<div class="payment-history-item-left"><div class="payment-history-method-icon"><i data-lucide="${icon}"></i></div><div class="payment-history-item-info"><strong>${escapeHtml(
+        payment.paymentMethod || "Payment",
+      )}</strong><span>${escapeHtml(
+        meta,
+      )}</span></div></div><div class="payment-history-item-right"><strong>${escapeHtml(
+        formatCurrency(payment.amount),
+      )}</strong><span>Payment ${history.length - index}</span></div>`;
+      paymentHistoryList.appendChild(item);
+    });
+    if (window.lucide) {
+      lucide.createIcons();
+    }
+  }
+  function closePaymentModal() {
+    closePaymentVerificationModal();
+    closePatientDropdown();
+    closeServiceDropdown();
+    paymentModal.classList.remove("active");
+    paymentForm.reset();
+    editingTransactionId = null;
+    additionalPaymentMode = false;
+    selectedPatientId = "";
+    selectedOutstandingTransactionId = "";
+    transactionIdInput.value = "";
+    paymentBalanceInput.value = "0.00";
+    setFinancePatientId("");
+    patientNameInput.removeAttribute("data-patient-id");
+    modalTitle.textContent = "Record Payment";
+    pendingAppointmentPayment = null;
+    setAdditionalPaymentMode(false);
+    setAppointmentPaymentMode(false);
+    renderAppointmentPaymentInfo();
+    resetPaymentProcess();
   }
 });

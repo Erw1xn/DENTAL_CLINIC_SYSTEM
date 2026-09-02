@@ -4,24 +4,30 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Finance | DentaNueva Dental Clinic</title>
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@300;400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
+
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
     />
+
     <link rel="stylesheet" href="../profile/profile.css" />
     <link rel="stylesheet" href="../../navigation_bar/sidebar.css" />
     <link rel="stylesheet" href="finance.css" />
+
     <script src="https://unpkg.com/lucide@latest"></script>
   </head>
+
   <body>
     <div class="dashboard-wrapper">
       <aside id="sidebar-container"></aside>
+
       <main class="finance-page">
         <section class="finance-content-grid">
           <div class="transactions-card">
@@ -30,10 +36,12 @@
                 <h2>Recent Transactions</h2>
                 <p>View and manage recent patient payments.</p>
               </div>
+
               <div class="transactions-header-actions">
-                <span class="transaction-count" id="transactionCount"
-                  >0 transactions</span
-                >
+                <span class="transaction-count" id="transactionCount">
+                  0 transactions
+                </span>
+
                 <button
                   class="secondary-button"
                   id="exportCsvBtn"
@@ -42,6 +50,7 @@
                   <i data-lucide="download"></i>
                   <span>Export CSV</span>
                 </button>
+
                 <button
                   class="collection-header-button"
                   id="openCollectionDrawerBtn"
@@ -52,6 +61,7 @@
                     <i data-lucide="chevron-right"></i>
                   </span>
                 </button>
+
                 <button
                   class="primary-button record-payment-header-button"
                   id="recordPaymentBtn"
@@ -62,9 +72,91 @@
                 </button>
               </div>
             </div>
+
+            <section class="finance-overview">
+              <div class="finance-overview-grid">
+                <div class="finance-overview-card">
+                  <div class="finance-overview-card-content">
+                    <span class="finance-overview-card-label">
+                      Today's Collection
+                    </span>
+
+                    <strong
+                      class="finance-overview-card-value"
+                      id="overviewTodayCollection"
+                    >
+                      ₱0.00
+                    </strong>
+                  </div>
+
+                  <div class="finance-overview-card-icon">
+                    <i data-lucide="wallet"></i>
+                  </div>
+                </div>
+
+                <div class="finance-overview-card">
+                  <div class="finance-overview-card-content">
+                    <span class="finance-overview-card-label">
+                      Today's Transactions
+                    </span>
+
+                    <strong
+                      class="finance-overview-card-value"
+                      id="overviewTodayTransactions"
+                    >
+                      0
+                    </strong>
+                  </div>
+
+                  <div class="finance-overview-card-icon">
+                    <i data-lucide="receipt-text"></i>
+                  </div>
+                </div>
+
+                <div class="finance-overview-card">
+                  <div class="finance-overview-card-content">
+                    <span class="finance-overview-card-label">
+                      This Month
+                    </span>
+
+                    <strong
+                      class="finance-overview-card-value"
+                      id="overviewMonthlyCollection"
+                    >
+                      ₱0.00
+                    </strong>
+                  </div>
+
+                  <div class="finance-overview-card-icon">
+                    <i data-lucide="calendar-range"></i>
+                  </div>
+                </div>
+
+                <div class="finance-overview-card">
+                  <div class="finance-overview-card-content">
+                    <span class="finance-overview-card-label">
+                      Outstanding Balance
+                    </span>
+
+                    <strong
+                      class="finance-overview-card-value"
+                      id="overviewOutstandingBalance"
+                    >
+                      ₱0.00
+                    </strong>
+                  </div>
+
+                  <div class="finance-overview-card-icon">
+                    <i data-lucide="circle-dollar-sign"></i>
+                  </div>
+                </div>
+              </div>
+            </section>
+
             <div class="filters">
               <div class="search-box">
                 <i data-lucide="search"></i>
+
                 <input
                   type="text"
                   id="searchInput"
@@ -72,6 +164,7 @@
                   autocomplete="off"
                 />
               </div>
+
               <select id="paymentMethodFilter">
                 <option value="all">All Payment Methods</option>
                 <option value="Cash">Cash</option>
@@ -79,12 +172,14 @@
                 <option value="Bank Transfer">Bank Transfer</option>
                 <option value="Card">Card</option>
               </select>
+
               <select id="dateFilter">
-                <option value="all">All Dates</option>
-                <option value="today">Today</option>
-                <option value="month">This Month</option>
+                <option value="all">All Status</option>
+                <option value="partial">Partial</option>
+                <option value="paid">Paid</option>
               </select>
             </div>
+
             <div class="table-wrapper">
               <table class="transactions-table">
                 <thead>
@@ -101,21 +196,29 @@
                     <th class="action-header">ACTION</th>
                   </tr>
                 </thead>
+
                 <tbody id="transactionsTableBody"></tbody>
               </table>
+
               <div class="empty-state" id="emptyState">
-                <div class="empty-icon"><i data-lucide="receipt"></i></div>
+                <div class="empty-icon">
+                  <i data-lucide="receipt"></i>
+                </div>
+
                 <h3>No transactions found</h3>
                 <p>Payment transactions will appear here.</p>
               </div>
             </div>
+
             <div class="pagination-bar" id="paginationBar">
               <button type="button" class="pagination-button" id="prevPageBtn">
                 <i data-lucide="chevron-left"></i>
               </button>
-              <span class="pagination-info" id="paginationInfo"
-                >Page 1 of 1</span
-              >
+
+              <span class="pagination-info" id="paginationInfo">
+                Page 1 of 1
+              </span>
+
               <button type="button" class="pagination-button" id="nextPageBtn">
                 <i data-lucide="chevron-right"></i>
               </button>
@@ -134,6 +237,7 @@
           <h2>Payment Collection</h2>
           <p>Review collected payments by period.</p>
         </div>
+
         <button
           type="button"
           class="collection-drawer-close"
@@ -151,12 +255,16 @@
                 <div class="collection-period-icon">
                   <i data-lucide="calendar-days"></i>
                 </div>
+
                 <div>
                   <h3>Today's Collection</h3>
-                  <p>Payment collection for today.</p>
+                  <p id="todayCollectionDescription">
+                    Payment collection for today.
+                  </p>
                 </div>
               </div>
             </div>
+
             <div class="collection-period-actions">
               <button
                 type="button"
@@ -166,6 +274,7 @@
                 Custom
                 <i data-lucide="calendar-search"></i>
               </button>
+
               <button
                 type="button"
                 class="collection-page-button"
@@ -182,6 +291,7 @@
               <span>Total Collected</span>
               <strong id="todayPaymentMethodTotal">₱0.00</strong>
             </div>
+
             <div class="collection-total-icon">
               <i data-lucide="wallet"></i>
             </div>
@@ -200,11 +310,13 @@
                 <div class="method-icon cash">
                   <i data-lucide="banknote"></i>
                 </div>
+
                 <div>
                   <strong>Cash</strong>
                   <span id="todayCashCount">0 transactions</span>
                 </div>
               </div>
+
               <strong id="todayCashAmount">₱0.00</strong>
             </div>
 
@@ -213,11 +325,13 @@
                 <div class="method-icon gcash">
                   <i data-lucide="smartphone"></i>
                 </div>
+
                 <div>
                   <strong>GCash</strong>
                   <span id="todayGcashCount">0 transactions</span>
                 </div>
               </div>
+
               <strong id="todayGcashAmount">₱0.00</strong>
             </div>
 
@@ -226,11 +340,13 @@
                 <div class="method-icon bank">
                   <i data-lucide="building-2"></i>
                 </div>
+
                 <div>
                   <strong>Bank Transfer</strong>
                   <span id="todayBankCount">0 transactions</span>
                 </div>
               </div>
+
               <strong id="todayBankAmount">₱0.00</strong>
             </div>
 
@@ -239,11 +355,13 @@
                 <div class="method-icon card">
                   <i data-lucide="credit-card"></i>
                 </div>
+
                 <div>
                   <strong>Card</strong>
                   <span id="todayCardCount">0 transactions</span>
                 </div>
               </div>
+
               <strong id="todayCardAmount">₱0.00</strong>
             </div>
           </div>
@@ -256,6 +374,7 @@
                 <div class="collection-period-icon">
                   <i data-lucide="calendar-range"></i>
                 </div>
+
                 <div>
                   <h3>Monthly Collection</h3>
                   <p id="monthlyCollectionDescription">
@@ -264,6 +383,7 @@
                 </div>
               </div>
             </div>
+
             <div class="collection-period-actions">
               <button
                 type="button"
@@ -273,6 +393,7 @@
                 <i data-lucide="chevron-left"></i>
                 Today
               </button>
+
               <button
                 type="button"
                 class="collection-page-button"
@@ -289,6 +410,7 @@
               <span>Total Collected</span>
               <strong id="monthlyPaymentMethodTotal">₱0.00</strong>
             </div>
+
             <div class="collection-total-icon">
               <i data-lucide="wallet"></i>
             </div>
@@ -307,11 +429,13 @@
                 <div class="method-icon cash">
                   <i data-lucide="banknote"></i>
                 </div>
+
                 <div>
                   <strong>Cash</strong>
                   <span id="monthlyCashCount">0 transactions</span>
                 </div>
               </div>
+
               <strong id="monthlyCashAmount">₱0.00</strong>
             </div>
 
@@ -320,11 +444,13 @@
                 <div class="method-icon gcash">
                   <i data-lucide="smartphone"></i>
                 </div>
+
                 <div>
                   <strong>GCash</strong>
                   <span id="monthlyGcashCount">0 transactions</span>
                 </div>
               </div>
+
               <strong id="monthlyGcashAmount">₱0.00</strong>
             </div>
 
@@ -333,11 +459,13 @@
                 <div class="method-icon bank">
                   <i data-lucide="building-2"></i>
                 </div>
+
                 <div>
                   <strong>Bank Transfer</strong>
                   <span id="monthlyBankCount">0 transactions</span>
                 </div>
               </div>
+
               <strong id="monthlyBankAmount">₱0.00</strong>
             </div>
 
@@ -346,11 +474,13 @@
                 <div class="method-icon card">
                   <i data-lucide="credit-card"></i>
                 </div>
+
                 <div>
                   <strong>Card</strong>
                   <span id="monthlyCardCount">0 transactions</span>
                 </div>
               </div>
+
               <strong id="monthlyCardAmount">₱0.00</strong>
             </div>
           </div>
@@ -363,12 +493,16 @@
                 <div class="collection-period-icon">
                   <i data-lucide="calendar-search"></i>
                 </div>
+
                 <div>
                   <h3>Custom Range</h3>
-                  <p>Pick a date range to view collections.</p>
+                  <p id="customCollectionDescription">
+                    Pick a date range to view collections.
+                  </p>
                 </div>
               </div>
             </div>
+
             <div class="collection-period-actions">
               <button
                 type="button"
@@ -378,6 +512,7 @@
                 <i data-lucide="chevron-left"></i>
                 Today
               </button>
+
               <button
                 type="button"
                 class="collection-page-button"
@@ -394,10 +529,12 @@
               <label for="customDateFrom">From</label>
               <input type="date" id="customDateFrom" />
             </div>
+
             <div class="custom-range-field">
               <label for="customDateTo">To</label>
               <input type="date" id="customDateTo" />
             </div>
+
             <button
               type="button"
               class="primary-button"
@@ -412,6 +549,7 @@
               <span>Total Collected</span>
               <strong id="customPaymentMethodTotal">₱0.00</strong>
             </div>
+
             <div class="collection-total-icon">
               <i data-lucide="wallet"></i>
             </div>
@@ -430,11 +568,13 @@
                 <div class="method-icon cash">
                   <i data-lucide="banknote"></i>
                 </div>
+
                 <div>
                   <strong>Cash</strong>
                   <span id="customCashCount">0 transactions</span>
                 </div>
               </div>
+
               <strong id="customCashAmount">₱0.00</strong>
             </div>
 
@@ -443,11 +583,13 @@
                 <div class="method-icon gcash">
                   <i data-lucide="smartphone"></i>
                 </div>
+
                 <div>
                   <strong>GCash</strong>
                   <span id="customGcashCount">0 transactions</span>
                 </div>
               </div>
+
               <strong id="customGcashAmount">₱0.00</strong>
             </div>
 
@@ -456,11 +598,13 @@
                 <div class="method-icon bank">
                   <i data-lucide="building-2"></i>
                 </div>
+
                 <div>
                   <strong>Bank Transfer</strong>
                   <span id="customBankCount">0 transactions</span>
                 </div>
               </div>
+
               <strong id="customBankAmount">₱0.00</strong>
             </div>
 
@@ -469,11 +613,13 @@
                 <div class="method-icon card">
                   <i data-lucide="credit-card"></i>
                 </div>
+
                 <div>
                   <strong>Card</strong>
                   <span id="customCardCount">0 transactions</span>
                 </div>
               </div>
+
               <strong id="customCardAmount">₱0.00</strong>
             </div>
           </div>
@@ -488,6 +634,7 @@
             <span class="modal-label">FINANCE</span>
             <h2 id="modalTitle">Record Payment</h2>
           </div>
+
           <button type="button" class="close-button" id="closeModalBtn">
             <i data-lucide="x"></i>
           </button>
@@ -498,18 +645,21 @@
             <div class="appointment-info-item">
               <span class="appointment-info-title">Patient</span>
               <strong id="appointmentInfoPatient">-</strong>
-              <span class="appointment-info-sub" id="appointmentInfoPatientId"
-                >-</span
-              >
+              <span class="appointment-info-sub" id="appointmentInfoPatientId">
+                -
+              </span>
             </div>
+
             <div class="appointment-info-item">
               <span class="appointment-info-title">Service</span>
               <strong id="appointmentInfoService">-</strong>
             </div>
+
             <div class="appointment-info-item">
               <span class="appointment-info-title">Appointment</span>
               <strong id="appointmentInfoDate">-</strong>
             </div>
+
             <div class="appointment-info-item">
               <span class="appointment-info-title">Dentist</span>
               <strong id="appointmentInfoDentist">-</strong>
@@ -523,6 +673,7 @@
           <div class="form-grid">
             <div class="form-group">
               <label for="patientName">Patient Name <span>*</span></label>
+
               <div class="patient-select-wrapper" id="patientSelectWrapper">
                 <input
                   type="text"
@@ -533,21 +684,25 @@
                   aria-autocomplete="list"
                   aria-expanded="false"
                 />
+
                 <i class="fa-solid fa-chevron-down patient-select-arrow"></i>
+
                 <div
                   class="patient-dropdown"
                   id="patientDropdown"
                   role="listbox"
                 ></div>
               </div>
-              <small class="field-help"
-                >Only patients already registered in the Patients page can be
-                selected.</small
-              >
+
+              <small class="field-help">
+                Only patients already registered in the Patients page can be
+                selected.
+              </small>
             </div>
 
             <div class="form-group">
               <label for="serviceName">Service <span>*</span></label>
+
               <div class="service-select-wrapper" id="serviceSelectWrapper">
                 <input
                   type="text"
@@ -559,7 +714,9 @@
                   aria-expanded="false"
                   required
                 />
+
                 <i class="fa-solid fa-chevron-down service-select-arrow"></i>
+
                 <div
                   class="service-dropdown"
                   id="serviceDropdown"
@@ -569,14 +726,17 @@
             </div>
 
             <div class="form-group">
-              <label for="paymentDate">Payment Date <span>*</span></label>
+              <label for="paymentDate"> Payment Date <span>*</span> </label>
+
               <input type="date" id="paymentDate" required />
             </div>
 
             <div class="form-group">
-              <label for="paymentTotal">Total Amount <span>*</span></label>
+              <label for="paymentTotal"> Total Amount <span>*</span> </label>
+
               <div class="amount-input">
                 <span>₱</span>
+
                 <input
                   type="number"
                   id="paymentTotal"
@@ -590,8 +750,10 @@
 
             <div class="form-group">
               <label for="paymentDiscount">Discount</label>
+
               <div class="amount-input">
                 <span>₱</span>
+
                 <input
                   type="number"
                   id="paymentDiscount"
@@ -604,7 +766,8 @@
             </div>
 
             <div class="form-group">
-              <label for="paymentMethod">Payment Method <span>*</span></label>
+              <label for="paymentMethod"> Payment Method <span>*</span> </label>
+
               <select id="paymentMethod" required>
                 <option value="">Select method</option>
                 <option value="Cash">Cash</option>
@@ -623,9 +786,11 @@
             </div>
 
             <div class="form-group">
-              <label for="paymentPaid">Amount Paid <span>*</span></label>
+              <label for="paymentPaid"> Amount Paid <span>*</span> </label>
+
               <div class="amount-input calculated-payment-input">
                 <span>₱</span>
+
                 <input
                   type="number"
                   id="paymentPaid"
@@ -640,14 +805,17 @@
 
             <div class="form-group">
               <label for="paymentBalance">Balance</label>
+
               <div class="amount-input calculated-input">
                 <span>₱</span>
+
                 <input type="text" id="paymentBalance" value="0.00" readonly />
               </div>
             </div>
 
             <div class="form-group">
               <label for="paymentStatus">Payment Status</label>
+
               <select id="paymentStatus" disabled>
                 <option value="Paid">Paid</option>
                 <option value="Partial">Partial</option>
@@ -657,6 +825,7 @@
 
             <div class="form-group notes-form-group">
               <label for="paymentNotes">Notes</label>
+
               <textarea
                 id="paymentNotes"
                 rows="1"
@@ -673,6 +842,7 @@
             >
               Cancel
             </button>
+
             <button
               type="submit"
               class="primary-button"
@@ -687,6 +857,30 @@
       </div>
     </div>
 
+    <div class="payment-verification-overlay" id="paymentVerificationModal">
+      <div class="payment-verification-modal">
+        <div class="payment-verification-modal-header">
+          <div>
+            <span class="modal-label">PAYMENT VERIFICATION</span>
+            <h2>Verify Payment</h2>
+          </div>
+
+          <button
+            type="button"
+            class="close-button"
+            id="closePaymentVerificationBtn"
+          >
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+
+        <div
+          class="payment-verification-content"
+          id="paymentVerificationBox"
+        ></div>
+      </div>
+    </div>
+
     <div class="modal-overlay" id="detailsModal">
       <div class="details-modal">
         <div class="modal-header">
@@ -694,6 +888,7 @@
             <span class="modal-label">TRANSACTION</span>
             <h2>Payment Details</h2>
           </div>
+
           <button type="button" class="close-button" id="closeDetailsBtn">
             <i data-lucide="x"></i>
           </button>
@@ -710,34 +905,42 @@
               <span>Patient</span>
               <strong id="detailPatient">-</strong>
             </div>
+
             <div>
               <span>Service</span>
               <strong id="detailService">-</strong>
             </div>
+
             <div>
               <span>Total</span>
               <strong id="detailTotal">₱0.00</strong>
             </div>
+
             <div>
               <span>Discount</span>
               <strong id="detailDiscount">₱0.00</strong>
             </div>
+
             <div>
               <span>Paid</span>
               <strong id="detailPaid">₱0.00</strong>
             </div>
+
             <div>
               <span>Balance</span>
               <strong id="detailBalance">₱0.00</strong>
             </div>
+
             <div>
               <span>Payment Method(s)</span>
               <strong id="detailMethod">-</strong>
             </div>
+
             <div>
               <span>Date</span>
               <strong id="detailDate">-</strong>
             </div>
+
             <div class="detail-status-item">
               <span>Status</span>
               <strong id="detailStatus">-</strong>
@@ -756,6 +959,7 @@
                 <h3>Payment History</h3>
                 <p>View all payments recorded for this transaction.</p>
               </div>
+
               <div class="payment-history-count" id="paymentHistoryCount">
                 0 payments
               </div>
@@ -766,6 +970,7 @@
                 <div class="payment-history-empty-icon">
                   <i data-lucide="history"></i>
                 </div>
+
                 <strong>No payment history</strong>
                 <p>Additional payments will appear here.</p>
               </div>
@@ -781,6 +986,7 @@
           >
             Close
           </button>
+
           <button type="button" class="secondary-button" id="printReceiptBtn">
             Print Receipt
           </button>

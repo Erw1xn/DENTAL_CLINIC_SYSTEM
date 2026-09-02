@@ -459,7 +459,8 @@ button {
 
 .payment-modal[hidden],
 .receipt-modal[hidden],
-.patient-pay-modal[hidden] {
+.patient-pay-modal[hidden],
+.patient-payment-verification-modal[hidden] {
   display: none;
 }
 
@@ -1236,10 +1237,373 @@ button {
 
 .patient-pay-process {
   width: 100%;
+  margin-top: -3px;
+  margin-bottom: 12px;
 }
 
 .patient-pay-process[hidden] {
   display: none;
+}
+
+.patient-payment-process-status {
+  min-height: 38px;
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid #cdeedb;
+  border-radius: 8px;
+  background: #eaf7ef;
+  color: #16814b;
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.patient-payment-process-status > div {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.patient-payment-process-status i {
+  flex: 0 0 auto;
+  font-size: 11px;
+}
+
+.patient-payment-process-status span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.patient-payment-process-status button {
+  flex: 0 0 auto;
+  min-height: 24px;
+  padding: 0 9px;
+  border: 1px solid #b9ddc6;
+  border-radius: 6px;
+  background: #fff;
+  color: var(--green);
+  font-size: 7.5px;
+  font-weight: 700;
+}
+
+.patient-payment-process-status button:hover {
+  background: #f4fbf6;
+}
+
+.patient-payment-verification-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+}
+
+.patient-payment-verification-modal[hidden] {
+  display: none;
+}
+
+.patient-payment-verification-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(14, 28, 20, 0.48);
+}
+
+.patient-payment-verification-dialog {
+  position: relative;
+  z-index: 1;
+  width: min(500px, 100%);
+  max-height: calc(100vh - 28px);
+  overflow: auto;
+  border: 1px solid #dfe7e2;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 18px 55px rgba(20, 40, 28, 0.2);
+}
+
+.patient-payment-verification-close {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  z-index: 3;
+  width: 31px;
+  height: 31px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e0e7e2;
+  border-radius: 7px;
+  background: #fff;
+  color: #78847d;
+}
+
+.patient-payment-verification-close:hover {
+  border-color: #cbded2;
+  background: #f1f8f4;
+  color: var(--green);
+}
+
+.patient-payment-verification-box {
+  padding: 18px;
+}
+
+.patient-payment-verification-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-right: 42px;
+  margin-bottom: 13px;
+}
+
+.patient-payment-verification-icon {
+  width: 39px;
+  height: 39px;
+  flex: 0 0 39px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: #eaf7ef;
+  color: var(--green);
+  font-size: 14px;
+}
+
+.patient-payment-verification-label {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--green);
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.patient-payment-verification-header h3 {
+  margin: 0;
+  color: #1d2b23;
+  font-family: var(--font-heading);
+  font-size: 14px;
+  line-height: 1.25;
+}
+
+.patient-payment-verification-header p {
+  margin: 3px 0 0;
+  color: #7f8b84;
+  font-size: 8px;
+  line-height: 1.45;
+}
+
+.patient-payment-verification-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 11px;
+}
+
+.patient-payment-verification-summary > div {
+  min-height: 57px;
+  padding: 9px 10px;
+  border: 1px solid #e0e8e3;
+  border-radius: 8px;
+  background: #f8fbf9;
+}
+
+.patient-payment-verification-summary span {
+  display: block;
+  margin-bottom: 4px;
+  color: #849089;
+  font-size: 7px;
+  font-weight: 600;
+}
+
+.patient-payment-verification-summary strong {
+  color: #26372d;
+  font-family: var(--font-heading);
+  font-size: 10px;
+}
+
+.patient-payment-verification-summary > div:last-child strong {
+  color: var(--green);
+}
+
+.patient-payment-verification-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+  margin-top: 11px;
+}
+
+.patient-payment-verification-field {
+  min-width: 0;
+}
+
+.patient-payment-verification-field label {
+  display: block;
+  margin-bottom: 5px;
+  color: #35453b;
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.patient-payment-verification-field input {
+  width: 100%;
+  height: 38px;
+  padding: 0 10px;
+  border: 1px solid #dce5df;
+  border-radius: 8px;
+  outline: 0;
+  background: #fff;
+  color: #34443b;
+  font-size: 8.5px;
+}
+
+.patient-payment-verification-field input::placeholder {
+  color: #929b95;
+}
+
+.patient-payment-verification-field input:focus {
+  border-color: #6db18a;
+  box-shadow: 0 0 0 2px rgba(22, 128, 61, 0.08);
+}
+
+.patient-payment-verification-amount {
+  position: relative;
+  width: 100%;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  border: 1px solid #dce5df;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.patient-payment-verification-amount:focus-within {
+  border-color: #6db18a;
+  box-shadow: 0 0 0 2px rgba(22, 128, 61, 0.08);
+}
+
+.patient-payment-verification-amount span {
+  flex: 0 0 auto;
+  padding-left: 10px;
+  color: #68756d;
+  font-size: 8.5px;
+  font-weight: 700;
+}
+
+.patient-payment-verification-amount input {
+  width: 100%;
+  height: 36px;
+  padding: 0 10px 0 5px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.patient-payment-verification-amount input:focus {
+  border: 0;
+  box-shadow: none;
+}
+
+.patient-payment-verification-static {
+  width: 100%;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  border: 1px solid #dce5df;
+  border-radius: 8px;
+  background: #f8fbf9;
+  color: #26372d;
+  font-family: var(--font-heading);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.patient-payment-verification-qr {
+  margin-top: 10px;
+  padding: 11px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 1px dashed #d3e0d9;
+  border-radius: 9px;
+  background: #fbfdfc;
+  text-align: center;
+}
+
+.patient-payment-verification-qr-box {
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #dcebe2;
+  border-radius: 8px;
+  background: #eef8f2;
+  color: var(--green);
+}
+
+.patient-payment-verification-qr-box i {
+  font-size: 25px;
+}
+
+.patient-payment-verification-qr strong {
+  color: #34443b;
+  font-size: 8.5px;
+  font-weight: 700;
+}
+
+.patient-payment-verification-qr span {
+  color: #7f8b84;
+  font-size: 7px;
+  line-height: 1.4;
+}
+
+.patient-payment-verification-bank {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 10px;
+}
+
+.patient-payment-verification-bank div {
+  min-height: 35px;
+  padding: 7px 9px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid #e6ece8;
+  border-radius: 8px;
+  background: #fbfcfb;
+}
+
+.patient-payment-verification-bank span {
+  color: #8d9791;
+  font-size: 7px;
+}
+
+.patient-payment-verification-bank strong {
+  color: #28332c;
+  font-size: 8px;
+  text-align: right;
+}
+
+.patient-payment-verification-confirm {
+  width: 100%;
+  min-height: 39px;
+  margin-top: 12px;
+}
+
+.primary-button.patient-payment-verification-confirm {
+  font-size: 8.5px;
 }
 
 .patient-pay-actions {
@@ -1404,13 +1768,15 @@ button {
 
   .payment-modal,
   .receipt-modal,
-  .patient-pay-modal {
+  .patient-pay-modal,
+  .patient-payment-verification-modal {
     padding: 10px;
   }
 
   .payment-modal-dialog,
   .receipt-modal-dialog,
-  .patient-pay-dialog {
+  .patient-pay-dialog,
+  .patient-payment-verification-dialog {
     max-height: calc(100vh - 20px);
   }
 
@@ -1437,6 +1803,14 @@ button {
   .receipt-secondary-button,
   .receipt-primary-button {
     width: 100%;
+  }
+
+  .patient-payment-verification-box {
+    padding: 16px;
+  }
+
+  .patient-payment-verification-fields {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -1498,5 +1872,23 @@ button {
 
   .receipt-paper {
     padding: 16px;
+  }
+
+  .patient-payment-verification-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .patient-payment-verification-bank div {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .patient-payment-verification-bank strong {
+    text-align: left;
+  }
+
+  .patient-payment-verification-header h3 {
+    font-size: 13px;
   }
 }

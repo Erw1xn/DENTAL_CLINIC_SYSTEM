@@ -3,6 +3,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const MOVEMENTS_KEY = "dentanueva_inventory_movements";
   const RESET_VERSION_KEY = "dentanueva_inventory_reset_version";
   const RESET_VERSION = "inventory-reset-2026-08-16-v1";
+  const INVENTORY_PAGE_SIZE = 10;
+
   const addItemBtn = document.getElementById("addItemBtn");
   const emptyAddItemBtn = document.getElementById("emptyAddItemBtn");
   const stockMovementBtn = document.getElementById("stockMovementBtn");
@@ -14,9 +16,120 @@ document.addEventListener("DOMContentLoaded", () => {
   const inventoryTableBody = document.getElementById("inventoryTableBody");
   const emptyState = document.getElementById("emptyState");
   const itemCount = document.getElementById("itemCount");
-  let stockStatusIcon = document.getElementById("stockStatusIcon");
+  const inventoryPagination = document.getElementById("inventoryPagination");
+  const inventoryPaginationSummary = document.getElementById(
+    "inventoryPaginationSummary",
+  );
+  const inventoryPaginationPageInfo = document.getElementById(
+    "inventoryPaginationPageInfo",
+  );
+  const inventoryPrevPageBtn = document.getElementById("inventoryPrevPageBtn");
+  const inventoryNextPageBtn = document.getElementById("inventoryNextPageBtn");
+  const inventoryToast = document.getElementById("inventoryToast");
+  const inventoryToastIcon = document.getElementById("inventoryToastIcon");
+  const inventoryToastMessage = document.getElementById(
+    "inventoryToastMessage",
+  );
 
-  function showInventoryMessage(message) {}
+  const inventoryPageSections = [
+    ...document.querySelectorAll(".inventory-page-section"),
+  ];
+
+  const inventoryPageButtons = [
+    ...document.querySelectorAll(".inventory-page-btn"),
+  ];
+
+  let stockStatusIcon = document.getElementById("stockStatusIcon");
+  let inventoryCurrentPage = 1;
+  let inventoryCurrentSection = 1;
+  let itemUnitManuallyEdited = false;
+  let inventoryToastTimeout = null;
+  let selectedDeleteItemId = null;
+
+  function showInventorySection(pageNumber) {
+    const requestedPage = Number(pageNumber);
+
+    if (!Number.isInteger(requestedPage) || requestedPage < 1) {
+      return;
+    }
+
+    const targetSection = inventoryPageSections.find(
+      (section) => Number(section.dataset.pageSection) === requestedPage,
+    );
+
+    const targetButton = inventoryPageButtons.find(
+      (button) => Number(button.dataset.page) === requestedPage,
+    );
+
+    if (!targetSection || !targetButton) {
+      return;
+    }
+
+    inventoryCurrentSection = requestedPage;
+
+    inventoryPageSections.forEach((section) => {
+      const sectionPage = Number(section.dataset.pageSection);
+
+      section.classList.toggle("active", sectionPage === requestedPage);
+    });
+
+    inventoryPageButtons.forEach((button) => {
+      const buttonPage = Number(button.dataset.page);
+      const isActive = buttonPage === requestedPage;
+
+      button.classList.toggle("active", isActive);
+
+      if (isActive) {
+        button.setAttribute("aria-current", "page");
+      } else {
+        button.removeAttribute("aria-current");
+      }
+    });
+
+    if (
+      requestedPage === 2 &&
+      typeof window.refreshInventoryForecast === "function"
+    ) {
+      window.refreshInventoryForecast();
+    }
+
+    if (
+      requestedPage === 3 &&
+      typeof window.refreshDemandForecast === "function"
+    ) {
+      window.refreshDemandForecast();
+    }
+  }
+
+  inventoryPageButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      showInventorySection(button.dataset.page);
+    });
+  });
+
+  function showInventoryMessage(message, type = "success") {
+    if (!inventoryToast || !inventoryToastMessage || !inventoryToastIcon) {
+      return;
+    }
+
+    inventoryToastMessage.textContent = message;
+    inventoryToast.classList.remove("error");
+
+    if (type === "error") {
+      inventoryToast.classList.add("error");
+      inventoryToastIcon.className = "fa-solid fa-circle-exclamation";
+    } else {
+      inventoryToastIcon.className = "fa-solid fa-circle-check";
+    }
+
+    inventoryToast.classList.add("show");
+
+    clearTimeout(inventoryToastTimeout);
+
+    inventoryToastTimeout = setTimeout(() => {
+      inventoryToast.classList.remove("show");
+    }, 3000);
+  }
 
   function setupInventoryHeader() {
     if (!itemCount || !stockMovementBtn || !addItemBtn) {
@@ -32,12 +145,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (stockStatusIcon) {
       stockStatusIcon.remove();
       stockStatusIcon = null;
-    }
-
-    const inventoryToast = document.getElementById("inventoryToast");
-
-    if (inventoryToast) {
-      inventoryToast.remove();
     }
 
     headerRight.appendChild(itemCount);
@@ -170,6 +277,76 @@ document.addEventListener("DOMContentLoaded", () => {
     ],
   };
 
+  const DENTAL_ITEM_UNITS = {
+    "Composite Resin": "Tube",
+    "Composite Resins": "Tube",
+    "Flowable Composite": "Syringe",
+    "Flowable Composites": "Syringe",
+    "Etching Gel": "Syringe",
+    "Dental Bonding Agent": "Bottle",
+    "Bonding Agent": "Bottle",
+    "Universal Bond": "Bottle",
+    "Glass Ionomer Cement": "Box",
+    "Glass Ionomer": "Box",
+    "Temporary Filling Material": "Box",
+    "Dental Cement": "Box",
+    "Zinc Oxide Eugenol": "Box",
+    "Prophy Paste": "Jar",
+    "Prophylaxis Paste": "Jar",
+    "Fluoride Gel": "Syringe",
+    "Fluoride Varnish": "Tube",
+    "Fluoride Foam": "Can",
+    "Pit and Fissure Sealant": "Syringe",
+    "Dental Sealant": "Syringe",
+    "Pumice Powder": "Jar",
+    "Cotton Rolls": "Pack",
+    "Sterile Gauze": "Pack",
+    "Dental Bibs": "Pack",
+    "Disposable Dental Cups": "Pack",
+    "Dental Cups": "Pack",
+    "Saliva Ejector": "Pack",
+    "High-Volume Suction Tip": "Pack",
+    "HVE Tip": "Pack",
+    "Air-Water Syringe Tip": "Pack",
+    "Three-Way Syringe Tip": "Pack",
+    Microbrush: "Pack",
+    "Micro Brushes": "Pack",
+    "Cotton Swabs": "Pack",
+    "Paper Towels": "Pack",
+    "Dental Floss": "Pack",
+    "Disposable Gloves": "Box",
+    "Nitrile Gloves": "Box",
+    "Latex Gloves": "Box",
+    "Surgical Face Mask": "Box",
+    "Face Mask": "Box",
+    "Surface Disinfectant": "Bottle",
+    "Dental Disinfectant": "Bottle",
+    "Instrument Disinfectant": "Bottle",
+    "Hand Sanitizer": "Bottle",
+    "Alcohol Pads": "Pack",
+    "Alcohol Swabs": "Pack",
+    "Sterilization Pouch": "Pack",
+    "Sterilization Pouches": "Pack",
+    "Sterilization Wrap": "Pack",
+    "Autoclave Indicator": "Pack",
+    "Sterilization Indicator": "Pack",
+    "Dental Mirror": "Piece",
+    "Mouth Mirror": "Piece",
+    "Dental Explorer": "Piece",
+    "Dental Probe": "Piece",
+    "Dental Tweezers": "Piece",
+    "College Tweezers": "Piece",
+    Scaler: "Piece",
+    "Dental Scaler": "Piece",
+    Curette: "Piece",
+    "Dental Curette": "Piece",
+    "Periodontal Probe": "Piece",
+    Toothbrush: "Piece",
+    "Interdental Brush": "Piece",
+    Mouthwash: "Bottle",
+    "Oral Rinse": "Bottle",
+  };
+
   const COMMON_DENTAL_ITEM_SUGGESTIONS = [
     "Composite Resin",
     "Etching Gel",
@@ -212,6 +389,20 @@ document.addEventListener("DOMContentLoaded", () => {
     return "";
   }
 
+  function getAutomaticItemUnit(itemNameValue) {
+    const normalizedName = normalizeDentalItemName(itemNameValue);
+
+    if (!normalizedName) {
+      return "";
+    }
+
+    const matchedItem = Object.keys(DENTAL_ITEM_UNITS).find(
+      (itemName) => normalizeDentalItemName(itemName) === normalizedName,
+    );
+
+    return matchedItem ? DENTAL_ITEM_UNITS[matchedItem] : "";
+  }
+
   function ensureItemCategoryOption(category) {
     if (!itemCategory || !category) {
       return;
@@ -230,8 +421,10 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const option = document.createElement("option");
+
     option.value = category;
     option.textContent = category;
+
     itemCategory.appendChild(option);
   }
 
@@ -247,8 +440,26 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     ensureItemCategoryOption(automaticCategory);
+
     itemCategory.value = automaticCategory;
+
     updateExpiryFieldState();
+  }
+
+  function autoSetItemUnitFromName(force = false) {
+    if (!itemName || !itemUnit) {
+      return;
+    }
+
+    const automaticUnit = getAutomaticItemUnit(itemName.value);
+
+    if (!automaticUnit) {
+      return;
+    }
+
+    if (force || !itemUnitManuallyEdited) {
+      itemUnit.value = automaticUnit;
+    }
   }
 
   function setupDentalItemSuggestions() {
@@ -257,11 +468,14 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const datalistId = "dentalItemNameSuggestions";
+
     let datalist = document.getElementById(datalistId);
 
     if (!datalist) {
       datalist = document.createElement("datalist");
+
       datalist.id = datalistId;
+
       document.body.appendChild(datalist);
     }
 
@@ -278,7 +492,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
       suggestions.forEach((item) => {
         const option = document.createElement("option");
+
         option.value = item;
+
         datalist.appendChild(option);
       });
     }
@@ -291,15 +507,23 @@ document.addEventListener("DOMContentLoaded", () => {
     itemName.addEventListener("input", () => {
       updateItemNameSuggestions();
       autoSetItemCategoryFromName();
+      autoSetItemUnitFromName();
     });
 
     itemName.addEventListener("change", () => {
       updateItemNameSuggestions();
       autoSetItemCategoryFromName();
+      autoSetItemUnitFromName(true);
     });
   }
 
   setupDentalItemSuggestions();
+
+  if (itemUnit) {
+    itemUnit.addEventListener("input", () => {
+      itemUnitManuallyEdited = true;
+    });
+  }
 
   const movementModal = document.getElementById("movementModal");
   const movementModalClose = document.getElementById("movementModalClose");
@@ -310,7 +534,18 @@ document.addEventListener("DOMContentLoaded", () => {
   const movementQuantity = document.getElementById("movementQuantity");
   const movementReason = document.getElementById("movementReason");
   const actionMenu = document.getElementById("actionMenu");
+
   let selectedActionItemId = null;
+
+  const deleteItemModal = document.getElementById("deleteItemModal");
+  const deleteItemCancelBtn = document.getElementById("deleteItemCancelBtn");
+  const deleteItemConfirmBtn = document.getElementById("deleteItemConfirmBtn");
+  const deleteItemMessage = document.getElementById("deleteItemMessage");
+
+  const viewItemModal = document.getElementById("viewItemModal");
+  const viewItemModalClose = document.getElementById("viewItemModalClose");
+  const viewItemCloseBtn = document.getElementById("viewItemCloseBtn");
+  const viewItemDetails = document.getElementById("viewItemDetails");
 
   if (itemCancelBtn) {
     itemCancelBtn.style.width = "82px";
@@ -324,35 +559,6 @@ document.addEventListener("DOMContentLoaded", () => {
     movementCancelBtn.style.padding = "0 10px";
   }
 
-  const forecastMovementCount = document.getElementById(
-    "forecastMovementCount",
-  );
-  const forecastUsageCount = document.getElementById("forecastUsageCount");
-  const forecastItemsWithData = document.getElementById(
-    "forecastItemsWithData",
-  );
-  const forecastTableBody = document.getElementById("forecastTableBody");
-  const forecastEmpty = document.getElementById("forecastEmpty");
-  const refreshForecastBtn = document.getElementById("refreshForecastBtn");
-  const forecastChartCanvas = document.getElementById("forecastChart");
-  const chartEmpty = document.getElementById("chartEmpty");
-  const chartToggle = document.getElementById("chartToggle");
-  let forecastChartInstance = null;
-  let currentChartMode = "bar";
-
-  const CHART_COLORS = {
-    average: "#176b38",
-    averageFill: "rgba(23, 107, 56, 0.14)",
-    estimate: "#3b72d9",
-    estimateFill: "rgba(59, 114, 217, 0.14)",
-    trend: "#d9950b",
-    trendFill: "rgba(217, 149, 11, 0.14)",
-    grid: "#edf1ee",
-    text: "#6b7970",
-  };
-
-  const MIN_FORECAST_RECORDS = 3;
-
   function resetInventoryDataOnce() {
     const completedVersion = localStorage.getItem(RESET_VERSION_KEY);
 
@@ -362,6 +568,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     localStorage.removeItem(ITEMS_KEY);
     localStorage.removeItem(MOVEMENTS_KEY);
+
     localStorage.setItem(RESET_VERSION_KEY, RESET_VERSION);
   }
 
@@ -423,11 +630,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function generateItemId() {
     const items = getItems();
+
     let number = 1;
+
     let id = `INV-${String(number).padStart(3, "0")}`;
 
     while (items.some((item) => String(item.id) === String(id))) {
       number++;
+
       id = `INV-${String(number).padStart(3, "0")}`;
     }
 
@@ -449,6 +659,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function getStockStatus(item) {
     const stock = Number(item.stock) || 0;
+
     const minimum = Number(item.minimum) || 0;
 
     if (stock <= 0) {
@@ -480,6 +691,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const today = new Date();
+
     today.setHours(0, 0, 0, 0);
 
     const expiry = new Date(`${dateString}T00:00:00`);
@@ -542,10 +754,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function formatExpiry(dateString) {
     if (!dateString) {
-      return `<span class="no-expiry">No expiry</span>`;
+      return '<span class="no-expiry">No expiry</span>';
     }
 
     const days = getDaysUntilExpiry(dateString);
+
     const date = new Date(`${dateString}T00:00:00`);
 
     const formatted = date.toLocaleDateString("en-US", {
@@ -555,7 +768,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     if (days !== null && days <= 0) {
-      return `<span class="expiry-danger">Expired</span>`;
+      return '<span class="expiry-danger">Expired</span>';
     }
 
     if (days !== null && days <= 7) {
@@ -578,12 +791,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const currentValue = categoryFilter.value || "all";
 
-    categoryFilter.innerHTML = `<option value="all">All Categories</option>`;
+    categoryFilter.innerHTML = '<option value="all">All Categories</option>';
 
     categories.forEach((category) => {
       const option = document.createElement("option");
+
       option.value = category;
       option.textContent = category;
+
       categoryFilter.appendChild(option);
     });
 
@@ -596,14 +811,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function getFilteredItems() {
     const items = getItems();
+
     const searchValue = inventorySearch.value.trim().toLowerCase();
+
     const selectedCategory = categoryFilter.value;
+
     const selectedStatus = statusFilter.value;
+
     const selectedExpiry = expiryFilter ? expiryFilter.value : "all";
+
     const selectedSort = sortFilter.value;
 
     let filtered = items.filter((item) => {
       const itemName = String(item.name || "").toLowerCase();
+
       const itemCategory = String(item.category || "").toLowerCase();
 
       const matchesSearch =
@@ -642,6 +863,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (selectedSort === "expiry") {
         const aExpiry = a.expiry ? new Date(a.expiry).getTime() : Infinity;
+
         const bExpiry = b.expiry ? new Date(b.expiry).getTime() : Infinity;
 
         return aExpiry - bExpiry;
@@ -653,6 +875,45 @@ document.addEventListener("DOMContentLoaded", () => {
     return filtered;
   }
 
+  function renderInventoryPagination(totalItems, totalPages) {
+    if (
+      !inventoryPagination ||
+      !inventoryPaginationSummary ||
+      !inventoryPaginationPageInfo ||
+      !inventoryPrevPageBtn ||
+      !inventoryNextPageBtn
+    ) {
+      return;
+    }
+
+    if (totalItems <= INVENTORY_PAGE_SIZE) {
+      inventoryPagination.style.display = "none";
+
+      inventoryPrevPageBtn.disabled = true;
+
+      inventoryNextPageBtn.disabled = true;
+
+      return;
+    }
+
+    inventoryPagination.style.display = "flex";
+
+    const startItem = (inventoryCurrentPage - 1) * INVENTORY_PAGE_SIZE + 1;
+
+    const endItem = Math.min(
+      inventoryCurrentPage * INVENTORY_PAGE_SIZE,
+      totalItems,
+    );
+
+    inventoryPaginationSummary.textContent = `Showing ${startItem}–${endItem} of ${totalItems} items`;
+
+    inventoryPaginationPageInfo.textContent = `Page ${inventoryCurrentPage} of ${totalPages}`;
+
+    inventoryPrevPageBtn.disabled = inventoryCurrentPage <= 1;
+
+    inventoryNextPageBtn.disabled = inventoryCurrentPage >= totalPages;
+  }
+
   function renderInventoryTable() {
     if (!inventoryTableBody) {
       return;
@@ -660,11 +921,41 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const filteredItems = getFilteredItems();
 
+    const allItems = getItems();
+
+    const totalItems = filteredItems.length;
+
+    const totalPages = Math.max(Math.ceil(totalItems / INVENTORY_PAGE_SIZE), 1);
+
+    if (inventoryCurrentPage > totalPages) {
+      inventoryCurrentPage = totalPages;
+    }
+
+    if (inventoryCurrentPage < 1) {
+      inventoryCurrentPage = 1;
+    }
+
+    const startIndex = (inventoryCurrentPage - 1) * INVENTORY_PAGE_SIZE;
+
+    const pageItems = filteredItems.slice(
+      startIndex,
+      startIndex + INVENTORY_PAGE_SIZE,
+    );
+
     inventoryTableBody.innerHTML = "";
 
-    itemCount.textContent = `${filteredItems.length} ${
-      filteredItems.length === 1 ? "item" : "items"
-    }`;
+    const hasActiveFilter =
+      inventorySearch.value.trim().length > 0 ||
+      categoryFilter.value !== "all" ||
+      statusFilter.value !== "all" ||
+      expiryFilter.value !== "all";
+
+    if (itemCount) {
+      itemCount.textContent =
+        hasActiveFilter && totalItems !== allItems.length
+          ? `${totalItems} of ${allItems.length} items`
+          : `${allItems.length} ${allItems.length === 1 ? "item" : "items"}`;
+    }
 
     if (emptyState) {
       emptyState.hidden = true;
@@ -676,66 +967,82 @@ document.addEventListener("DOMContentLoaded", () => {
       emptyState.style.display = "flex";
     }
 
-    filteredItems.forEach((item) => {
+    renderInventoryPagination(totalItems, totalPages);
+
+    pageItems.forEach((item) => {
       const status = getStockStatus(item);
+
       const row = document.createElement("tr");
 
       row.innerHTML = `
-          <td>
-            <div class="item-cell">
-              <div class="item-avatar">
-                <i class="fa-solid fa-box"></i>
-              </div>
-              <div class="item-info">
-                <span class="item-name" title="${escapeHTML(item.name)}">
-                  ${escapeHTML(item.name)}
-                </span>
-                <span class="item-id">
-                  ${escapeHTML(item.id)}
-                </span>
-              </div>
+        <td>
+          <div class="item-cell">
+            <div class="item-avatar">
+              <i class="fa-solid fa-box"></i>
             </div>
-          </td>
-          <td>
-            <span class="category-badge">
-              ${escapeHTML(item.category)}
-            </span>
-          </td>
-          <td>
-            <span class="stock-value">
-              ${Number(item.stock) || 0}
-            </span>
-            <span class="stock-unit">
-              ${escapeHTML(item.unit)}
-            </span>
-          </td>
-          <td>
-            <span class="minimum-value">
-              ${Number(item.minimum) || 0}
-            </span>
-          </td>
-          <td>
+
+            <div class="item-info">
+              <span
+                class="item-name"
+                title="${escapeHTML(item.name)}"
+              >
+                ${escapeHTML(item.name)}
+              </span>
+
+              <span class="item-id">
+                ${escapeHTML(item.id)}
+              </span>
+            </div>
+          </div>
+        </td>
+
+        <td>
+          <span class="category-badge">
+            ${escapeHTML(item.category)}
+          </span>
+        </td>
+
+        <td>
+          <span class="stock-value">
+            ${Number(item.stock) || 0}
+          </span>
+
+          <span class="stock-unit">
             ${escapeHTML(item.unit)}
-          </td>
-          <td>
-            ${formatExpiry(item.expiry)}
-          </td>
-          <td>
-            <span class="status-badge status-${status}">
-              ${getStatusLabel(status)}
-            </span>
-          </td>
-          <td>
-            <button
-              type="button"
-              class="action-button"
-              data-item-id="${escapeHTML(item.id)}"
-              aria-label="Item actions"
-            >
-              <i class="fa-solid fa-ellipsis"></i>
-            </button>
-          </td>
-        `;
+          </span>
+        </td>
+
+        <td>
+          <span class="minimum-value">
+            ${Number(item.minimum) || 0}
+          </span>
+        </td>
+
+        <td>
+          ${escapeHTML(item.unit)}
+        </td>
+
+        <td>
+          ${formatExpiry(item.expiry)}
+        </td>
+
+        <td>
+          <span class="status-badge status-${status}">
+            ${getStatusLabel(status)}
+          </span>
+        </td>
+
+        <td>
+          <button
+            type="button"
+            class="action-button"
+            data-item-id="${escapeHTML(item.id)}"
+            aria-label="Item actions"
+          >
+            <i class="fa-solid fa-ellipsis"></i>
+          </button>
+        </td>
+      `;
 
       inventoryTableBody.appendChild(row);
     });
@@ -795,26 +1102,35 @@ document.addEventListener("DOMContentLoaded", () => {
 
     itemForm.reset();
 
+    itemUnitManuallyEdited = false;
+
     if (item) {
       itemModalTitle.textContent = "Edit Inventory Item";
+
       itemId.value = item.id;
       itemName.value = item.name;
+
       ensureItemCategoryOption(item.category);
+
       itemCategory.value = item.category;
       itemUnit.value = item.unit;
       itemStock.value = item.stock;
+      itemStock.readOnly = true;
       itemMinimum.value = item.minimum;
       itemExpiry.value = item.expiry || "";
     } else {
       itemModalTitle.textContent = "Add Inventory Item";
+
       itemId.value = "";
       itemStock.value = "0";
+      itemStock.readOnly = false;
       itemMinimum.value = "5";
     }
 
     updateExpiryFieldState();
 
     itemModal.classList.add("active");
+
     itemModal.setAttribute("aria-hidden", "false");
 
     setTimeout(() => {
@@ -824,6 +1140,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function closeItemModal() {
     itemModal.classList.remove("active");
+
     itemModal.setAttribute("aria-hidden", "true");
   }
 
@@ -831,52 +1148,57 @@ document.addEventListener("DOMContentLoaded", () => {
     event.preventDefault();
 
     const name = itemName.value.trim();
+
     const automaticCategory = getAutomaticItemCategory(name);
 
     if (automaticCategory) {
       ensureItemCategoryOption(automaticCategory);
+
       itemCategory.value = automaticCategory;
     }
 
     const category = itemCategory.value;
+
     const unit = itemUnit.value.trim();
+
     const stock = Number(itemStock.value);
+
     const minimum = Number(itemMinimum.value);
+
     const expiry = categoryHasExpiry(category) ? itemExpiry.value : "";
 
     if (!name) {
-      showInventoryMessage("Please enter the item name.");
+      showInventoryMessage("Please enter the item name.", "error");
+
       return;
     }
 
     if (!category) {
-      showInventoryMessage("Please select a category.");
+      showInventoryMessage("Please select a category.", "error");
+
       return;
     }
 
     if (!unit) {
-      showInventoryMessage("Please enter the unit.");
+      showInventoryMessage("Please enter the unit.", "error");
+
       return;
     }
 
     if (Number.isNaN(stock) || stock < 0) {
-      showInventoryMessage("Current stock cannot be negative.");
+      showInventoryMessage("Current stock cannot be negative.", "error");
+
       return;
     }
 
     if (Number.isNaN(minimum) || minimum < 0) {
-      showInventoryMessage("Minimum stock cannot be negative.");
-      return;
-    }
+      showInventoryMessage("Minimum stock cannot be negative.", "error");
 
-    if (minimum > stock) {
-      showInventoryMessage(
-        "Minimum stock cannot be greater than current stock.",
-      );
       return;
     }
 
     const items = getItems();
+
     const existingId = itemId.value;
 
     if (existingId) {
@@ -910,7 +1232,19 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     saveItems(items);
+
+    inventoryCurrentPage = 1;
+
     renderAll();
+
+    if (inventoryCurrentSection === 2) {
+      window.refreshInventoryForecast?.();
+    }
+
+    if (inventoryCurrentSection === 3) {
+      window.refreshDemandForecast?.();
+    }
+
     closeItemModal();
 
     if (existingId) {
@@ -924,7 +1258,9 @@ document.addEventListener("DOMContentLoaded", () => {
     closeActionMenu();
 
     movementForm.reset();
+
     movementType.value = "stock-in";
+
     movementQuantity.value = "1";
 
     populateMovementItems(selectedItemId);
@@ -934,6 +1270,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     movementModal.classList.add("active");
+
     movementModal.setAttribute("aria-hidden", "false");
 
     setTimeout(() => {
@@ -943,13 +1280,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function closeMovementModal() {
     movementModal.classList.remove("active");
+
     movementModal.setAttribute("aria-hidden", "true");
   }
 
   function populateMovementItems(selectedItemId = "") {
     const items = getItems();
 
-    movementItem.innerHTML = `<option value="">Select item</option>`;
+    movementItem.innerHTML = '<option value="">Select item</option>';
 
     const itemsToShow = selectedItemId
       ? items.filter((item) => String(item.id) === String(selectedItemId))
@@ -961,6 +1299,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const option = document.createElement("option");
 
       option.value = item.id;
+
       option.textContent = `${item.name} — ${item.stock} ${item.unit}`;
 
       movementItem.appendChild(option);
@@ -975,17 +1314,22 @@ document.addEventListener("DOMContentLoaded", () => {
     event.preventDefault();
 
     const selectedId = movementItem.value;
+
     const type = movementType.value;
+
     const quantity = Number(movementQuantity.value);
+
     const reason = movementReason.value.trim();
 
     if (!selectedId) {
-      showInventoryMessage("Please select an inventory item.");
+      showInventoryMessage("Please select an inventory item.", "error");
+
       return;
     }
 
     if (Number.isNaN(quantity) || quantity <= 0) {
-      showInventoryMessage("Please enter a valid quantity.");
+      showInventoryMessage("Please enter a valid quantity.", "error");
+
       return;
     }
 
@@ -996,12 +1340,18 @@ document.addEventListener("DOMContentLoaded", () => {
     );
 
     if (itemIndex === -1) {
-      showInventoryMessage("The selected inventory item could not be found.");
+      showInventoryMessage(
+        "The selected inventory item could not be found.",
+        "error",
+      );
+
       return;
     }
 
     const item = items[itemIndex];
+
     const previousStock = Number(item.stock) || 0;
+
     let newStock = previousStock;
 
     if (type === "stock-in") {
@@ -1012,7 +1362,9 @@ document.addEventListener("DOMContentLoaded", () => {
       if (quantity > previousStock) {
         showInventoryMessage(
           `Insufficient stock. Available: ${previousStock} ${item.unit}. Requested: ${quantity} ${item.unit}.`,
+          "error",
         );
+
         return;
       }
 
@@ -1020,6 +1372,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     item.stock = newStock;
+
     item.updatedAt = new Date().toISOString();
 
     saveItems(items);
@@ -1041,7 +1394,19 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     saveMovements(movements);
+
+    inventoryCurrentPage = 1;
+
     renderAll();
+
+    if (inventoryCurrentSection === 2) {
+      window.refreshInventoryForecast?.();
+    }
+
+    if (inventoryCurrentSection === 3) {
+      window.refreshDemandForecast?.();
+    }
+
     closeMovementModal();
 
     if (type === "stock-in") {
@@ -1061,9 +1426,11 @@ document.addEventListener("DOMContentLoaded", () => {
     actionMenu.classList.add("active");
 
     const menuWidth = actionMenu.offsetWidth;
+
     const menuHeight = actionMenu.offsetHeight;
 
     let left = rect.right - menuWidth;
+
     let top = rect.bottom + 6;
 
     if (left < 8) {
@@ -1079,12 +1446,394 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     actionMenu.style.left = `${left}px`;
+
     actionMenu.style.top = `${top}px`;
   }
 
   function closeActionMenu() {
     actionMenu.classList.remove("active");
+
     selectedActionItemId = null;
+  }
+
+  function formatItemDateTime(value) {
+    if (!value) {
+      return "Not recorded";
+    }
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      return "Not recorded";
+    }
+
+    return date.toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  }
+
+  function getMovementLabel(type) {
+    return type === "stock-in" ? "Stock In" : "Stock Out";
+  }
+
+  function getMovementQuantityPrefix(type) {
+    return type === "stock-in" ? "+" : "-";
+  }
+
+  function openItemViewModal(item) {
+    closeActionMenu();
+
+    if (!viewItemModal || !viewItemDetails) {
+      return;
+    }
+
+    const movements = getMovements()
+      .filter((movement) => String(movement.itemId) === String(item.id))
+      .sort((a, b) => {
+        const aTime = new Date(a.date || "").getTime();
+
+        const bTime = new Date(b.date || "").getTime();
+
+        return bTime - aTime;
+      });
+
+    const status = getStockStatus(item);
+
+    const expiryStatus = getExpiryStatus(item);
+
+    const statusText = getStatusLabel(status);
+
+    let expiryText = "No Expiry";
+
+    if (expiryStatus === "expired") {
+      expiryText = "Expired";
+    } else if (expiryStatus === "expiring-soon") {
+      expiryText = "Expiring Soon";
+
+      if (item.expiry) {
+        const expiryDate = new Date(`${item.expiry}T00:00:00`);
+
+        if (!Number.isNaN(expiryDate.getTime())) {
+          expiryText = `${expiryDate.toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          })} · Expiring Soon`;
+        }
+      }
+    } else if (expiryStatus === "normal" && item.expiry) {
+      const expiryDate = new Date(`${item.expiry}T00:00:00`);
+
+      if (!Number.isNaN(expiryDate.getTime())) {
+        expiryText = expiryDate.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        });
+      }
+    }
+
+    const historyHTML = movements.length
+      ? movements
+          .map((movement) => {
+            const typeClass =
+              movement.type === "stock-in" ? "stock-in" : "stock-out";
+
+            const quantityText = `${getMovementQuantityPrefix(movement.type)}${
+              Number(movement.quantity) || 0
+            } ${escapeHTML(item.unit)}`;
+
+            const reason =
+              movement.reason ||
+              (movement.type === "stock-in"
+                ? "Stock replenishment"
+                : "Inventory usage");
+
+            return `
+                  <div class="item-history-entry">
+                    <div class="item-history-marker ${typeClass}">
+                      <i class="fa-solid ${
+                        movement.type === "stock-in"
+                          ? "fa-arrow-up"
+                          : "fa-arrow-down"
+                      }"></i>
+                    </div>
+
+                    <div class="item-history-content">
+                      <div class="item-history-topline">
+                        <strong>
+                          ${escapeHTML(getMovementLabel(movement.type))}
+                        </strong>
+
+                        <span>
+                          ${escapeHTML(formatItemDateTime(movement.date))}
+                        </span>
+                      </div>
+
+                      <div class="item-history-quantity ${typeClass}">
+                        ${quantityText}
+                      </div>
+
+                      <div class="item-history-reason">
+                        ${escapeHTML(reason)}
+                      </div>
+
+                      <div class="item-history-stock">
+                        Stock:
+                        ${Number(movement.previousStock) || 0}
+                        →
+                        ${Number(movement.newStock) || 0}
+                      </div>
+                    </div>
+                  </div>
+                `;
+          })
+          .join("")
+      : `
+          <div class="item-history-empty">
+            <div class="item-history-empty-icon">
+              <i class="fa-solid fa-clock-rotate-left"></i>
+            </div>
+
+            <strong>
+              No stock movement history
+            </strong>
+
+            <p>
+              Stock movements for this item will appear here.
+            </p>
+          </div>
+        `;
+
+    viewItemDetails.innerHTML = `
+      <div class="view-item-hero">
+        <div class="view-item-avatar">
+          <i class="fa-solid fa-box"></i>
+        </div>
+
+        <div class="view-item-hero-content">
+          <span class="view-item-id">
+            ${escapeHTML(item.id)}
+          </span>
+
+          <h4>
+            ${escapeHTML(item.name)}
+          </h4>
+
+          <span class="view-item-category">
+            ${escapeHTML(item.category)}
+          </span>
+        </div>
+
+        <span class="status-badge status-${status}">
+          ${escapeHTML(statusText)}
+        </span>
+      </div>
+
+      <div class="view-item-section">
+        <div class="view-item-section-heading">
+          <div>
+            <span class="modal-eyebrow">
+              CURRENT INFORMATION
+            </span>
+
+            <h4>
+              Item Details
+            </h4>
+          </div>
+        </div>
+
+        <div class="view-item-details-grid">
+          <div class="view-item-detail">
+            <span>
+              Current Stock
+            </span>
+
+            <strong>
+              ${Number(item.stock) || 0}
+              ${escapeHTML(item.unit)}
+            </strong>
+          </div>
+
+          <div class="view-item-detail">
+            <span>
+              Minimum Stock
+            </span>
+
+            <strong>
+              ${Number(item.minimum) || 0}
+              ${escapeHTML(item.unit)}
+            </strong>
+          </div>
+
+          <div class="view-item-detail">
+            <span>
+              Unit
+            </span>
+
+            <strong>
+              ${escapeHTML(item.unit)}
+            </strong>
+          </div>
+
+          <div class="view-item-detail">
+            <span>
+              Expiry
+            </span>
+
+            <strong>
+              ${escapeHTML(expiryText)}
+            </strong>
+          </div>
+
+          <div class="view-item-detail">
+            <span>
+              Created
+            </span>
+
+            <strong>
+              ${escapeHTML(formatItemDateTime(item.createdAt))}
+            </strong>
+          </div>
+
+          <div class="view-item-detail">
+            <span>
+              Last Updated
+            </span>
+
+            <strong>
+              ${escapeHTML(
+                formatItemDateTime(item.updatedAt || item.createdAt),
+              )}
+            </strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="view-item-section">
+        <div class="view-item-section-heading history-heading">
+          <div>
+            <span class="modal-eyebrow">
+              STOCK MOVEMENTS
+            </span>
+
+            <h4>
+              Movement History
+            </h4>
+          </div>
+
+          <span class="view-item-history-count">
+            ${movements.length}
+            ${movements.length === 1 ? "record" : "records"}
+          </span>
+        </div>
+
+        <div class="item-history-list">
+          ${historyHTML}
+        </div>
+      </div>
+    `;
+
+    viewItemModal.classList.add("active");
+
+    viewItemModal.setAttribute("aria-hidden", "false");
+  }
+
+  function closeItemViewModal() {
+    if (!viewItemModal) {
+      return;
+    }
+
+    viewItemModal.classList.remove("active");
+
+    viewItemModal.setAttribute("aria-hidden", "true");
+  }
+
+  function openDeleteItemModal(item) {
+    closeActionMenu();
+
+    if (!deleteItemModal) {
+      return;
+    }
+
+    selectedDeleteItemId = item.id;
+
+    if (deleteItemMessage) {
+      deleteItemMessage.textContent = `"${item.name}" and its stock movement history will be permanently removed. This action cannot be undone.`;
+    }
+
+    deleteItemModal.classList.add("active");
+
+    deleteItemModal.setAttribute("aria-hidden", "false");
+  }
+
+  function closeDeleteItemModal() {
+    if (!deleteItemModal) {
+      return;
+    }
+
+    deleteItemModal.classList.remove("active");
+
+    deleteItemModal.setAttribute("aria-hidden", "true");
+
+    selectedDeleteItemId = null;
+  }
+
+  function confirmDeleteItem() {
+    if (!selectedDeleteItemId) {
+      return;
+    }
+
+    const items = getItems();
+
+    const item = items.find(
+      (inventoryItem) =>
+        String(inventoryItem.id) === String(selectedDeleteItemId),
+    );
+
+    if (!item) {
+      closeDeleteItemModal();
+
+      showInventoryMessage(
+        "The selected inventory item could not be found.",
+        "error",
+      );
+
+      return;
+    }
+
+    const remainingItems = items.filter(
+      (inventoryItem) =>
+        String(inventoryItem.id) !== String(selectedDeleteItemId),
+    );
+
+    saveItems(remainingItems);
+
+    const remainingMovements = getMovements().filter(
+      (movement) => String(movement.itemId) !== String(selectedDeleteItemId),
+    );
+
+    saveMovements(remainingMovements);
+
+    closeDeleteItemModal();
+
+    inventoryCurrentPage = 1;
+
+    renderAll();
+
+    if (inventoryCurrentSection === 2) {
+      window.refreshInventoryForecast?.();
+    }
+
+    if (inventoryCurrentSection === 3) {
+      window.refreshDemandForecast?.();
+    }
+
+    showInventoryMessage(`"${item.name}" was deleted successfully.`);
   }
 
   actionMenu.addEventListener("click", (event) => {
@@ -1095,6 +1844,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const action = button.dataset.action;
+
     const id = selectedActionItemId;
 
     if (!id) {
@@ -1109,50 +1859,32 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (!item) {
       closeActionMenu();
+
+      return;
+    }
+
+    if (action === "view") {
+      openItemViewModal(item);
+
       return;
     }
 
     if (action === "edit") {
       openItemModal(item);
+
       return;
     }
 
     if (action === "movement") {
       openMovementModal(id);
+
       return;
     }
 
     if (action === "delete") {
-      deleteItem(item);
+      openDeleteItemModal(item);
     }
   });
-
-  function deleteItem(item) {
-    closeActionMenu();
-
-    const confirmed = confirm(
-      `Are you sure you want to delete "${item.name}"?\n\nThis will delete the inventory item AND all stock movement history associated with this item.\n\nThis action cannot be undone.`,
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
-    const remainingItems = getItems().filter(
-      (inventoryItem) => String(inventoryItem.id) !== String(item.id),
-    );
-
-    saveItems(remainingItems);
-
-    const remainingMovements = getMovements().filter(
-      (movement) => String(movement.itemId) !== String(item.id),
-    );
-
-    saveMovements(remainingMovements);
-    renderAll();
-
-    showInventoryMessage(`"${item.name}" was deleted successfully.`);
-  }
 
   inventoryTableBody.addEventListener("click", (event) => {
     const button = event.target.closest(".action-button");
@@ -1166,16 +1898,62 @@ document.addEventListener("DOMContentLoaded", () => {
     openActionMenu(button, id);
   });
 
-  inventorySearch.addEventListener("input", renderInventoryTable);
-  categoryFilter.addEventListener("change", renderInventoryTable);
-  statusFilter.addEventListener("change", renderInventoryTable);
+  inventorySearch.addEventListener("input", () => {
+    inventoryCurrentPage = 1;
+
+    renderInventoryTable();
+  });
+
+  categoryFilter.addEventListener("change", () => {
+    inventoryCurrentPage = 1;
+
+    renderInventoryTable();
+  });
+
+  statusFilter.addEventListener("change", () => {
+    inventoryCurrentPage = 1;
+
+    renderInventoryTable();
+  });
 
   if (expiryFilter) {
-    expiryFilter.addEventListener("change", renderInventoryTable);
+    expiryFilter.addEventListener("change", () => {
+      inventoryCurrentPage = 1;
+
+      renderInventoryTable();
+    });
   }
 
-  sortFilter.addEventListener("change", renderInventoryTable);
+  sortFilter.addEventListener("change", () => {
+    inventoryCurrentPage = 1;
+
+    renderInventoryTable();
+  });
+
   itemCategory.addEventListener("change", updateExpiryFieldState);
+
+  inventoryPrevPageBtn?.addEventListener("click", () => {
+    if (inventoryCurrentPage > 1) {
+      inventoryCurrentPage--;
+
+      renderInventoryTable();
+    }
+  });
+
+  inventoryNextPageBtn?.addEventListener("click", () => {
+    const filteredItems = getFilteredItems();
+
+    const totalPages = Math.max(
+      Math.ceil(filteredItems.length / INVENTORY_PAGE_SIZE),
+      1,
+    );
+
+    if (inventoryCurrentPage < totalPages) {
+      inventoryCurrentPage++;
+
+      renderInventoryTable();
+    }
+  });
 
   addItemBtn.addEventListener("click", () => {
     openItemModal();
@@ -1189,31 +1967,21 @@ document.addEventListener("DOMContentLoaded", () => {
     openMovementModal();
   });
 
-  if (stockStatusIcon) {
-    stockStatusIcon.addEventListener("click", () => {
-      statusFilter.value = "low";
-
-      const items = getItems();
-
-      const hasLowStock = items.some((item) => getStockStatus(item) === "low");
-
-      if (!hasLowStock) {
-        statusFilter.value = "out";
-      }
-
-      renderInventoryTable();
-
-      document.querySelector(".inventory-panel")?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    });
-  }
-
   itemModalClose.addEventListener("click", closeItemModal);
+
   itemCancelBtn.addEventListener("click", closeItemModal);
+
   movementModalClose.addEventListener("click", closeMovementModal);
+
   movementCancelBtn.addEventListener("click", closeMovementModal);
+
+  deleteItemCancelBtn?.addEventListener("click", closeDeleteItemModal);
+
+  deleteItemConfirmBtn?.addEventListener("click", confirmDeleteItem);
+
+  viewItemModalClose?.addEventListener("click", closeItemViewModal);
+
+  viewItemCloseBtn?.addEventListener("click", closeItemViewModal);
 
   itemModal.addEventListener("click", (event) => {
     if (event.target === itemModal) {
@@ -1224,6 +1992,18 @@ document.addEventListener("DOMContentLoaded", () => {
   movementModal.addEventListener("click", (event) => {
     if (event.target === movementModal) {
       closeMovementModal();
+    }
+  });
+
+  deleteItemModal?.addEventListener("click", (event) => {
+    if (event.target === deleteItemModal) {
+      closeDeleteItemModal();
+    }
+  });
+
+  viewItemModal?.addEventListener("click", (event) => {
+    if (event.target === viewItemModal) {
+      closeItemViewModal();
     }
   });
 
@@ -1244,6 +2024,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     closeItemModal();
     closeMovementModal();
+    closeDeleteItemModal();
+    closeItemViewModal();
     closeActionMenu();
   });
 
@@ -1251,556 +2033,19 @@ document.addEventListener("DOMContentLoaded", () => {
     closeActionMenu();
   });
 
-  function getUsageMovements() {
-    return getMovements().filter((movement) => movement.type === "stock-out");
-  }
-
-  function buildForecastData() {
-    const items = getItems();
-    const usageMovements = getUsageMovements();
-
-    return items
-      .map((item) => {
-        const records = usageMovements.filter(
-          (movement) => String(movement.itemId) === String(item.id),
-        );
-
-        const totalUsed = records.reduce(
-          (total, movement) => total + Number(movement.quantity || 0),
-          0,
-        );
-
-        const hasEnoughData = records.length >= MIN_FORECAST_RECORDS;
-        const average = hasEnoughData ? totalUsed / records.length : null;
-
-        const estimate = hasEnoughData
-          ? Math.max(1, Math.round(average))
-          : null;
-
-        return {
-          item,
-          records,
-          usageRecords: records.length,
-          totalUsed,
-          average,
-          estimate,
-          hasEnoughData,
-        };
-      })
-      .filter((forecast) => forecast.usageRecords > 0)
-      .sort((a, b) => b.usageRecords - a.usageRecords);
-  }
-
-  function renderForecast() {
-    const movements = getMovements();
-    const usageMovements = getUsageMovements();
-    const forecastData = buildForecastData();
-
-    if (forecastMovementCount) {
-      forecastMovementCount.textContent = movements.length;
-    }
-
-    if (forecastUsageCount) {
-      forecastUsageCount.textContent = usageMovements.length;
-    }
-
-    if (forecastItemsWithData) {
-      forecastItemsWithData.textContent = forecastData.length;
-    }
-
-    if (!forecastTableBody) {
-      return;
-    }
-
-    forecastTableBody.innerHTML = "";
-
-    if (forecastEmpty) {
-      forecastEmpty.hidden = true;
-      forecastEmpty.style.display = "none";
-    }
-
-    if (forecastData.length === 0) {
-      if (forecastEmpty) {
-        forecastEmpty.hidden = false;
-        forecastEmpty.style.display = "flex";
-      }
-
-      return;
-    }
-
-    forecastData.forEach((forecast) => {
-      const row = document.createElement("tr");
-      const hasEnoughData = forecast.hasEnoughData;
-      const statusText = hasEnoughData ? "Usable Data" : "Limited Data";
-      const statusClass = hasEnoughData ? "" : "insufficient";
-
-      const averageHTML = hasEnoughData
-        ? `
-              <span class="forecast-average">
-                ${forecast.average.toFixed(1)}
-              </span>
-              <span class="forecast-unit">
-                ${escapeHTML(forecast.item.unit)}
-              </span>
-            `
-        : `
-              <span class="forecast-average">
-                —
-              </span>
-            `;
-
-      const estimateHTML = hasEnoughData
-        ? `
-              <span class="forecast-estimate">
-                ${forecast.estimate}
-              </span>
-              <span class="forecast-unit">
-                ${escapeHTML(forecast.item.unit)}
-              </span>
-            `
-        : `
-              <span class="forecast-estimate">
-                —
-              </span>
-            `;
-
-      row.innerHTML = `
-          <td>
-            <div class="forecast-item-cell">
-              <div class="forecast-item-icon">
-                <i class="fa-solid fa-box"></i>
-              </div>
-              <span class="forecast-item-name">
-                ${escapeHTML(forecast.item.name)}
-              </span>
-            </div>
-          </td>
-          <td>
-            <span class="forecast-number">
-              ${forecast.usageRecords}
-            </span>
-          </td>
-          <td>
-            <span class="forecast-number">
-              ${forecast.totalUsed}
-            </span>
-            <span class="forecast-unit">
-              ${escapeHTML(forecast.item.unit)}
-            </span>
-          </td>
-          <td>
-            ${averageHTML}
-          </td>
-          <td>
-            ${estimateHTML}
-          </td>
-          <td>
-            <span class="forecast-data-status ${statusClass}">
-              ${statusText}
-            </span>
-          </td>
-        `;
-
-      forecastTableBody.appendChild(row);
-    });
-  }
-
-  function buildBarChartConfig(forecastData) {
-    const usableForecastData = forecastData.filter(
-      (forecast) => forecast.hasEnoughData,
-    );
-
-    const labels = usableForecastData.map((forecast) => forecast.item.name);
-
-    const averages = usableForecastData.map((forecast) =>
-      Number(forecast.average.toFixed(2)),
-    );
-
-    const estimates = usableForecastData.map((forecast) => forecast.estimate);
-
-    return {
-      type: "bar",
-      data: {
-        labels,
-        datasets: [
-          {
-            label: "Average Usage",
-            data: averages,
-            backgroundColor: CHART_COLORS.averageFill,
-            borderColor: CHART_COLORS.average,
-            borderWidth: 1.5,
-            borderRadius: 6,
-            maxBarThickness: 34,
-          },
-          {
-            label: "Estimated Next Period",
-            data: estimates,
-            backgroundColor: CHART_COLORS.estimateFill,
-            borderColor: CHART_COLORS.estimate,
-            borderWidth: 1.5,
-            borderRadius: 6,
-            maxBarThickness: 34,
-          },
-        ],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: {
-          mode: "index",
-          intersect: false,
-        },
-        plugins: {
-          legend: {
-            position: "top",
-            align: "end",
-            labels: {
-              usePointStyle: true,
-              pointStyle: "circle",
-              boxWidth: 8,
-              font: {
-                family: "Poppins",
-                size: 11,
-                weight: "600",
-              },
-              color: CHART_COLORS.text,
-            },
-          },
-          tooltip: {
-            backgroundColor: "#1c2a22",
-            titleFont: {
-              family: "Poppins",
-              size: 11,
-              weight: "600",
-            },
-            bodyFont: {
-              family: "Poppins",
-              size: 11,
-            },
-            padding: 10,
-            cornerRadius: 8,
-            callbacks: {
-              afterBody: (items) => {
-                if (!items.length) {
-                  return "";
-                }
-
-                const forecast = usableForecastData[items[0].dataIndex];
-
-                return [
-                  "",
-                  `Usage records: ${forecast.usageRecords}`,
-                  `Total used: ${forecast.totalUsed} ${forecast.item.unit}`,
-                ];
-              },
-            },
-          },
-        },
-        scales: {
-          x: {
-            grid: {
-              display: false,
-            },
-            ticks: {
-              font: {
-                family: "Poppins",
-                size: 10,
-              },
-              color: CHART_COLORS.text,
-            },
-          },
-          y: {
-            beginAtZero: true,
-            grid: {
-              color: CHART_COLORS.grid,
-            },
-            ticks: {
-              precision: 0,
-              font: {
-                family: "Poppins",
-                size: 10,
-              },
-              color: CHART_COLORS.text,
-            },
-          },
-        },
-      },
-    };
-  }
-
-  function buildTrendChartConfig() {
-    const usageMovements = [...getUsageMovements()].sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
-    );
-
-    const dailyTotals = new Map();
-
-    usageMovements.forEach((movement) => {
-      if (!movement.date) {
-        return;
-      }
-
-      const dayKey = String(movement.date).slice(0, 10);
-      const current = dailyTotals.get(dayKey) || 0;
-
-      dailyTotals.set(dayKey, current + Number(movement.quantity || 0));
-    });
-
-    const sortedDays = [...dailyTotals.keys()].sort();
-
-    const labels = sortedDays.map((day) =>
-      new Date(`${day}T00:00:00`).toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-      }),
-    );
-
-    const values = sortedDays.map((day) => dailyTotals.get(day));
-    const runningAverage = [];
-    let runningTotal = 0;
-
-    values.forEach((value, index) => {
-      runningTotal += value;
-      runningAverage.push(Number((runningTotal / (index + 1)).toFixed(2)));
-    });
-
-    return {
-      type: "line",
-      data: {
-        labels,
-        datasets: [
-          {
-            label: "Stock-Out Quantity (per day)",
-            data: values,
-            borderColor: CHART_COLORS.trend,
-            backgroundColor: CHART_COLORS.trendFill,
-            fill: true,
-            tension: 0.3,
-            pointRadius: 3,
-            pointBackgroundColor: CHART_COLORS.trend,
-          },
-          {
-            label: "Running Average",
-            data: runningAverage,
-            borderColor: CHART_COLORS.average,
-            backgroundColor: "transparent",
-            borderDash: [5, 4],
-            tension: 0.3,
-            pointRadius: 0,
-          },
-        ],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: {
-          mode: "index",
-          intersect: false,
-        },
-        plugins: {
-          legend: {
-            position: "top",
-            align: "end",
-            labels: {
-              usePointStyle: true,
-              pointStyle: "circle",
-              boxWidth: 8,
-              font: {
-                family: "Poppins",
-                size: 11,
-                weight: "600",
-              },
-              color: CHART_COLORS.text,
-            },
-          },
-          tooltip: {
-            backgroundColor: "#1c2a22",
-            titleFont: {
-              family: "Poppins",
-              size: 11,
-              weight: "600",
-            },
-            bodyFont: {
-              family: "Poppins",
-              size: 11,
-            },
-            padding: 10,
-            cornerRadius: 8,
-          },
-        },
-        scales: {
-          x: {
-            grid: {
-              display: false,
-            },
-            ticks: {
-              font: {
-                family: "Poppins",
-                size: 10,
-              },
-              color: CHART_COLORS.text,
-            },
-          },
-          y: {
-            beginAtZero: true,
-            grid: {
-              color: CHART_COLORS.grid,
-            },
-            ticks: {
-              precision: 0,
-              font: {
-                family: "Poppins",
-                size: 10,
-              },
-              color: CHART_COLORS.text,
-            },
-          },
-        },
-      },
-    };
-  }
-
-  function showChartEmpty(title, text, iconClass = "fa-solid fa-chart-simple") {
-    if (forecastChartCanvas) {
-      forecastChartCanvas.hidden = true;
-    }
-
-    if (!chartEmpty) {
-      return;
-    }
-
-    chartEmpty.hidden = false;
-    chartEmpty.style.display = "flex";
-
-    const icon = document.getElementById("chartEmptyIcon");
-    const titleElement = document.getElementById("chartEmptyTitle");
-    const textElement = document.getElementById("chartEmptyText");
-
-    if (icon) {
-      icon.className = iconClass;
-    }
-
-    if (titleElement) {
-      titleElement.textContent = title;
-    }
-
-    if (textElement) {
-      textElement.textContent = text;
-    }
-  }
-
-  function hideChartEmpty() {
-    if (forecastChartCanvas) {
-      forecastChartCanvas.hidden = false;
-    }
-
-    if (chartEmpty) {
-      chartEmpty.hidden = true;
-      chartEmpty.style.display = "none";
-    }
-  }
-
-  function renderForecastChart() {
-    if (!forecastChartCanvas) {
-      return;
-    }
-
-    if (typeof Chart === "undefined") {
-      if (forecastChartInstance) {
-        forecastChartInstance.destroy();
-        forecastChartInstance = null;
-      }
-
-      showChartEmpty(
-        "Chart library didn't load",
-        "Chart.js could not be loaded from the CDN. Check your internet connection, then refresh the page.",
-        "fa-solid fa-triangle-exclamation",
-      );
-
-      return;
-    }
-
-    const forecastData = buildForecastData();
-    const usageMovements = getUsageMovements();
-
-    const usableForecastData = forecastData.filter(
-      (forecast) => forecast.hasEnoughData,
-    );
-
-    const hasData =
-      currentChartMode === "bar"
-        ? usableForecastData.length > 0
-        : usageMovements.length > 0;
-
-    if (forecastChartInstance) {
-      forecastChartInstance.destroy();
-      forecastChartInstance = null;
-    }
-
-    if (!hasData) {
-      if (currentChartMode === "bar") {
-        showChartEmpty(
-          "Not enough forecast data",
-          "Record at least 3 stock-out movements for an item before the forecast chart can calculate Average Usage and Estimated Next Period.",
-          "fa-solid fa-chart-simple",
-        );
-      } else {
-        showChartEmpty(
-          "No historical data yet",
-          "Record at least one stock-out movement so the historical trend can be displayed.",
-          "fa-solid fa-chart-simple",
-        );
-      }
-
-      return;
-    }
-
-    hideChartEmpty();
-
-    const config =
-      currentChartMode === "bar"
-        ? buildBarChartConfig(forecastData)
-        : buildTrendChartConfig();
-
-    forecastChartInstance = new Chart(forecastChartCanvas, config);
-  }
-
-  if (chartToggle) {
-    chartToggle.addEventListener("click", (event) => {
-      const button = event.target.closest(".chart-toggle-btn");
-
-      if (!button) {
-        return;
-      }
-
-      const mode = button.dataset.chartMode;
-
-      if (!mode || mode === currentChartMode) {
-        return;
-      }
-
-      currentChartMode = mode;
-
-      chartToggle
-        .querySelectorAll(".chart-toggle-btn")
-        .forEach((toggleButton) => {
-          toggleButton.classList.toggle("active", toggleButton === button);
-        });
-
-      renderForecastChart();
-    });
-  }
-
-  if (refreshForecastBtn) {
-    refreshForecastBtn.addEventListener("click", () => {
-      renderForecast();
-      renderForecastChart();
-    });
-  }
-
   window.addEventListener("storage", (event) => {
     if (event.key === ITEMS_KEY || event.key === MOVEMENTS_KEY) {
+      inventoryCurrentPage = 1;
+
       renderAll();
+
+      if (inventoryCurrentSection === 2) {
+        window.refreshInventoryForecast?.();
+      }
+
+      if (inventoryCurrentSection === 3) {
+        window.refreshDemandForecast?.();
+      }
     }
   });
 
@@ -1809,9 +2054,9 @@ document.addEventListener("DOMContentLoaded", () => {
     renderInventoryTable();
     updateStatistics();
     populateMovementItems();
-    renderForecast();
-    renderForecastChart();
   }
+
+  showInventorySection(inventoryCurrentSection);
 
   renderAll();
 });

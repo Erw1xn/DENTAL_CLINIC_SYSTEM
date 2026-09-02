@@ -17,8 +17,8 @@ async function loadSidebar(activePageKey) {
     }
 
     const html = await response.text();
-
     const tempDiv = document.createElement("div");
+
     tempDiv.innerHTML = html;
 
     const logoutModal = tempDiv.querySelector("#logoutModalBackdrop");
@@ -72,7 +72,13 @@ async function loadSidebar(activePageKey) {
 
 function getCurrentUser() {
   try {
-    return JSON.parse(localStorage.getItem("currentUser"));
+    const storedUser = localStorage.getItem("currentUser");
+
+    if (!storedUser) {
+      return null;
+    }
+
+    return JSON.parse(storedUser);
   } catch (error) {
     return null;
   }
@@ -113,6 +119,7 @@ function loadActiveStaffProfile() {
     nameEl.textContent = "Staff";
 
     if (imageEl) {
+      imageEl.removeAttribute("src");
       imageEl.style.display = "none";
     }
 
@@ -248,7 +255,6 @@ document.addEventListener("click", (e) => {
   const logoutBtn = e.target.closest(".btn-logout");
   const cancelBtn = e.target.closest("#logoutCancelBtn");
   const confirmBtn = e.target.closest("#logoutConfirmBtn");
-
   const backdrop = document.getElementById("logoutModalBackdrop");
 
   if (logoutBtn) {

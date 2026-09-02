@@ -45,6 +45,14 @@
               <div class="patient-card-title"></div>
 
               <div class="patient-card-header-right">
+                <span
+                  class="patient-count-label"
+                  id="patientCount"
+                  aria-live="polite"
+                >
+                  0 patients
+                </span>
+
                 <div class="patient-search">
                   <i class="fa-solid fa-magnifying-glass"></i>
                   <input
@@ -55,14 +63,6 @@
                     placeholder="Search patient..."
                   />
                 </div>
-
-                <span
-                  class="patient-count-label"
-                  id="patientCount"
-                  aria-live="polite"
-                >
-                  0 patients
-                </span>
 
                 <select
                   id="sortPatients"

@@ -20,7 +20,6 @@ async function loadProfileModal() {
     }
 
     const html = await response.text();
-
     const tempDiv = document.createElement("div");
 
     tempDiv.innerHTML = html;
@@ -32,7 +31,6 @@ async function loadProfileModal() {
     }
 
     document.body.appendChild(modal);
-
     initProfileLogic();
   } catch (error) {
     console.error("Failed to load profile modal:", error);
@@ -50,7 +48,6 @@ function getCurrentUser() {
     return JSON.parse(currentUser);
   } catch (error) {
     console.error("Failed to read current user:", error);
-
     return null;
   }
 }
@@ -74,7 +71,6 @@ function getStaffData() {
   }
 
   const firstname = currentUser.firstname || currentUser.firstName || "";
-
   const lastname = currentUser.lastname || currentUser.lastName || "";
 
   const name =
@@ -86,33 +82,25 @@ function getStaffData() {
   return {
     name: name,
     initials: getInitials(name),
-
     image:
       currentUser.profileImage ||
       currentUser.profile_image ||
       currentUser.image ||
       "",
-
     role: currentUser.role || "Staff",
-
     department: currentUser.department || "Clinic Operations",
-
     staffId: currentUser.staffId || currentUser.staff_id || "STF-0001",
-
     accessLevel:
       currentUser.accessLevel ||
       currentUser.access_level ||
       currentUser.role ||
       "Staff",
-
     email: currentUser.email || "",
-
     contact:
       currentUser.contact ||
       currentUser.contactNumber ||
       currentUser.contact_number ||
       "",
-
     status: currentUser.status || "Active",
   };
 }
@@ -126,8 +114,6 @@ function saveStaffData(data) {
 
   const updatedUser = {
     ...currentUser,
-
-    email: data.email,
     contact: data.contact,
   };
 
@@ -144,7 +130,6 @@ function saveStaffData(data) {
       ) {
         return {
           ...user,
-          email: data.email,
           contact: data.contact,
         };
       }
@@ -157,7 +142,6 @@ function saveStaffData(data) {
     return true;
   } catch (error) {
     console.error("Failed to save profile:", error);
-
     return false;
   }
 }
@@ -184,31 +168,15 @@ function getInitials(name) {
 
 function populateProfileModal(staff) {
   const nameEl = document.getElementById("profileModalName");
-
   const roleEl = document.getElementById("profileModalRole");
-
   const statusEl = document.getElementById("profileModalStatus");
-
-  const accountStatusEl = document.getElementById("profileModalAccountStatus");
-
-  const staffIdEl = document.getElementById("profileModalStaffId");
-
   const staffIdCardEl = document.getElementById("profileModalStaffIdCard");
-
   const departmentEl = document.getElementById("profileModalDepartment");
-
   const accessLevelEl = document.getElementById("profileModalAccessLevel");
-
   const emailEl = document.getElementById("profileModalEmail");
-
   const contactEl = document.getElementById("profileModalContact");
-
-  const emailInput = document.getElementById("profileModalEmailInput");
-
   const contactInput = document.getElementById("profileModalContactInput");
-
   const imageEl = document.getElementById("profileModalImage");
-
   const initialsEl = document.getElementById("profileModalInitials");
 
   if (nameEl) {
@@ -221,14 +189,6 @@ function populateProfileModal(staff) {
 
   if (statusEl) {
     statusEl.textContent = staff.status;
-  }
-
-  if (accountStatusEl) {
-    accountStatusEl.textContent = staff.status;
-  }
-
-  if (staffIdEl) {
-    staffIdEl.textContent = staff.staffId;
   }
 
   if (staffIdCardEl) {
@@ -251,10 +211,6 @@ function populateProfileModal(staff) {
     contactEl.textContent = staff.contact || "No contact number available";
   }
 
-  if (emailInput) {
-    emailInput.value = staff.email || "";
-  }
-
   if (contactInput) {
     contactInput.value = staff.contact || "";
   }
@@ -265,17 +221,12 @@ function populateProfileModal(staff) {
     if (staff.image) {
       imageEl.src = staff.image;
       imageEl.style.display = "block";
-
       initialsEl.textContent = initials;
-
       initialsEl.style.display = "none";
     } else {
       imageEl.removeAttribute("src");
-
       imageEl.style.display = "none";
-
       initialsEl.textContent = initials;
-
       initialsEl.style.display = "flex";
     }
   }
@@ -285,9 +236,7 @@ function populateProfileModal(staff) {
 
 function updateSidebarProfile(staff) {
   const nameEl = document.getElementById("activeStaffName");
-
   const imageEl = document.getElementById("activeStaffImage");
-
   const initialsEl = document.getElementById("activeStaffInitials");
 
   if (nameEl) {
@@ -301,17 +250,12 @@ function updateSidebarProfile(staff) {
   if (staff.image) {
     imageEl.src = staff.image;
     imageEl.style.display = "block";
-
     initialsEl.textContent = getInitials(staff.name);
-
     initialsEl.style.display = "none";
   } else {
     imageEl.removeAttribute("src");
-
     imageEl.style.display = "none";
-
     initialsEl.textContent = getInitials(staff.name);
-
     initialsEl.style.display = "flex";
   }
 }
@@ -321,16 +265,13 @@ function openProfileModal() {
 
   if (!backdrop) {
     console.error("profileModalBackdrop was not found.");
-
     return;
   }
 
   const card = backdrop.querySelector(".profile-modal-card");
-
   const staff = getStaffData();
 
   populateProfileModal(staff);
-
   updateSidebarProfile(staff);
 
   if (card) {
@@ -341,7 +282,6 @@ function openProfileModal() {
   hideProfileSaveSuccess();
 
   backdrop.classList.add("active");
-
   document.body.style.overflow = "hidden";
 }
 
@@ -374,18 +314,13 @@ function startProfileEditing() {
   }
 
   const card = backdrop.querySelector(".profile-modal-card");
-
-  const emailInput = document.getElementById("profileModalEmailInput");
-
   const contactInput = document.getElementById("profileModalContactInput");
 
-  if (!card || !emailInput || !contactInput) {
+  if (!card || !contactInput) {
     return;
   }
 
   const staff = getStaffData();
-
-  emailInput.value = staff.email || "";
 
   contactInput.value = staff.contact || "";
 
@@ -395,7 +330,7 @@ function startProfileEditing() {
   card.classList.add("editing");
 
   setTimeout(() => {
-    emailInput.focus();
+    contactInput.focus();
   }, 50);
 }
 
@@ -415,15 +350,10 @@ function cancelProfileEditing() {
   const staff = getStaffData();
 
   populateProfileModal(staff);
-
   card.classList.remove("editing");
 
   clearProfileValidation();
   hideProfileSaveSuccess();
-}
-
-function validateEmail(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
 }
 
 function validateContact(contact) {
@@ -433,13 +363,11 @@ function validateContact(contact) {
 function showFieldError(input, errorElement, message) {
   if (input) {
     input.classList.add("field-invalid");
-
     input.setAttribute("aria-invalid", "true");
   }
 
   if (errorElement) {
     errorElement.textContent = message;
-
     errorElement.classList.add("show");
   }
 }
@@ -447,89 +375,51 @@ function showFieldError(input, errorElement, message) {
 function clearFieldError(input, errorElement) {
   if (input) {
     input.classList.remove("field-invalid");
-
     input.removeAttribute("aria-invalid");
   }
 
   if (errorElement) {
     errorElement.textContent = "";
-
     errorElement.classList.remove("show");
   }
 }
 
 function clearProfileValidation() {
-  const emailInput = document.getElementById("profileModalEmailInput");
-
   const contactInput = document.getElementById("profileModalContactInput");
-
-  const emailError = document.getElementById("profileModalEmailError");
-
   const contactError = document.getElementById("profileModalContactError");
-
-  clearFieldError(emailInput, emailError);
 
   clearFieldError(contactInput, contactError);
 }
 
 function validateProfileFields() {
-  const emailInput = document.getElementById("profileModalEmailInput");
-
   const contactInput = document.getElementById("profileModalContactInput");
-
-  const emailError = document.getElementById("profileModalEmailError");
-
   const contactError = document.getElementById("profileModalContactError");
 
-  if (!emailInput || !contactInput) {
+  if (!contactInput) {
     return false;
   }
 
   clearProfileValidation();
 
-  const email = emailInput.value.trim();
-
   const contact = contactInput.value.trim();
-
-  let valid = true;
-
-  if (!email) {
-    showFieldError(emailInput, emailError, "Email address is required.");
-
-    valid = false;
-  } else if (!validateEmail(email)) {
-    showFieldError(
-      emailInput,
-      emailError,
-      "Please enter a valid email address.",
-    );
-
-    valid = false;
-  }
 
   if (!contact) {
     showFieldError(contactInput, contactError, "Contact number is required.");
+    contactInput.focus();
+    return false;
+  }
 
-    valid = false;
-  } else if (!validateContact(contact)) {
+  if (!validateContact(contact)) {
     showFieldError(
       contactInput,
       contactError,
       "Use a valid 11-digit number starting with 09.",
     );
-
-    valid = false;
+    contactInput.focus();
+    return false;
   }
 
-  if (!valid) {
-    if (emailInput.classList.contains("field-invalid")) {
-      emailInput.focus();
-    } else {
-      contactInput.focus();
-    }
-  }
-
-  return valid;
+  return true;
 }
 
 function saveProfileChanges() {
@@ -540,14 +430,10 @@ function saveProfileChanges() {
   }
 
   const card = backdrop.querySelector(".profile-modal-card");
-
-  const emailInput = document.getElementById("profileModalEmailInput");
-
   const contactInput = document.getElementById("profileModalContactInput");
-
   const saveBtn = document.getElementById("profileSaveBtn");
 
-  if (!card || !emailInput || !contactInput) {
+  if (!card || !contactInput) {
     return;
   }
 
@@ -555,15 +441,11 @@ function saveProfileChanges() {
     return;
   }
 
-  const email = emailInput.value.trim();
-
   const contact = contactInput.value.trim();
-
   const staff = getStaffData();
 
   const updatedStaff = {
     ...staff,
-    email,
     contact,
   };
 
@@ -572,7 +454,6 @@ function saveProfileChanges() {
   }
 
   populateProfileModal(updatedStaff);
-
   updateSidebarProfile(updatedStaff);
 
   card.classList.remove("editing");
@@ -603,7 +484,6 @@ function showProfileSaveSuccess() {
 
   profileSuccessTimeout = setTimeout(() => {
     successEl.classList.remove("show");
-
     profileSuccessTimeout = null;
   }, 2500);
 }
@@ -613,7 +493,6 @@ function hideProfileSaveSuccess() {
 
   if (profileSuccessTimeout) {
     clearTimeout(profileSuccessTimeout);
-
     profileSuccessTimeout = null;
   }
 
@@ -636,38 +515,20 @@ function initProfileLogic() {
   backdrop.dataset.initialized = "true";
 
   const closeBtn = document.getElementById("profileModalClose");
-
   const editBtn = document.getElementById("profileEditBtn");
-
   const cancelBtn = document.getElementById("profileCancelBtn");
-
   const saveBtn = document.getElementById("profileSaveBtn");
-
-  const emailInput = document.getElementById("profileModalEmailInput");
-
   const contactInput = document.getElementById("profileModalContactInput");
 
   const staff = getStaffData();
 
   populateProfileModal(staff);
-
   updateSidebarProfile(staff);
 
   closeBtn?.addEventListener("click", closeProfileModal);
-
   editBtn?.addEventListener("click", startProfileEditing);
-
   cancelBtn?.addEventListener("click", cancelProfileEditing);
-
   saveBtn?.addEventListener("click", saveProfileChanges);
-
-  emailInput?.addEventListener("input", () => {
-    const emailError = document.getElementById("profileModalEmailError");
-
-    if (validateEmail(emailInput.value.trim())) {
-      clearFieldError(emailInput, emailError);
-    }
-  });
 
   contactInput?.addEventListener("input", () => {
     contactInput.value = contactInput.value.replace(/\D/g, "").slice(0, 11);
@@ -679,27 +540,8 @@ function initProfileLogic() {
     }
   });
 
-  emailInput?.addEventListener("blur", () => {
-    const email = emailInput.value.trim();
-
-    const emailError = document.getElementById("profileModalEmailError");
-
-    if (!email) {
-      return;
-    }
-
-    if (!validateEmail(email)) {
-      showFieldError(
-        emailInput,
-        emailError,
-        "Please enter a valid email address.",
-      );
-    }
-  });
-
   contactInput?.addEventListener("blur", () => {
     const contact = contactInput.value.trim();
-
     const contactError = document.getElementById("profileModalContactError");
 
     if (!contact) {
@@ -733,17 +575,14 @@ function initProfileLogic() {
     const initialsEl = document.getElementById("profileModalInitials");
 
     imageEl.removeAttribute("src");
-
     imageEl.style.display = "none";
 
     if (initialsEl) {
       initialsEl.textContent = getInitials(getStaffData().name);
-
       initialsEl.style.display = "flex";
     }
   });
 }
 
 window.openProfileModal = openProfileModal;
-
 window.closeProfileModal = closeProfileModal;
