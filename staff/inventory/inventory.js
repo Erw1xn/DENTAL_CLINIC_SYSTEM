@@ -5,6 +5,17 @@ document.addEventListener("DOMContentLoaded", () => {
   const RESET_VERSION = "inventory-reset-2026-08-16-v1";
   const INVENTORY_PAGE_SIZE = 10;
 
+  const INVENTORY_CATEGORIES = [
+    "Restorative Materials",
+    "Preventive Materials",
+    "Disposable Supplies",
+    "Infection Control",
+    "Sterilization Supplies",
+    "Dental Instruments",
+    "Oral Care Supplies",
+    "Other",
+  ];
+
   const addItemBtn = document.getElementById("addItemBtn");
   const emptyAddItemBtn = document.getElementById("emptyAddItemBtn");
   const stockMovementBtn = document.getElementById("stockMovementBtn");
@@ -69,7 +80,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     inventoryPageSections.forEach((section) => {
       const sectionPage = Number(section.dataset.pageSection);
-
       section.classList.toggle("active", sectionPage === requestedPage);
     });
 
@@ -94,7 +104,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (
-      requestedPage === 3 &&
+      requestedPage === 2 &&
       typeof window.refreshDemandForecast === "function"
     ) {
       window.refreshDemandForecast();
@@ -123,7 +133,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     inventoryToast.classList.add("show");
-
     clearTimeout(inventoryToastTimeout);
 
     inventoryToastTimeout = setTimeout(() => {
@@ -421,10 +430,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const option = document.createElement("option");
-
     option.value = category;
     option.textContent = category;
-
     itemCategory.appendChild(option);
   }
 
@@ -440,9 +447,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     ensureItemCategoryOption(automaticCategory);
-
     itemCategory.value = automaticCategory;
-
     updateExpiryFieldState();
   }
 
@@ -468,14 +473,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const datalistId = "dentalItemNameSuggestions";
-
     let datalist = document.getElementById(datalistId);
 
     if (!datalist) {
       datalist = document.createElement("datalist");
-
       datalist.id = datalistId;
-
       document.body.appendChild(datalist);
     }
 
@@ -492,9 +494,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       suggestions.forEach((item) => {
         const option = document.createElement("option");
-
         option.value = item;
-
         datalist.appendChild(option);
       });
     }
@@ -534,14 +534,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const movementQuantity = document.getElementById("movementQuantity");
   const movementReason = document.getElementById("movementReason");
   const actionMenu = document.getElementById("actionMenu");
-
   let selectedActionItemId = null;
-
   const deleteItemModal = document.getElementById("deleteItemModal");
   const deleteItemCancelBtn = document.getElementById("deleteItemCancelBtn");
   const deleteItemConfirmBtn = document.getElementById("deleteItemConfirmBtn");
   const deleteItemMessage = document.getElementById("deleteItemMessage");
-
   const viewItemModal = document.getElementById("viewItemModal");
   const viewItemModalClose = document.getElementById("viewItemModalClose");
   const viewItemCloseBtn = document.getElementById("viewItemCloseBtn");
@@ -568,7 +565,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     localStorage.removeItem(ITEMS_KEY);
     localStorage.removeItem(MOVEMENTS_KEY);
-
     localStorage.setItem(RESET_VERSION_KEY, RESET_VERSION);
   }
 
@@ -630,14 +626,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function generateItemId() {
     const items = getItems();
-
     let number = 1;
-
     let id = `INV-${String(number).padStart(3, "0")}`;
 
     while (items.some((item) => String(item.id) === String(id))) {
       number++;
-
       id = `INV-${String(number).padStart(3, "0")}`;
     }
 
@@ -659,7 +652,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function getStockStatus(item) {
     const stock = Number(item.stock) || 0;
-
     const minimum = Number(item.minimum) || 0;
 
     if (stock <= 0) {
@@ -691,7 +683,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const today = new Date();
-
     today.setHours(0, 0, 0, 0);
 
     const expiry = new Date(`${dateString}T00:00:00`);
@@ -758,7 +749,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const days = getDaysUntilExpiry(dateString);
-
     const date = new Date(`${dateString}T00:00:00`);
 
     const formatted = date.toLocaleDateString("en-US", {
@@ -784,21 +774,21 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const items = getItems();
+    const currentValue = categoryFilter.value || "all";
 
     const categories = [
-      ...new Set(items.map((item) => item.category).filter(Boolean)),
-    ].sort((a, b) => String(a).localeCompare(String(b)));
-
-    const currentValue = categoryFilter.value || "all";
+      ...new Set([
+        ...INVENTORY_CATEGORIES,
+        ...items.map((item) => item.category).filter(Boolean),
+      ]),
+    ];
 
     categoryFilter.innerHTML = '<option value="all">All Categories</option>';
 
     categories.forEach((category) => {
       const option = document.createElement("option");
-
       option.value = category;
       option.textContent = category;
-
       categoryFilter.appendChild(option);
     });
 
@@ -811,20 +801,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function getFilteredItems() {
     const items = getItems();
-
     const searchValue = inventorySearch.value.trim().toLowerCase();
-
     const selectedCategory = categoryFilter.value;
-
     const selectedStatus = statusFilter.value;
-
     const selectedExpiry = expiryFilter ? expiryFilter.value : "all";
-
     const selectedSort = sortFilter.value;
 
     let filtered = items.filter((item) => {
       const itemName = String(item.name || "").toLowerCase();
-
       const itemCategory = String(item.category || "").toLowerCase();
 
       const matchesSearch =
@@ -869,6 +853,14 @@ document.addEventListener("DOMContentLoaded", () => {
         return aExpiry - bExpiry;
       }
 
+      if (selectedSort === "id-asc") {
+        const aId = Number(String(a.id || "").replace(/\D/g, "")) || 0;
+
+        const bId = Number(String(b.id || "").replace(/\D/g, "")) || 0;
+
+        return aId - bId;
+      }
+
       return 0;
     });
 
@@ -888,11 +880,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (totalItems <= INVENTORY_PAGE_SIZE) {
       inventoryPagination.style.display = "none";
-
       inventoryPrevPageBtn.disabled = true;
-
       inventoryNextPageBtn.disabled = true;
-
       return;
     }
 
@@ -910,7 +899,6 @@ document.addEventListener("DOMContentLoaded", () => {
     inventoryPaginationPageInfo.textContent = `Page ${inventoryCurrentPage} of ${totalPages}`;
 
     inventoryPrevPageBtn.disabled = inventoryCurrentPage <= 1;
-
     inventoryNextPageBtn.disabled = inventoryCurrentPage >= totalPages;
   }
 
@@ -920,9 +908,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const filteredItems = getFilteredItems();
-
     const allItems = getItems();
-
     const totalItems = filteredItems.length;
 
     const totalPages = Math.max(Math.ceil(totalItems / INVENTORY_PAGE_SIZE), 1);
@@ -971,7 +957,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     pageItems.forEach((item) => {
       const status = getStockStatus(item);
-
       const row = document.createElement("tr");
 
       row.innerHTML = `
@@ -980,7 +965,6 @@ document.addEventListener("DOMContentLoaded", () => {
             <div class="item-avatar">
               <i class="fa-solid fa-box"></i>
             </div>
-
             <div class="item-info">
               <span
                 class="item-name"
@@ -988,50 +972,41 @@ document.addEventListener("DOMContentLoaded", () => {
               >
                 ${escapeHTML(item.name)}
               </span>
-
               <span class="item-id">
                 ${escapeHTML(item.id)}
               </span>
             </div>
           </div>
         </td>
-
         <td>
           <span class="category-badge">
             ${escapeHTML(item.category)}
           </span>
         </td>
-
         <td>
           <span class="stock-value">
             ${Number(item.stock) || 0}
           </span>
-
           <span class="stock-unit">
             ${escapeHTML(item.unit)}
           </span>
         </td>
-
         <td>
           <span class="minimum-value">
             ${Number(item.minimum) || 0}
           </span>
         </td>
-
         <td>
           ${escapeHTML(item.unit)}
         </td>
-
         <td>
           ${formatExpiry(item.expiry)}
         </td>
-
         <td>
           <span class="status-badge status-${status}">
             ${getStatusLabel(status)}
           </span>
         </td>
-
         <td>
           <button
             type="button"
@@ -1099,20 +1074,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function openItemModal(item = null) {
     closeActionMenu();
-
     itemForm.reset();
-
     itemUnitManuallyEdited = false;
 
     if (item) {
       itemModalTitle.textContent = "Edit Inventory Item";
-
       itemId.value = item.id;
       itemName.value = item.name;
 
       ensureItemCategoryOption(item.category);
-
       itemCategory.value = item.category;
+
       itemUnit.value = item.unit;
       itemStock.value = item.stock;
       itemStock.readOnly = true;
@@ -1120,17 +1092,15 @@ document.addEventListener("DOMContentLoaded", () => {
       itemExpiry.value = item.expiry || "";
     } else {
       itemModalTitle.textContent = "Add Inventory Item";
-
       itemId.value = "";
       itemStock.value = "0";
-      itemStock.readOnly = false;
+      itemStock.readOnly = true;
       itemMinimum.value = "5";
     }
 
     updateExpiryFieldState();
 
     itemModal.classList.add("active");
-
     itemModal.setAttribute("aria-hidden", "false");
 
     setTimeout(() => {
@@ -1140,7 +1110,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function closeItemModal() {
     itemModal.classList.remove("active");
-
     itemModal.setAttribute("aria-hidden", "true");
   }
 
@@ -1148,57 +1117,45 @@ document.addEventListener("DOMContentLoaded", () => {
     event.preventDefault();
 
     const name = itemName.value.trim();
-
     const automaticCategory = getAutomaticItemCategory(name);
 
     if (automaticCategory) {
       ensureItemCategoryOption(automaticCategory);
-
       itemCategory.value = automaticCategory;
     }
 
     const category = itemCategory.value;
-
     const unit = itemUnit.value.trim();
-
     const stock = Number(itemStock.value);
-
     const minimum = Number(itemMinimum.value);
-
     const expiry = categoryHasExpiry(category) ? itemExpiry.value : "";
 
     if (!name) {
       showInventoryMessage("Please enter the item name.", "error");
-
       return;
     }
 
     if (!category) {
       showInventoryMessage("Please select a category.", "error");
-
       return;
     }
 
     if (!unit) {
       showInventoryMessage("Please enter the unit.", "error");
-
       return;
     }
 
     if (Number.isNaN(stock) || stock < 0) {
       showInventoryMessage("Current stock cannot be negative.", "error");
-
       return;
     }
 
     if (Number.isNaN(minimum) || minimum < 0) {
       showInventoryMessage("Minimum stock cannot be negative.", "error");
-
       return;
     }
 
     const items = getItems();
-
     const existingId = itemId.value;
 
     if (existingId) {
@@ -1219,12 +1176,31 @@ document.addEventListener("DOMContentLoaded", () => {
         };
       }
     } else {
+      const normalizedName = normalizeDentalItemName(name);
+      const normalizedCategory = normalizeDentalItemName(category);
+      const normalizedUnit = normalizeDentalItemName(unit);
+
+      const duplicateItem = items.find(
+        (item) =>
+          normalizeDentalItemName(item.name) === normalizedName &&
+          normalizeDentalItemName(item.category) === normalizedCategory &&
+          normalizeDentalItemName(item.unit) === normalizedUnit,
+      );
+
+      if (duplicateItem) {
+        showInventoryMessage(
+          `"${duplicateItem.name}" already exists as ${duplicateItem.id}. Use Stock Movement to add or deduct stock.`,
+          "error",
+        );
+        return;
+      }
+
       items.push({
         id: generateItemId(),
         name,
         category,
         unit,
-        stock,
+        stock: 0,
         minimum,
         expiry,
         createdAt: new Date().toISOString(),
@@ -1232,16 +1208,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     saveItems(items);
-
     inventoryCurrentPage = 1;
-
     renderAll();
 
     if (inventoryCurrentSection === 2) {
       window.refreshInventoryForecast?.();
-    }
-
-    if (inventoryCurrentSection === 3) {
       window.refreshDemandForecast?.();
     }
 
@@ -1256,13 +1227,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function openMovementModal(selectedItemId = "") {
     closeActionMenu();
-
     movementForm.reset();
-
     movementType.value = "stock-in";
-
     movementQuantity.value = "1";
-
     populateMovementItems(selectedItemId);
 
     if (selectedItemId) {
@@ -1270,7 +1237,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     movementModal.classList.add("active");
-
     movementModal.setAttribute("aria-hidden", "false");
 
     setTimeout(() => {
@@ -1280,7 +1246,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function closeMovementModal() {
     movementModal.classList.remove("active");
-
     movementModal.setAttribute("aria-hidden", "true");
   }
 
@@ -1299,7 +1264,6 @@ document.addEventListener("DOMContentLoaded", () => {
       const option = document.createElement("option");
 
       option.value = item.id;
-
       option.textContent = `${item.name} — ${item.stock} ${item.unit}`;
 
       movementItem.appendChild(option);
@@ -1314,22 +1278,17 @@ document.addEventListener("DOMContentLoaded", () => {
     event.preventDefault();
 
     const selectedId = movementItem.value;
-
     const type = movementType.value;
-
     const quantity = Number(movementQuantity.value);
-
     const reason = movementReason.value.trim();
 
     if (!selectedId) {
       showInventoryMessage("Please select an inventory item.", "error");
-
       return;
     }
 
     if (Number.isNaN(quantity) || quantity <= 0) {
       showInventoryMessage("Please enter a valid quantity.", "error");
-
       return;
     }
 
@@ -1344,14 +1303,11 @@ document.addEventListener("DOMContentLoaded", () => {
         "The selected inventory item could not be found.",
         "error",
       );
-
       return;
     }
 
     const item = items[itemIndex];
-
     const previousStock = Number(item.stock) || 0;
-
     let newStock = previousStock;
 
     if (type === "stock-in") {
@@ -1364,7 +1320,6 @@ document.addEventListener("DOMContentLoaded", () => {
           `Insufficient stock. Available: ${previousStock} ${item.unit}. Requested: ${quantity} ${item.unit}.`,
           "error",
         );
-
         return;
       }
 
@@ -1372,7 +1327,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     item.stock = newStock;
-
     item.updatedAt = new Date().toISOString();
 
     saveItems(items);
@@ -1396,14 +1350,10 @@ document.addEventListener("DOMContentLoaded", () => {
     saveMovements(movements);
 
     inventoryCurrentPage = 1;
-
     renderAll();
 
     if (inventoryCurrentSection === 2) {
       window.refreshInventoryForecast?.();
-    }
-
-    if (inventoryCurrentSection === 3) {
       window.refreshDemandForecast?.();
     }
 
@@ -1426,11 +1376,9 @@ document.addEventListener("DOMContentLoaded", () => {
     actionMenu.classList.add("active");
 
     const menuWidth = actionMenu.offsetWidth;
-
     const menuHeight = actionMenu.offsetHeight;
 
     let left = rect.right - menuWidth;
-
     let top = rect.bottom + 6;
 
     if (left < 8) {
@@ -1446,13 +1394,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     actionMenu.style.left = `${left}px`;
-
     actionMenu.style.top = `${top}px`;
   }
 
   function closeActionMenu() {
     actionMenu.classList.remove("active");
-
     selectedActionItemId = null;
   }
 
@@ -1495,16 +1441,13 @@ document.addEventListener("DOMContentLoaded", () => {
       .filter((movement) => String(movement.itemId) === String(item.id))
       .sort((a, b) => {
         const aTime = new Date(a.date || "").getTime();
-
         const bTime = new Date(b.date || "").getTime();
 
         return bTime - aTime;
       });
 
     const status = getStockStatus(item);
-
     const expiryStatus = getExpiryStatus(item);
-
     const statusText = getStatusLabel(status);
 
     let expiryText = "No Expiry";
@@ -1554,43 +1497,38 @@ document.addEventListener("DOMContentLoaded", () => {
                 : "Inventory usage");
 
             return `
-                  <div class="item-history-entry">
-                    <div class="item-history-marker ${typeClass}">
-                      <i class="fa-solid ${
-                        movement.type === "stock-in"
-                          ? "fa-arrow-up"
-                          : "fa-arrow-down"
-                      }"></i>
-                    </div>
-
-                    <div class="item-history-content">
-                      <div class="item-history-topline">
-                        <strong>
-                          ${escapeHTML(getMovementLabel(movement.type))}
-                        </strong>
-
-                        <span>
-                          ${escapeHTML(formatItemDateTime(movement.date))}
-                        </span>
-                      </div>
-
-                      <div class="item-history-quantity ${typeClass}">
-                        ${quantityText}
-                      </div>
-
-                      <div class="item-history-reason">
-                        ${escapeHTML(reason)}
-                      </div>
-
-                      <div class="item-history-stock">
-                        Stock:
-                        ${Number(movement.previousStock) || 0}
-                        →
-                        ${Number(movement.newStock) || 0}
-                      </div>
-                    </div>
+              <div class="item-history-entry">
+                <div class="item-history-marker ${typeClass}">
+                  <i class="fa-solid ${
+                    movement.type === "stock-in"
+                      ? "fa-arrow-up"
+                      : "fa-arrow-down"
+                  }"></i>
+                </div>
+                <div class="item-history-content">
+                  <div class="item-history-topline">
+                    <strong>
+                      ${escapeHTML(getMovementLabel(movement.type))}
+                    </strong>
+                    <span>
+                      ${escapeHTML(formatItemDateTime(movement.date))}
+                    </span>
                   </div>
-                `;
+                  <div class="item-history-quantity ${typeClass}">
+                    ${quantityText}
+                  </div>
+                  <div class="item-history-reason">
+                    ${escapeHTML(reason)}
+                  </div>
+                  <div class="item-history-stock">
+                    Stock:
+                    ${Number(movement.previousStock) || 0}
+                    →
+                    ${Number(movement.newStock) || 0}
+                  </div>
+                </div>
+              </div>
+            `;
           })
           .join("")
       : `
@@ -1598,11 +1536,9 @@ document.addEventListener("DOMContentLoaded", () => {
             <div class="item-history-empty-icon">
               <i class="fa-solid fa-clock-rotate-left"></i>
             </div>
-
             <strong>
               No stock movement history
             </strong>
-
             <p>
               Stock movements for this item will appear here.
             </p>
@@ -1739,7 +1675,6 @@ document.addEventListener("DOMContentLoaded", () => {
     `;
 
     viewItemModal.classList.add("active");
-
     viewItemModal.setAttribute("aria-hidden", "false");
   }
 
@@ -1749,7 +1684,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     viewItemModal.classList.remove("active");
-
     viewItemModal.setAttribute("aria-hidden", "true");
   }
 
@@ -1767,7 +1701,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     deleteItemModal.classList.add("active");
-
     deleteItemModal.setAttribute("aria-hidden", "false");
   }
 
@@ -1777,9 +1710,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     deleteItemModal.classList.remove("active");
-
     deleteItemModal.setAttribute("aria-hidden", "true");
-
     selectedDeleteItemId = null;
   }
 
@@ -1822,14 +1753,10 @@ document.addEventListener("DOMContentLoaded", () => {
     closeDeleteItemModal();
 
     inventoryCurrentPage = 1;
-
     renderAll();
 
     if (inventoryCurrentSection === 2) {
       window.refreshInventoryForecast?.();
-    }
-
-    if (inventoryCurrentSection === 3) {
       window.refreshDemandForecast?.();
     }
 
@@ -1844,7 +1771,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const action = button.dataset.action;
-
     const id = selectedActionItemId;
 
     if (!id) {
@@ -1859,25 +1785,21 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (!item) {
       closeActionMenu();
-
       return;
     }
 
     if (action === "view") {
       openItemViewModal(item);
-
       return;
     }
 
     if (action === "edit") {
       openItemModal(item);
-
       return;
     }
 
     if (action === "movement") {
       openMovementModal(id);
-
       return;
     }
 
@@ -1900,33 +1822,28 @@ document.addEventListener("DOMContentLoaded", () => {
 
   inventorySearch.addEventListener("input", () => {
     inventoryCurrentPage = 1;
-
     renderInventoryTable();
   });
 
   categoryFilter.addEventListener("change", () => {
     inventoryCurrentPage = 1;
-
     renderInventoryTable();
   });
 
   statusFilter.addEventListener("change", () => {
     inventoryCurrentPage = 1;
-
     renderInventoryTable();
   });
 
   if (expiryFilter) {
     expiryFilter.addEventListener("change", () => {
       inventoryCurrentPage = 1;
-
       renderInventoryTable();
     });
   }
 
   sortFilter.addEventListener("change", () => {
     inventoryCurrentPage = 1;
-
     renderInventoryTable();
   });
 
@@ -1935,7 +1852,6 @@ document.addEventListener("DOMContentLoaded", () => {
   inventoryPrevPageBtn?.addEventListener("click", () => {
     if (inventoryCurrentPage > 1) {
       inventoryCurrentPage--;
-
       renderInventoryTable();
     }
   });
@@ -1950,7 +1866,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (inventoryCurrentPage < totalPages) {
       inventoryCurrentPage++;
-
       renderInventoryTable();
     }
   });
@@ -2036,14 +1951,10 @@ document.addEventListener("DOMContentLoaded", () => {
   window.addEventListener("storage", (event) => {
     if (event.key === ITEMS_KEY || event.key === MOVEMENTS_KEY) {
       inventoryCurrentPage = 1;
-
       renderAll();
 
       if (inventoryCurrentSection === 2) {
         window.refreshInventoryForecast?.();
-      }
-
-      if (inventoryCurrentSection === 3) {
         window.refreshDemandForecast?.();
       }
     }
@@ -2057,6 +1968,5 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   showInventorySection(inventoryCurrentSection);
-
   renderAll();
 });

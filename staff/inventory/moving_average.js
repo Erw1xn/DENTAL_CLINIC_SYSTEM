@@ -319,6 +319,7 @@
 
   function renderForecastTable() {
     const tableBody = document.getElementById("forecastTableBody");
+
     const emptyState = document.getElementById("forecastEmpty");
 
     if (!tableBody) {
@@ -376,32 +377,11 @@
           </span>
         </td>
         <td>
-          <span class="forecast-number">
-            ${formatMetric(result.totalUsed, 0)}
-            <span class="forecast-unit">
-              ${escapeHTML(item.unit || "")}
-            </span>
-          </span>
-        </td>
-        <td>
           <span class="forecast-average">
             ${result.average === null ? "—" : formatMetric(result.average)}
           </span>
           <span class="forecast-unit">
             ${escapeHTML(item.unit || "")}
-          </span>
-        </td>
-        <td>
-          <span class="forecast-estimate">
-            ${result.roundedForecast === null ? "—" : result.roundedForecast}
-          </span>
-          <span class="forecast-unit">
-            ${escapeHTML(item.unit || "")}
-          </span>
-        </td>
-        <td>
-          <span class="forecast-number">
-            ${escapeHTML(status)}
           </span>
         </td>
       `;
@@ -411,19 +391,7 @@
   }
 
   function refreshInventoryForecast() {
-    const refreshButton = document.getElementById("refreshForecastBtn");
-
-    if (refreshButton) {
-      refreshButton.disabled = true;
-    }
-
-    try {
-      renderForecastTable();
-    } finally {
-      if (refreshButton) {
-        refreshButton.disabled = false;
-      }
-    }
+    renderForecastTable();
   }
 
   window.addEventListener("storage", (event) => {
@@ -451,6 +419,8 @@
     renderForecastTable,
     refreshInventoryForecast,
   };
+
+  window.refreshInventoryForecast = refreshInventoryForecast;
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", refreshInventoryForecast, {

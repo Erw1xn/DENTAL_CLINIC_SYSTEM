@@ -4,7 +4,6 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Inventory | DentaNueva Dental Clinic</title>
-
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -19,7 +18,6 @@
     <link rel="stylesheet" href="../../navigation_bar/sidebar.css" />
     <link rel="stylesheet" href="inventory.css" />
   </head>
-
   <body>
     <div id="sidebar-container"></div>
 
@@ -63,7 +61,6 @@
             <div class="inventory-toolbar">
               <div class="search-wrapper">
                 <i class="fa-solid fa-magnifying-glass"></i>
-
                 <input
                   type="text"
                   id="inventorySearch"
@@ -97,6 +94,7 @@
                 <option value="stock-low">Stock Low–High</option>
                 <option value="stock-high">Stock High–Low</option>
                 <option value="expiry">Expiry Soonest</option>
+                <option value="id-asc">ID Low–High</option>
               </select>
             </div>
 
@@ -114,7 +112,6 @@
                     <th>ACTION</th>
                   </tr>
                 </thead>
-
                 <tbody id="inventoryTableBody"></tbody>
               </table>
 
@@ -186,65 +183,66 @@
             data-page-section="2"
           >
             <div class="forecasting-prototype">
-              <div class="prototype-header">
-                <div>
-                  <span class="prototype-label">MOVING AVERAGE</span>
+              <div
+                class="forecast-chart-section"
+                id="forecastChartSection"
+                hidden
+              >
+                <div class="forecast-chart-header">
+                  <div>
+                    <span class="forecast-chart-eyebrow"
+                      >HISTORICAL DEMAND</span
+                    >
+                    <h3>Demand Data and Forecast</h3>
+                    <p>
+                      Shows the historical stock-out demand used by the
+                      forecasting models and their prediction results.
+                    </p>
+                  </div>
 
-                  <h3>Historical Usage Forecast</h3>
-
-                  <p>
-                    Uses historical stock-out demand and a moving average to
-                    estimate the next inventory usage period.
-                  </p>
+                  <div class="forecast-chart-select-wrapper">
+                    <label for="forecastChartItem">Select Item</label>
+                    <select id="forecastChartItem">
+                      <option value="">Select item</option>
+                    </select>
+                  </div>
                 </div>
-              </div>
 
-              <div class="forecast-table-wrapper">
-                <table class="forecast-table">
-                  <thead>
-                    <tr>
-                      <th>ITEM</th>
-                      <th>USAGE RECORDS</th>
-                      <th>TOTAL USED</th>
-                      <th>AVG. USAGE</th>
-                      <th>EST. NEXT PERIOD</th>
-                      <th>DATA STATUS</th>
-                    </tr>
-                  </thead>
+                <div class="forecast-chart-container">
+                  <canvas id="forecastDemandChart"></canvas>
+                </div>
 
-                  <tbody id="forecastTableBody"></tbody>
-                </table>
-
-                <div class="forecast-empty" id="forecastEmpty" hidden>
+                <div
+                  class="forecast-chart-empty"
+                  id="forecastChartEmpty"
+                  hidden
+                >
                   <i class="fa-solid fa-chart-line"></i>
-
-                  <h3>No historical usage data</h3>
-
+                  <h3>No chart data available</h3>
                   <p>
-                    Record stock-out movements to build historical usage data
-                    for the moving-average forecast.
+                    Select an inventory item with historical demand data to
+                    display the chart.
                   </p>
                 </div>
               </div>
-            </div>
-          </div>
 
-          <div
-            class="inventory-page-section"
-            id="inventoryPage3"
-            data-page-section="3"
-          >
-            <div class="forecasting-prototype">
               <div class="prototype-header">
-                <div>
-                  <span class="prototype-label">MACHINE LEARNING FORECAST</span>
-
-                  <h3>Demand Forecasting</h3>
-
+                <div class="prototype-header-content">
+                  <h3>Inventory Demand Forecast</h3>
                   <p>
-                    Uses historical stock-out demand to train a machine learning
-                    model and estimate future inventory demand.
+                    Uses historical stock-out demand to compare a simple moving
+                    average baseline with the machine learning forecast.
                   </p>
+                </div>
+
+                <div class="forecast-header-search">
+                  <i class="fa-solid fa-magnifying-glass"></i>
+                  <input
+                    type="text"
+                    id="demandForecastSearch"
+                    placeholder="Search forecast item..."
+                    autocomplete="off"
+                  />
                 </div>
               </div>
 
@@ -255,9 +253,11 @@
                       <th>ITEM</th>
                       <th>RECORDS</th>
                       <th>MOVING AVG.</th>
+                      <th>SMA MAPE</th>
+                      <th>SMA RMSE</th>
                       <th>ML FORECAST</th>
-                      <th>MAPE</th>
-                      <th>RMSE</th>
+                      <th>ML MAPE</th>
+                      <th>ML RMSE</th>
                       <th>STATUS</th>
                     </tr>
                   </thead>
@@ -266,14 +266,54 @@
                 </table>
 
                 <div class="forecast-empty" id="demandForecastEmpty" hidden>
-                  <i class="fa-solid fa-brain"></i>
-
-                  <h3>Not enough historical data</h3>
-
+                  <i class="fa-solid fa-chart-line"></i>
+                  <h3>No historical usage data</h3>
                   <p>
-                    Record more stock-out movements before generating the
-                    machine learning demand forecast.
+                    Record stock-out movements to build historical usage data
+                    for demand forecasting.
                   </p>
+                </div>
+              </div>
+
+              <div
+                class="forecast-pagination"
+                id="demandForecastPagination"
+                style="display: none"
+              >
+                <div
+                  class="forecast-pagination-summary"
+                  id="demandForecastPaginationSummary"
+                >
+                  Showing 1–10 of 0 items
+                </div>
+
+                <div class="forecast-pagination-controls">
+                  <button
+                    type="button"
+                    class="forecast-pagination-button"
+                    id="demandForecastPrevPageBtn"
+                    disabled
+                  >
+                    <i class="fa-solid fa-chevron-left"></i>
+                    <span>Previous</span>
+                  </button>
+
+                  <span
+                    class="forecast-pagination-page-info"
+                    id="demandForecastPaginationPageInfo"
+                  >
+                    Page 1 of 1
+                  </span>
+
+                  <button
+                    type="button"
+                    class="forecast-pagination-button"
+                    id="demandForecastNextPageBtn"
+                    disabled
+                  >
+                    <span>Next</span>
+                    <i class="fa-solid fa-chevron-right"></i>
+                  </button>
                 </div>
               </div>
             </div>
@@ -299,18 +339,9 @@
             type="button"
             class="inventory-page-btn"
             data-page="2"
-            aria-label="Historical Usage Forecast"
-          >
-            <span>2</span>
-          </button>
-
-          <button
-            type="button"
-            class="inventory-page-btn"
-            data-page="3"
             aria-label="Demand Forecasting"
           >
-            <span>3</span>
+            <span>2</span>
           </button>
         </div>
       </div>
@@ -340,7 +371,6 @@
           <div class="form-grid">
             <div class="form-group form-full">
               <label for="itemName">Item Name</label>
-
               <input
                 type="text"
                 id="itemName"
@@ -354,20 +384,25 @@
 
               <select id="itemCategory" required>
                 <option value="">Select category</option>
-                <option value="Dental Materials">Dental Materials</option>
-                <option value="Dental Supplies">Dental Supplies</option>
-                <option value="PPE">PPE</option>
-                <option value="Medications">Medications</option>
-                <option value="Instruments">Instruments</option>
-                <option value="Equipment">Equipment</option>
-                <option value="Cleaning Supplies">Cleaning Supplies</option>
+                <option value="Restorative Materials">
+                  Restorative Materials
+                </option>
+                <option value="Preventive Materials">
+                  Preventive Materials
+                </option>
+                <option value="Disposable Supplies">Disposable Supplies</option>
+                <option value="Infection Control">Infection Control</option>
+                <option value="Sterilization Supplies">
+                  Sterilization Supplies
+                </option>
+                <option value="Dental Instruments">Dental Instruments</option>
+                <option value="Oral Care Supplies">Oral Care Supplies</option>
                 <option value="Other">Other</option>
               </select>
             </div>
 
             <div class="form-group">
               <label for="itemUnit">Unit</label>
-
               <input
                 type="text"
                 id="itemUnit"
@@ -378,7 +413,6 @@
 
             <div class="form-group">
               <label for="itemStock">Current Stock</label>
-
               <input
                 type="number"
                 id="itemStock"
@@ -392,7 +426,6 @@
 
             <div class="form-group">
               <label for="itemMinimum">Minimum Stock</label>
-
               <input
                 type="number"
                 id="itemMinimum"
@@ -405,7 +438,6 @@
 
             <div class="form-group">
               <label for="itemExpiry">Expiry Date</label>
-
               <input type="date" id="itemExpiry" />
             </div>
           </div>
@@ -429,7 +461,6 @@
         <div class="modal-header">
           <div>
             <span class="modal-eyebrow">STOCK MOVEMENT</span>
-
             <h3>Record Stock Movement</h3>
           </div>
 
@@ -447,7 +478,6 @@
           <div class="form-grid">
             <div class="form-group form-full">
               <label for="movementItem">Inventory Item</label>
-
               <select id="movementItem" required>
                 <option value="">Select item</option>
               </select>
@@ -455,7 +485,6 @@
 
             <div class="form-group">
               <label for="movementType">Movement Type</label>
-
               <select id="movementType" required>
                 <option value="stock-in">Stock In</option>
                 <option value="stock-out">Stock Out</option>
@@ -464,7 +493,6 @@
 
             <div class="form-group">
               <label for="movementQuantity">Quantity</label>
-
               <input
                 type="number"
                 id="movementQuantity"
@@ -477,7 +505,6 @@
 
             <div class="form-group form-full">
               <label for="movementReason">Reason</label>
-
               <input
                 type="text"
                 id="movementReason"
@@ -512,9 +539,7 @@
 
         <div class="delete-item-content">
           <span class="modal-eyebrow">INVENTORY</span>
-
           <h3>Delete Inventory Item?</h3>
-
           <p id="deleteItemMessage">
             This item and its stock movement history will be permanently
             removed.
@@ -590,13 +615,14 @@
 
     <div class="inventory-toast" id="inventoryToast">
       <i id="inventoryToastIcon" class="fa-solid fa-circle-check"></i>
-      <span id="inventoryToastMessage"> Inventory updated successfully. </span>
+      <span id="inventoryToastMessage">Inventory updated successfully.</span>
     </div>
 
     <script src="../../navigation_bar/sidebar.js"></script>
     <script src="inventory.js"></script>
     <script src="moving_average.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="demand_forecasting.js"></script>
     <script src="../profile/profile.js"></script>
   </body>

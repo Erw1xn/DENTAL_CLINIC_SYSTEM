@@ -1,7 +1,7 @@
 document.addEventListener("DOMContentLoaded", function () {
   const STORAGE_KEY = "dentaNuevaFinanceTransactions";
   const RESET_KEY = "dentaNuevaFinanceTransactionsResetV1";
-  const PATIENT_STORAGE_KEY = "dentanuueva_patients";
+  const PATIENT_STORAGE_KEY = "dentanueva_patients";
   const FINANCE_PENDING_PAYMENT_KEY = "dentaNuevaPendingPayment";
   const SERVICE_DURATIONS = {
     Consultation: 30,
@@ -65,7 +65,7 @@ document.addEventListener("DOMContentLoaded", function () {
   );
   const searchInput = document.getElementById("searchInput");
   const paymentMethodFilter = document.getElementById("paymentMethodFilter");
-  const dateFilter = document.getElementById("dateFilter");
+  const statusFilter = document.getElementById("statusFilter");
   const tableBody = document.getElementById("transactionsTableBody");
   const emptyState = document.getElementById("emptyState");
   const transactionIdInput = document.getElementById("transactionId");
@@ -264,7 +264,7 @@ document.addEventListener("DOMContentLoaded", function () {
       currentPage = 1;
       renderTransactions();
     });
-    dateFilter.addEventListener("change", function () {
+    statusFilter.addEventListener("change", function () {
       currentPage = 1;
       renderTransactions();
     });
@@ -1588,7 +1588,7 @@ document.addEventListener("DOMContentLoaded", function () {
   function getFilteredTransactions() {
     const searchValue = searchInput.value.trim().toLowerCase();
     const methodValue = paymentMethodFilter.value;
-    const dateValue = dateFilter.value;
+    const dateValue = statusFilter.value;
 
     return transactions
       .map(function (transaction) {

@@ -10,6 +10,13 @@
   const EPOCHS = 80;
   const BATCH_SIZE = 4;
   const LOOKBACK = 3;
+  const DEMAND_FORECAST_PAGE_SIZE = 10;
+
+  let demandForecastCurrentPage = 1;
+  let demandForecastSearchTerm = "";
+  let forecastChartInstance = null;
+  let forecastChartResults = [];
+  let forecastChartSelectedItemId = "";
 
   function getItems() {
     try {
@@ -24,7 +31,6 @@
       return Array.isArray(parsed) ? parsed : [];
     } catch (error) {
       console.error("Unable to load inventory items:", error);
-
       return [];
     }
   }
@@ -42,7 +48,6 @@
       return Array.isArray(parsed) ? parsed : [];
     } catch (error) {
       console.error("Unable to load inventory movements:", error);
-
       return [];
     }
   }
@@ -111,6 +116,13 @@
   }
 
   function getDailyDemandSeries(itemId) {
+    if (
+      window.DentaNuevaMovingAverage &&
+      typeof window.DentaNuevaMovingAverage.getDailyDemandSeries === "function"
+    ) {
+      return window.DentaNuevaMovingAverage.getDailyDemandSeries(itemId);
+    }
+
     const movements = getStockOutMovements(itemId);
 
     if (!movements.length) {
@@ -165,13 +177,6 @@
   }
 
   function getDemandSeries(itemId) {
-    if (
-      window.DentaNuevaMovingAverage &&
-      typeof window.DentaNuevaMovingAverage.getDailyDemandSeries === "function"
-    ) {
-      return window.DentaNuevaMovingAverage.getDailyDemandSeries(itemId);
-    }
-
     return getDailyDemandSeries(itemId);
   }
 
@@ -218,7 +223,6 @@
 
     for (let index = normalizedLookback; index < values.length; index++) {
       const input = values.slice(index - normalizedLookback, index);
-
       const target = values[index];
 
       sequences.push(input);
@@ -325,17 +329,63 @@
         windowSize,
       );
 
-      const safePrediction = prediction === null ? 0 : prediction;
+      if (prediction === null) {
+        return;
+      }
 
-      predictions.push(safePrediction);
-
+      predictions.push(prediction);
       history.push(Number(actualValue));
     });
 
+    const alignedLength = Math.min(actualValues.length, predictions.length);
+    const alignedActualValues = actualValues.slice(0, alignedLength);
+    const alignedPredictions = predictions.slice(0, alignedLength);
+
     return {
-      predictions,
-      mape: calculateMAPE(actualValues, predictions),
-      rmse: calculateRMSE(actualValues, predictions),
+      predictions: alignedPredictions,
+      mape: calculateMAPE(alignedActualValues, alignedPredictions),
+      rmse: calculateRMSE(alignedActualValues, alignedPredictions),
+    };
+  }
+
+  function calculateSMABaseline(values) {
+    if (!Array.isArray(values) || values.length < MOVING_AVERAGE_WINDOW + 1) {
+      return {
+        predictions: [],
+        actual: [],
+        mape: null,
+        rmse: null,
+      };
+    }
+
+    const trainingLength = Math.max(
+      MOVING_AVERAGE_WINDOW,
+      Math.floor(values.length * TRAINING_RATIO),
+    );
+
+    if (trainingLength >= values.length) {
+      return {
+        predictions: [],
+        actual: [],
+        mape: null,
+        rmse: null,
+      };
+    }
+
+    const trainingValues = values.slice(0, trainingLength);
+    const actualValues = values.slice(trainingLength);
+
+    const result = calculateMovingAveragePrediction(
+      trainingValues,
+      actualValues,
+      MOVING_AVERAGE_WINDOW,
+    );
+
+    return {
+      predictions: result.predictions,
+      actual: actualValues.slice(0, result.predictions.length),
+      mape: result.mape,
+      rmse: result.rmse,
     };
   }
 
@@ -367,9 +417,7 @@
     );
 
     const trainingSequences = sequencesData.sequences.slice(0, splitIndex);
-
     const trainingTargets = sequencesData.targets.slice(0, splitIndex);
-
     const testingSequences = sequencesData.sequences.slice(splitIndex);
 
     if (
@@ -381,10 +429,8 @@
     }
 
     const xTrain = tf.tensor2d(trainingSequences);
-
     const yTrain = tf.tensor2d(trainingTargets.map((value) => [value]));
 
-    // ai
     const model = tf.sequential();
 
     model.add(
@@ -407,7 +453,6 @@
         units: 1,
       }),
     );
-    // hanggang dito
 
     model.compile({
       optimizer: tf.train.adam(0.01),
@@ -428,9 +473,7 @@
 
     if (testingSequences.length > 0) {
       const xTest = tf.tensor2d(testingSequences);
-
       const predictionTensor = model.predict(xTest);
-
       const predictionValues = Array.from(await predictionTensor.data());
 
       xTest.dispose();
@@ -442,7 +485,6 @@
     }
 
     const testStartIndex = LOOKBACK + trainingSequences.length;
-
     const actualTestValues = values.slice(testStartIndex);
 
     const alignedLength = Math.min(
@@ -451,11 +493,9 @@
     );
 
     const alignedActualValues = actualTestValues.slice(0, alignedLength);
-
     const alignedPredictions = testPredictions.slice(0, alignedLength);
 
     const mape = calculateMAPE(alignedActualValues, alignedPredictions);
-
     const rmse = calculateRMSE(alignedActualValues, alignedPredictions);
 
     const recentValues = normalized.values.slice(-LOOKBACK);
@@ -464,9 +504,7 @@
 
     if (recentValues.length === LOOKBACK) {
       const inputTensor = tf.tensor2d([recentValues]);
-
       const predictionTensor = model.predict(inputTensor);
-
       const predictionData = Array.from(await predictionTensor.data());
 
       inputTensor.dispose();
@@ -486,16 +524,16 @@
       nextForecast,
       testActual: alignedActualValues,
       testPredictions: alignedPredictions,
-      mape,
-      rmse,
       trainingRecords: trainingSequences.length,
       testingRecords: testingSequences.length,
+      testStartIndex,
+      mape,
+      rmse,
     };
   }
 
   async function forecastItem(itemId) {
     const demandSeries = getDemandSeries(itemId);
-
     const values = demandSeries.map((entry) => Number(entry.value));
 
     const movingAverage =
@@ -508,6 +546,8 @@
           )
         : null;
 
+    const smaEvaluation = calculateSMABaseline(values);
+
     if (values.length < MINIMUM_RECORDS_FOR_ML) {
       return {
         ready: false,
@@ -516,6 +556,7 @@
         records: values.length,
         requiredRecords: MINIMUM_RECORDS_FOR_ML,
         movingAverage,
+        sma: smaEvaluation,
         ml: null,
         demandSeries,
       };
@@ -531,6 +572,7 @@
         records: values.length,
         requiredRecords: MINIMUM_RECORDS_FOR_ML,
         movingAverage,
+        sma: smaEvaluation,
         ml: mlResult,
         demandSeries,
       };
@@ -544,6 +586,7 @@
         records: values.length,
         requiredRecords: MINIMUM_RECORDS_FOR_ML,
         movingAverage,
+        sma: smaEvaluation,
         ml: null,
         demandSeries,
         error: error.message,
@@ -599,7 +642,7 @@
     return "Insufficient Data";
   }
 
-  function formatDemandStatus(result) {
+  function getDemandForecastStatus(result) {
     if (!result) {
       return "Insufficient Data";
     }
@@ -622,6 +665,8 @@
 
     const allActual = [];
     const allPredicted = [];
+    const allSMAActual = [];
+    const allSMAPredicted = [];
 
     readyResults.forEach((result) => {
       if (
@@ -631,11 +676,21 @@
         allActual.push(...result.ml.testActual);
         allPredicted.push(...result.ml.testPredictions);
       }
+
+      if (
+        result.sma &&
+        Array.isArray(result.sma.actual) &&
+        Array.isArray(result.sma.predictions)
+      ) {
+        allSMAActual.push(...result.sma.actual);
+        allSMAPredicted.push(...result.sma.predictions);
+      }
     });
 
-    const overallMAPE = calculateMAPE(allActual, allPredicted);
-
-    const overallRMSE = calculateRMSE(allActual, allPredicted);
+    const overallMLMAPE = calculateMAPE(allActual, allPredicted);
+    const overallMLRMSE = calculateRMSE(allActual, allPredicted);
+    const overallSMAMAPE = calculateMAPE(allSMAActual, allSMAPredicted);
+    const overallSMARMSE = calculateRMSE(allSMAActual, allSMAPredicted);
 
     return {
       generatedAt: new Date().toISOString(),
@@ -644,8 +699,10 @@
         totalItems: results.length,
         readyItems: readyResults.length,
         insufficientItems: results.length - readyResults.length,
-        overallMAPE,
-        overallRMSE,
+        overallSMAMAPE,
+        overallSMARMSE,
+        overallMLMAPE,
+        overallMLRMSE,
       },
     };
   }
@@ -659,25 +716,382 @@
       .replace(/'/g, "&#039;");
   }
 
-  function getDemandForecastStatus(result) {
-    if (!result) {
-      return "Insufficient Data";
+  function updateDemandForecastPagination(totalItems) {
+    const pagination = document.getElementById("demandForecastPagination");
+    const summary = document.getElementById("demandForecastPaginationSummary");
+    const pageInfo = document.getElementById(
+      "demandForecastPaginationPageInfo",
+    );
+    const previousButton = document.getElementById("demandForecastPrevPageBtn");
+    const nextButton = document.getElementById("demandForecastNextPageBtn");
+
+    if (
+      !pagination ||
+      !summary ||
+      !pageInfo ||
+      !previousButton ||
+      !nextButton
+    ) {
+      return;
     }
 
-    if (result.ready && result.ml) {
-      return "Ready";
+    const totalPages = Math.max(
+      1,
+      Math.ceil(totalItems / DEMAND_FORECAST_PAGE_SIZE),
+    );
+
+    demandForecastCurrentPage = Math.min(
+      Math.max(1, demandForecastCurrentPage),
+      totalPages,
+    );
+
+    if (totalItems <= DEMAND_FORECAST_PAGE_SIZE) {
+      pagination.style.display = "none";
+    } else {
+      pagination.style.display = "flex";
     }
 
-    if (result.reason === "model-error") {
-      return "Model Error";
+    const startItem =
+      totalItems === 0
+        ? 0
+        : (demandForecastCurrentPage - 1) * DEMAND_FORECAST_PAGE_SIZE + 1;
+
+    const endItem =
+      totalItems === 0
+        ? 0
+        : Math.min(
+            demandForecastCurrentPage * DEMAND_FORECAST_PAGE_SIZE,
+            totalItems,
+          );
+
+    summary.textContent = `Showing ${startItem}–${endItem} of ${totalItems} items`;
+    pageInfo.textContent = `Page ${demandForecastCurrentPage} of ${totalPages}`;
+
+    previousButton.disabled = demandForecastCurrentPage <= 1;
+    nextButton.disabled = demandForecastCurrentPage >= totalPages;
+  }
+
+  function updateForecastChartItems(results) {
+    const select = document.getElementById("forecastChartItem");
+    const section = document.getElementById("forecastChartSection");
+
+    if (!select || !section) {
+      return;
     }
 
-    return `${result.records}/${result.requiredRecords} Records`;
+    const chartResults = results.filter(
+      (result) =>
+        Array.isArray(result.demandSeries) && result.demandSeries.length > 0,
+    );
+
+    forecastChartResults = chartResults;
+
+    select.innerHTML = "";
+
+    if (!chartResults.length) {
+      select.innerHTML = '<option value="">No data available</option>';
+      section.hidden = true;
+      destroyForecastChart();
+      return;
+    }
+
+    chartResults.forEach((result) => {
+      const option = document.createElement("option");
+      option.value = String(result.item.id);
+      option.textContent = result.item.name || "Unnamed Item";
+      select.appendChild(option);
+    });
+
+    const selectedStillExists = chartResults.some(
+      (result) =>
+        String(result.item.id) === String(forecastChartSelectedItemId),
+    );
+
+    if (!selectedStillExists) {
+      forecastChartSelectedItemId = String(chartResults[0].item.id);
+    }
+
+    select.value = forecastChartSelectedItemId;
+    section.hidden = false;
+
+    renderForecastChart(forecastChartSelectedItemId);
+  }
+
+  function getForecastChartData(result) {
+    if (!result || !Array.isArray(result.demandSeries)) {
+      return null;
+    }
+
+    const demandSeries = result.demandSeries;
+
+    if (!demandSeries.length) {
+      return null;
+    }
+
+    const labels = demandSeries.map((entry) => entry.date);
+
+    const actualData = demandSeries.map((entry) => {
+      const value = Number(entry.value);
+      return Number.isFinite(value) ? value : 0;
+    });
+
+    const smaData = new Array(demandSeries.length).fill(null);
+
+    if (
+      result.sma &&
+      Array.isArray(result.sma.predictions) &&
+      result.sma.predictions.length
+    ) {
+      const smaStartIndex = Math.max(
+        0,
+        demandSeries.length - result.sma.predictions.length,
+      );
+
+      result.sma.predictions.forEach((prediction, index) => {
+        const targetIndex = smaStartIndex + index;
+
+        if (targetIndex < smaData.length) {
+          const numericPrediction = Number(prediction);
+
+          smaData[targetIndex] = Number.isFinite(numericPrediction)
+            ? Number(numericPrediction.toFixed(2))
+            : null;
+        }
+      });
+    }
+
+    const mlData = new Array(demandSeries.length).fill(null);
+
+    if (
+      result.ml &&
+      Array.isArray(result.ml.testPredictions) &&
+      result.ml.testPredictions.length
+    ) {
+      const mlStartIndex = Number.isInteger(result.ml.testStartIndex)
+        ? result.ml.testStartIndex
+        : Math.max(0, demandSeries.length - result.ml.testPredictions.length);
+
+      result.ml.testPredictions.forEach((prediction, index) => {
+        const targetIndex = mlStartIndex + index;
+
+        if (targetIndex < mlData.length) {
+          const numericPrediction = Number(prediction);
+
+          mlData[targetIndex] = Number.isFinite(numericPrediction)
+            ? Number(numericPrediction.toFixed(2))
+            : null;
+        }
+      });
+    }
+
+    return {
+      labels,
+      actualData,
+      smaData,
+      mlData,
+    };
+  }
+
+  function formatChartDate(dateValue) {
+    const date = new Date(`${dateValue}T00:00:00`);
+
+    if (Number.isNaN(date.getTime())) {
+      return dateValue;
+    }
+
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    });
+  }
+
+  function destroyForecastChart() {
+    if (forecastChartInstance) {
+      forecastChartInstance.destroy();
+      forecastChartInstance = null;
+    }
+  }
+
+  function renderForecastChart(itemId) {
+    const canvas = document.getElementById("forecastDemandChart");
+    const chartSection = document.getElementById("forecastChartSection");
+    const chartEmpty = document.getElementById("forecastChartEmpty");
+
+    if (!canvas || !chartSection || !chartEmpty) {
+      return;
+    }
+
+    if (typeof Chart === "undefined") {
+      chartSection.hidden = false;
+      chartEmpty.hidden = false;
+
+      const heading = chartEmpty.querySelector("h3");
+      const paragraph = chartEmpty.querySelector("p");
+
+      if (heading) {
+        heading.textContent = "Chart library unavailable";
+      }
+
+      if (paragraph) {
+        paragraph.textContent =
+          "The demand chart could not be loaded. Please check the Chart.js connection.";
+      }
+
+      destroyForecastChart();
+      return;
+    }
+
+    const result = forecastChartResults.find(
+      (entry) => String(entry.item.id) === String(itemId),
+    );
+
+    const chartData = getForecastChartData(result);
+
+    if (!result || !chartData || !chartData.labels.length) {
+      chartEmpty.hidden = false;
+      destroyForecastChart();
+      return;
+    }
+
+    chartEmpty.hidden = true;
+
+    destroyForecastChart();
+
+    const context = canvas.getContext("2d");
+
+    if (!context) {
+      return;
+    }
+
+    forecastChartInstance = new Chart(context, {
+      type: "line",
+      data: {
+        labels: chartData.labels.map(formatChartDate),
+        datasets: [
+          {
+            label: "Actual Demand",
+            data: chartData.actualData,
+            borderWidth: 2,
+            tension: 0.25,
+            pointRadius: 2.5,
+            pointHoverRadius: 4,
+            spanGaps: true,
+          },
+          {
+            label: "SMA Forecast",
+            data: chartData.smaData,
+            borderWidth: 2,
+            borderDash: [6, 4],
+            tension: 0.25,
+            pointRadius: 2,
+            pointHoverRadius: 4,
+            spanGaps: false,
+          },
+          {
+            label: "ML Forecast",
+            data: chartData.mlData,
+            borderWidth: 2,
+            borderDash: [3, 3],
+            tension: 0.25,
+            pointRadius: 2,
+            pointHoverRadius: 4,
+            spanGaps: false,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+          mode: "index",
+          intersect: false,
+        },
+        plugins: {
+          legend: {
+            display: true,
+            position: "top",
+            align: "start",
+            labels: {
+              usePointStyle: true,
+              boxWidth: 8,
+              padding: 15,
+              font: {
+                family: "Poppins",
+                size: 11,
+                weight: "600",
+              },
+            },
+          },
+          tooltip: {
+            callbacks: {
+              label(context) {
+                const value = context.parsed.y;
+
+                if (value === null || typeof value === "undefined") {
+                  return `${context.dataset.label}: —`;
+                }
+
+                return `${context.dataset.label}: ${Number(value).toFixed(2)} ${result.item.unit || ""}`;
+              },
+            },
+          },
+        },
+        scales: {
+          x: {
+            grid: {
+              display: false,
+            },
+            ticks: {
+              maxRotation: 0,
+              autoSkip: true,
+              maxTicksLimit: 10,
+              font: {
+                family: "Poppins",
+                size: 9,
+              },
+            },
+          },
+          y: {
+            beginAtZero: true,
+            title: {
+              display: true,
+              text: `Quantity (${result.item.unit || "units"})`,
+              font: {
+                family: "Poppins",
+                size: 10,
+                weight: "600",
+              },
+            },
+            ticks: {
+              precision: 0,
+              font: {
+                family: "Poppins",
+                size: 9,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  function bindForecastChartSelect() {
+    const select = document.getElementById("forecastChartItem");
+
+    if (!select || select.dataset.bound === "true") {
+      return;
+    }
+
+    select.dataset.bound = "true";
+
+    select.addEventListener("change", () => {
+      forecastChartSelectedItemId = select.value;
+      renderForecastChart(forecastChartSelectedItemId);
+    });
   }
 
   async function renderDemandForecastTable() {
     const tableBody = document.getElementById("demandForecastTableBody");
-
     const emptyState = document.getElementById("demandForecastEmpty");
 
     if (!tableBody) {
@@ -688,21 +1102,83 @@
 
     const results = await forecastAllItems();
 
+    updateForecastChartItems(results);
+
+    const normalizedSearchTerm = demandForecastSearchTerm.trim().toLowerCase();
+
+    const filteredResults = normalizedSearchTerm
+      ? results.filter((result) =>
+          String(result.item.name || "")
+            .toLowerCase()
+            .includes(normalizedSearchTerm),
+        )
+      : results;
+
     if (!results.length) {
       if (emptyState) {
         emptyState.hidden = false;
       }
 
+      updateDemandForecastPagination(0);
       return;
     }
 
-    const hasReadyResult = results.some((result) => result.ready && result.ml);
+    if (!filteredResults.length) {
+      if (emptyState) {
+        emptyState.hidden = false;
 
-    if (emptyState) {
-      emptyState.hidden = hasReadyResult;
+        const heading = emptyState.querySelector("h3");
+        const paragraph = emptyState.querySelector("p");
+
+        if (heading) {
+          heading.textContent = "No forecast items found";
+        }
+
+        if (paragraph) {
+          paragraph.textContent =
+            "Try changing your search to find a forecast item.";
+        }
+      }
+
+      updateDemandForecastPagination(0);
+      return;
     }
 
-    results.forEach((result) => {
+    if (emptyState) {
+      emptyState.hidden = true;
+
+      const heading = emptyState.querySelector("h3");
+      const paragraph = emptyState.querySelector("p");
+
+      if (heading) {
+        heading.textContent = "No historical usage data";
+      }
+
+      if (paragraph) {
+        paragraph.textContent =
+          "Record stock-out movements to build historical usage data for demand forecasting.";
+      }
+    }
+
+    const totalPages = Math.max(
+      1,
+      Math.ceil(filteredResults.length / DEMAND_FORECAST_PAGE_SIZE),
+    );
+
+    demandForecastCurrentPage = Math.min(
+      Math.max(1, demandForecastCurrentPage),
+      totalPages,
+    );
+
+    const startIndex =
+      (demandForecastCurrentPage - 1) * DEMAND_FORECAST_PAGE_SIZE;
+
+    const pageResults = filteredResults.slice(
+      startIndex,
+      startIndex + DEMAND_FORECAST_PAGE_SIZE,
+    );
+
+    pageResults.forEach((result) => {
       const item = result.item;
 
       const movingAverage =
@@ -711,17 +1187,27 @@
           ? Number(result.movingAverage.average)
           : null;
 
+      const smaMAPE =
+        result.sma && Number.isFinite(Number(result.sma.mape))
+          ? Number(result.sma.mape)
+          : null;
+
+      const smaRMSE =
+        result.sma && Number.isFinite(Number(result.sma.rmse))
+          ? Number(result.sma.rmse)
+          : null;
+
       const mlForecast =
         result.ml && Number.isFinite(Number(result.ml.nextForecast))
           ? Number(result.ml.nextForecast)
           : null;
 
-      const mape =
+      const mlMAPE =
         result.ml && Number.isFinite(Number(result.ml.mape))
           ? Number(result.ml.mape)
           : null;
 
-      const rmse =
+      const mlRMSE =
         result.ml && Number.isFinite(Number(result.ml.rmse))
           ? Number(result.ml.rmse)
           : null;
@@ -757,6 +1243,16 @@
           </span>
         </td>
         <td>
+          <span class="forecast-number">
+            ${smaMAPE === null ? "—" : `${formatMetric(smaMAPE)}%`}
+          </span>
+        </td>
+        <td>
+          <span class="forecast-number">
+            ${formatMetric(smaRMSE)}
+          </span>
+        </td>
+        <td>
           <span class="forecast-estimate">
             ${mlForecast === null ? "—" : formatForecast(mlForecast)}
           </span>
@@ -766,13 +1262,12 @@
         </td>
         <td>
           <span class="forecast-number">
-            ${formatMetric(mape)}
-            ${mape === null ? "" : "%"}
+            ${mlMAPE === null ? "—" : `${formatMetric(mlMAPE)}%`}
           </span>
         </td>
         <td>
           <span class="forecast-number">
-            ${formatMetric(rmse)}
+            ${formatMetric(mlRMSE)}
           </span>
         </td>
         <td>
@@ -784,6 +1279,8 @@
 
       tableBody.appendChild(row);
     });
+
+    updateDemandForecastPagination(filteredResults.length);
   }
 
   async function refreshDemandForecast() {
@@ -791,6 +1288,68 @@
       await renderDemandForecastTable();
     } catch (error) {
       console.error("Unable to refresh demand forecast:", error);
+    }
+  }
+
+  function bindDemandForecastSearch() {
+    const searchInput = document.getElementById("demandForecastSearch");
+
+    if (!searchInput || searchInput.dataset.bound === "true") {
+      return;
+    }
+
+    searchInput.dataset.bound = "true";
+
+    searchInput.addEventListener("input", () => {
+      demandForecastSearchTerm = searchInput.value;
+      demandForecastCurrentPage = 1;
+      refreshDemandForecast();
+    });
+  }
+
+  function bindDemandForecastPagination() {
+    const previousButton = document.getElementById("demandForecastPrevPageBtn");
+    const nextButton = document.getElementById("demandForecastNextPageBtn");
+
+    if (previousButton && previousButton.dataset.bound !== "true") {
+      previousButton.dataset.bound = "true";
+
+      previousButton.addEventListener("click", () => {
+        if (demandForecastCurrentPage > 1) {
+          demandForecastCurrentPage -= 1;
+          refreshDemandForecast();
+        }
+      });
+    }
+
+    if (nextButton && nextButton.dataset.bound !== "true") {
+      nextButton.dataset.bound = "true";
+
+      nextButton.addEventListener("click", async () => {
+        const results = await forecastAllItems();
+
+        const normalizedSearchTerm = demandForecastSearchTerm
+          .trim()
+          .toLowerCase();
+
+        const filteredResults = normalizedSearchTerm
+          ? results.filter((result) =>
+              String(result.item.name || "")
+                .toLowerCase()
+                .includes(normalizedSearchTerm),
+            )
+          : results;
+
+        const totalPages = Math.max(
+          1,
+          Math.ceil(filteredResults.length / DEMAND_FORECAST_PAGE_SIZE),
+        );
+
+        if (demandForecastCurrentPage < totalPages) {
+          demandForecastCurrentPage += 1;
+          refreshDemandForecast();
+        }
+      });
     }
   }
 
@@ -806,6 +1365,7 @@
     EPOCHS,
     BATCH_SIZE,
     LOOKBACK,
+    DEMAND_FORECAST_PAGE_SIZE,
     getItems,
     getMovements,
     getStockOutMovements,
@@ -817,20 +1377,24 @@
     calculateMAPE,
     calculateRMSE,
     calculateMovingAveragePrediction,
+    calculateSMABaseline,
     trainMLModel,
     forecastItem,
     forecastAllItems,
     formatMetric,
     formatForecast,
     getStatus,
-    formatDemandStatus,
     getDemandForecastStatus,
     generateForecastReport,
     renderDemandForecastTable,
     refreshDemandForecast,
+    renderForecastChart,
   };
 
   const initializeDemandForecast = () => {
+    bindDemandForecastSearch();
+    bindDemandForecastPagination();
+    bindForecastChartSelect();
     refreshDemandForecast();
   };
 
@@ -844,6 +1408,7 @@
 
   window.addEventListener("storage", (event) => {
     if (event.key === ITEMS_KEY || event.key === MOVEMENTS_KEY) {
+      demandForecastCurrentPage = 1;
       refreshDemandForecast();
     }
   });
