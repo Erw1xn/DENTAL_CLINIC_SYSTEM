@@ -1,0 +1,459 @@
+﻿#patientPageOverview .patient-overview {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px;
+}
+
+#patientPageOverview .patient-overview-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+#patientPageOverview .patient-overview-heading h3 {
+  margin: 0;
+  color: #25332b;
+  font-family: var(--font-heading);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+#patientPageOverview .patient-overview-heading p {
+  margin: 5px 0 0;
+  color: #7d8982;
+  font-size: 9.5px;
+  line-height: 1.5;
+}
+
+#patientPageOverview .patient-overview-eyebrow {
+  display: block;
+  margin-bottom: 5px;
+  color: #859189;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+#patientPageOverview .patient-overview-summary-card {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 20px;
+  border: 1px solid #dfe8e2;
+  border-radius: 13px;
+  background: #fff;
+}
+
+#patientPageOverview .patient-overview-summary-avatar {
+  width: 58px;
+  height: 58px;
+  flex: 0 0 58px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #eaf8ef;
+  color: #16803d;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+#patientPageOverview .patient-overview-summary-main {
+  min-width: 0;
+}
+
+#patientPageOverview .patient-overview-summary-main h3 {
+  margin: 0;
+  color: #25332b;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+#patientPageOverview .patient-overview-label {
+  display: block;
+  margin-bottom: 4px;
+  color: #859189;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+#patientPageOverview .patient-overview-summary-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin-top: 9px;
+}
+
+#patientPageOverview .patient-overview-summary-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #718078;
+  font-size: 9px;
+}
+
+#patientPageOverview .patient-overview-summary-meta i {
+  color: #16803d;
+  font-size: 9px;
+}
+
+#patientPageOverview .patient-overview-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+#patientPageOverview .patient-overview-stat-card {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  min-height: 92px;
+  padding: 16px;
+  border: 1px solid #dfe8e2;
+  border-radius: 12px;
+  background: #fff;
+}
+
+#patientPageOverview .patient-overview-stat-icon {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: #eaf8ef;
+  color: #16803d;
+  font-size: 15px;
+}
+
+#patientPageOverview .patient-overview-stat-card span {
+  display: block;
+  margin-bottom: 2px;
+  color: #89958e;
+  font-size: 7.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+#patientPageOverview .patient-overview-stat-card strong {
+  display: block;
+  color: #26352c;
+  font-size: 21px;
+  line-height: 1.1;
+}
+
+#patientPageOverview .patient-overview-stat-card small {
+  display: block;
+  margin-top: 3px;
+  color: #849088;
+  font-size: 8px;
+}
+
+#patientPageOverview .patient-overview-card {
+  overflow: hidden;
+  border: 1px solid #dfe8e2;
+  border-radius: 13px;
+  background: #fff;
+}
+
+#patientPageOverview .patient-overview-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 18px 20px;
+  border-bottom: 1px solid #edf1ee;
+}
+
+#patientPageOverview .patient-overview-card-header h3 {
+  margin: 0;
+  color: #29382f;
+  font-family: var(--font-heading);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+#patientPageOverview .patient-overview-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 9px;
+  border-radius: 7px;
+  background: #eaf7ee;
+  color: #247342;
+  font-size: 8px;
+  font-weight: 800;
+}
+
+#patientPageOverview .patient-overview-status > span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+#patientPageOverview .patient-overview-latest-content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  gap: 20px;
+  padding: 20px;
+}
+
+#patientPageOverview .patient-overview-latest-main {
+  min-width: 0;
+}
+
+#patientPageOverview .patient-overview-latest-main > strong {
+  display: block;
+  color: #2b3931;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+#patientPageOverview .patient-overview-latest-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+#patientPageOverview .patient-overview-latest-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #78857d;
+  font-size: 8.5px;
+}
+
+#patientPageOverview .patient-overview-latest-meta i {
+  color: #16803d;
+}
+
+#patientPageOverview .patient-overview-latest-dentist {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-left: 20px;
+  border-left: 1px solid #e8eeea;
+}
+
+#patientPageOverview .patient-overview-latest-dentist span {
+  margin-bottom: 4px;
+  color: #89958e;
+  font-size: 7.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+#patientPageOverview .patient-overview-latest-dentist strong {
+  color: #2d3c33;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+#patientPageOverview .patient-overview-medical-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+#patientPageOverview .patient-overview-medical-item {
+  min-width: 0;
+  padding: 18px 20px;
+  border-right: 1px solid #edf1ee;
+}
+
+#patientPageOverview .patient-overview-medical-item:last-child {
+  border-right: 0;
+}
+
+#patientPageOverview .patient-overview-medical-item span {
+  display: block;
+  margin-bottom: 6px;
+  color: #89958e;
+  font-size: 8px;
+  font-weight: 700;
+}
+
+#patientPageOverview .patient-overview-medical-item strong {
+  display: block;
+  color: #34423a;
+  font-size: 9.5px;
+  font-weight: 600;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+#patientPageOverview .patient-overview-record-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 9px;
+  border-radius: 7px;
+  background: #eaf7ee;
+  color: #247342;
+  font-size: 8px;
+  font-weight: 800;
+}
+
+#patientPageOverview .patient-overview-record-badge.empty {
+  background: #f3f5f4;
+  color: #7d8881;
+}
+
+#patientPageOverview .patient-overview-record-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+#patientPageOverview .patient-overview-record-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+  padding: 17px;
+  border-right: 1px solid #edf1ee;
+}
+
+#patientPageOverview .patient-overview-record-item:last-child {
+  border-right: 0;
+}
+
+#patientPageOverview .patient-overview-record-icon {
+  width: 35px;
+  height: 35px;
+  flex: 0 0 35px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  background: #f0f7f2;
+  color: #16803d;
+  font-size: 12px;
+}
+
+#patientPageOverview .patient-overview-record-item strong {
+  display: block;
+  color: #35433b;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+#patientPageOverview .patient-overview-record-item span {
+  display: block;
+  margin-top: 3px;
+  color: #87938c;
+  font-size: 7.8px;
+  line-height: 1.4;
+}
+
+#patientPageOverview .patient-overview-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 130px;
+  padding: 20px;
+  text-align: center;
+}
+
+#patientPageOverview .patient-overview-empty i {
+  margin-bottom: 3px;
+  color: #a0aaa4;
+  font-size: 22px;
+}
+
+#patientPageOverview .patient-overview-empty strong {
+  color: #59665f;
+  font-size: 10px;
+}
+
+#patientPageOverview .patient-overview-empty span {
+  max-width: 360px;
+  color: #8a958f;
+  font-size: 8.5px;
+  line-height: 1.5;
+}
+
+#patientPageOverview .patient-overview-empty.compact {
+  min-height: 105px;
+}
+
+@media (max-width: 850px) {
+  #patientPageOverview .patient-overview-record-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  #patientPageOverview .patient-overview-record-item:nth-child(2) {
+    border-right: 0;
+  }
+
+  #patientPageOverview .patient-overview-record-item:nth-child(-n + 2) {
+    border-bottom: 1px solid #edf1ee;
+  }
+
+  #patientPageOverview .patient-overview-latest-content {
+    grid-template-columns: 1fr;
+  }
+
+  #patientPageOverview .patient-overview-latest-dentist {
+    padding-left: 0;
+    padding-top: 12px;
+    border-left: 0;
+    border-top: 1px solid #e8eeea;
+  }
+}
+
+@media (max-width: 650px) {
+  #patientPageOverview .patient-overview {
+    padding: 16px;
+  }
+
+  #patientPageOverview .patient-overview-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  #patientPageOverview .patient-overview-summary-card {
+    align-items: flex-start;
+  }
+
+  #patientPageOverview .patient-overview-summary-meta {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  #patientPageOverview .patient-overview-stats {
+    grid-template-columns: 1fr;
+  }
+
+  #patientPageOverview .patient-overview-medical-grid {
+    grid-template-columns: 1fr;
+  }
+
+  #patientPageOverview .patient-overview-medical-item {
+    border-right: 0;
+    border-bottom: 1px solid #edf1ee;
+  }
+
+  #patientPageOverview .patient-overview-medical-item:last-child {
+    border-bottom: 0;
+  }
+
+  #patientPageOverview .patient-overview-record-grid {
+    grid-template-columns: 1fr;
+  }
+
+  #patientPageOverview .patient-overview-record-item {
+    border-right: 0;
+    border-bottom: 1px solid #edf1ee;
+  }
+
+  #patientPageOverview .patient-overview-record-item:last-child {
+    border-bottom: 0;
+  }
+}
