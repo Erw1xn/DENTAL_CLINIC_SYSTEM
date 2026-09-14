@@ -71,11 +71,7 @@
                       id="dentistFilter"
                       class="dentist-filter"
                       aria-label="Filter appointments by dentist"
-                    >
-                      <option value="santos" selected>Dr. M. Santos</option>
-                      <option value="cruz">Dr. L. Cruz</option>
-                      <option value="ramos">Dr. J. Ramos</option>
-                    </select>
+                    ></select>
                   </div>
 
                   <div class="search-box-wrapper">
@@ -278,11 +274,7 @@
             <div class="form-group">
               <label for="f_dentist">Dentist</label>
 
-              <select id="f_dentist" class="form-control">
-                <option value="santos">Dr. M. Santos</option>
-                <option value="cruz">Dr. L. Cruz</option>
-                <option value="ramos">Dr. J. Ramos</option>
-              </select>
+              <select id="f_dentist" class="form-control"></select>
             </div>
           </div>
 
@@ -654,7 +646,7 @@
         const dentistFilter = document.getElementById("dentistFilter");
 
         if (dentistFilter) {
-          dentistFilter.value = "santos";
+          dentistFilter.value = "villanueva";
         }
 
         const queueList = document.getElementById("waitingQueueList");

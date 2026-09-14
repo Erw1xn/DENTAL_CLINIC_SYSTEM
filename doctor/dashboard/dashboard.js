@@ -1,6 +1,8 @@
 const APPOINTMENTS_STORAGE_KEY = "appointments";
 const LEGACY_STORAGE_KEY = "dentanueva_appointments";
-const PATIENTS_STORAGE_KEY = "patients";
+const PATIENTS_STORAGE_KEY = "dentanueva_patients";
+const FINANCE_STORAGE_KEY = "dentaNuevaFinanceTransactions";
+const DASHBOARD_SAMPLE_STORAGE_KEY = "dentaNuevaDashboardChartSamples";
 const DAILY_GOAL = 5000;
 const STATUS = {
   SCHEDULED: "scheduled",
@@ -9,17 +11,11 @@ const STATUS = {
   COMPLETED: "completed",
 };
 document.addEventListener("DOMContentLoaded", () => {
-  clearSavedDashboardData();
   updateDateTime();
   setInterval(updateDateTime, 1000);
   renderDashboard();
   setInterval(renderDashboard, 2000);
 });
-function clearSavedDashboardData() {
-  localStorage.removeItem(APPOINTMENTS_STORAGE_KEY);
-  localStorage.removeItem(LEGACY_STORAGE_KEY);
-  localStorage.removeItem(PATIENTS_STORAGE_KEY);
-}
 function updateDateTime() {
   const now = new Date();
   const dateElement = document.getElementById("currentDate");
@@ -36,7 +32,6 @@ function updateDateTime() {
     timeElement.textContent = now.toLocaleTimeString("en-US", {
       hour: "numeric",
       minute: "2-digit",
-      second: "2-digit",
     });
   }
 }
@@ -57,6 +52,80 @@ function loadAppointments() {
     console.error("Unable to load appointments:", error);
   }
   return [];
+}
+function loadPatients() {
+  const stored = localStorage.getItem(PATIENTS_STORAGE_KEY);
+  if (!stored) {
+    return [];
+  }
+  try {
+    const parsed = JSON.parse(stored);
+    if (Array.isArray(parsed)) {
+      return parsed;
+    }
+  } catch (error) {
+    console.error("Unable to load patients:", error);
+  }
+  return [];
+}
+function loadFinanceTransactions() {
+  const stored = localStorage.getItem(FINANCE_STORAGE_KEY);
+  if (!stored) {
+    return [];
+  }
+  try {
+    const parsed = JSON.parse(stored);
+    if (Array.isArray(parsed)) {
+      return parsed;
+    }
+  } catch (error) {
+    console.error("Unable to load finance transactions:", error);
+  }
+  return [];
+}
+function loadDashboardSampleTransactions() {
+  const stored = localStorage.getItem(DASHBOARD_SAMPLE_STORAGE_KEY);
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    } catch (error) {
+      console.error("Unable to load dashboard sample transactions:", error);
+    }
+  }
+  const today = new Date();
+  const dayOfWeek = today.getDay();
+  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const monday = new Date(today);
+  monday.setHours(0, 0, 0, 0);
+  monday.setDate(today.getDate() + mondayOffset);
+  const sampleAmounts = [3200, 1850, 2600, 3900, 3100, 4200, 2800];
+  const sampleServices = [
+    "Dental Cleaning",
+    "Tooth Filling",
+    "Consultation",
+    "Tooth Extraction",
+    "Emergency",
+    "Dental Cleaning",
+    "Tooth Filling",
+  ];
+  const sampleTransactions = sampleAmounts.map((amount, index) => {
+    const date = new Date(monday);
+    date.setDate(monday.getDate() + index);
+    return {
+      id: `DASHBOARD-SAMPLE-${index + 1}`,
+      date: formatDateKey(date),
+      service: sampleServices[index],
+      paid: amount,
+    };
+  });
+  localStorage.setItem(
+    DASHBOARD_SAMPLE_STORAGE_KEY,
+    JSON.stringify(sampleTransactions),
+  );
+  return sampleTransactions;
 }
 function getTodayKey() {
   const today = new Date();
@@ -100,6 +169,12 @@ function escapeHtml(value) {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 }
+function normalizeStatus(status) {
+  return String(status || STATUS.SCHEDULED)
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+}
 function getTodayAppointments() {
   const today = getTodayKey();
   return loadAppointments()
@@ -111,25 +186,28 @@ function getTodayAppointments() {
 }
 function renderDashboard() {
   const appointments = loadAppointments();
+  const patients = loadPatients();
+  const transactions = loadFinanceTransactions();
+  const dashboardSampleTransactions = loadDashboardSampleTransactions();
   const todayAppointments = getTodayAppointments();
-  updatePatientCount(appointments);
+  updatePatientCount(patients);
   updateAppointmentStats(todayAppointments);
   updateClinicSummary(todayAppointments);
   renderTodayAppointments(todayAppointments);
-  updateProduction();
-  renderWeeklyChart();
+  updateProduction(transactions);
+  renderWeeklyChart(dashboardSampleTransactions);
+  renderProcedureChart(dashboardSampleTransactions);
 }
-function updatePatientCount() {
+function updatePatientCount(patients) {
   const element = document.getElementById("totalPatients");
-  const patientCount = 0;
   if (element) {
-    element.textContent = patientCount;
+    element.textContent = patients.length;
   }
 }
 function updateAppointmentStats(todayAppointments) {
   const total = todayAppointments.length;
   const scheduled = todayAppointments.filter(
-    (appointment) => appointment.status === STATUS.SCHEDULED,
+    (appointment) => normalizeStatus(appointment.status) === STATUS.SCHEDULED,
   ).length;
   const appointmentsElement = document.getElementById("appointmentsToday");
   const scheduledElement = document.getElementById("scheduledToday");
@@ -142,16 +220,16 @@ function updateAppointmentStats(todayAppointments) {
 }
 function updateClinicSummary(appointments) {
   const scheduled = appointments.filter(
-    (a) => a.status === STATUS.SCHEDULED,
+    (a) => normalizeStatus(a.status) === STATUS.SCHEDULED,
   ).length;
   const checkedIn = appointments.filter(
-    (a) => a.status === STATUS.IN_CONSULTATION,
+    (a) => normalizeStatus(a.status) === STATUS.IN_CONSULTATION,
   ).length;
   const consultation = appointments.filter(
-    (a) => a.status === STATUS.IN_CONSULTATION,
+    (a) => normalizeStatus(a.status) === STATUS.IN_CONSULTATION,
   ).length;
   const completed = appointments.filter(
-    (a) => a.status === STATUS.COMPLETED,
+    (a) => normalizeStatus(a.status) === STATUS.COMPLETED,
   ).length;
   setText("summaryScheduled", scheduled);
   setText("summaryCheckedIn", checkedIn);
@@ -182,7 +260,7 @@ No patient appointments today.
       appointment.patient || appointment.patientName || "Unknown Patient";
     const service = appointment.type || appointment.service || "Consultation";
     const time = appointment.start || appointment.time || "10:00";
-    const status = appointment.status || STATUS.SCHEDULED;
+    const status = normalizeStatus(appointment.status);
     item.innerHTML = `
 <div class="patient-info">
 <div class="patient-avatar">
@@ -208,7 +286,8 @@ ${getStatusLabel(status)}
   });
 }
 function getStatusLabel(status) {
-  switch (status) {
+  const normalizedStatus = normalizeStatus(status);
+  switch (normalizedStatus) {
     case STATUS.SCHEDULED:
       return "Scheduled";
     case STATUS.IN_CONSULTATION:
@@ -222,7 +301,8 @@ function getStatusLabel(status) {
   }
 }
 function getStatusClass(status) {
-  switch (status) {
+  const normalizedStatus = normalizeStatus(status);
+  switch (normalizedStatus) {
     case STATUS.IN_CONSULTATION:
       return "status-consultation";
     case STATUS.READY_COMPLETE:
@@ -233,14 +313,69 @@ function getStatusClass(status) {
       return "status-scheduled";
   }
 }
-function updateProduction() {
-  const todayRevenue = 0;
+function getTransactionDate(transaction) {
+  return (
+    transaction.date ||
+    transaction.paymentDate ||
+    transaction.transactionDate ||
+    ""
+  );
+}
+function getTransactionAmount(transaction) {
+  const paid = Number(
+    transaction.paid ??
+      transaction.amountPaid ??
+      transaction.paymentAmount ??
+      transaction.amount ??
+      0,
+  );
+  return Number.isFinite(paid) ? paid : 0;
+}
+function getTransactionService(transaction) {
+  return String(
+    transaction.service ||
+      transaction.serviceType ||
+      transaction.type ||
+      transaction.procedure ||
+      "",
+  ).trim();
+}
+function getDateObject(dateValue) {
+  if (!dateValue) {
+    return null;
+  }
+  const date = new Date(dateValue);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+function updateProduction(transactions) {
+  const today = getTodayKey();
+  const todayRevenue = transactions
+    .filter((transaction) => getTransactionDate(transaction) === today)
+    .reduce(
+      (total, transaction) => total + getTransactionAmount(transaction),
+      0,
+    );
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
+  const monthlyRevenue = transactions
+    .filter((transaction) => {
+      const date = getDateObject(getTransactionDate(transaction));
+      return (
+        date &&
+        date.getMonth() === currentMonth &&
+        date.getFullYear() === currentYear
+      );
+    })
+    .reduce(
+      (total, transaction) => total + getTransactionAmount(transaction),
+      0,
+    );
   const percent = Math.min(100, (todayRevenue / DAILY_GOAL) * 100);
   const value = document.getElementById("productionValue");
   const progress = document.getElementById("productionProgress");
   const label = document.getElementById("productionPercent");
   if (value) {
-    value.textContent = `₱${todayRevenue.toLocaleString()} / ${DAILY_GOAL.toLocaleString()}`;
+    value.textContent = `₱${todayRevenue.toLocaleString("en-PH")} / ${DAILY_GOAL.toLocaleString("en-PH")}`;
   }
   if (progress) {
     progress.style.width = `${percent}%`;
@@ -249,7 +384,7 @@ function updateProduction() {
     label.textContent = `${Math.round(percent)}% Complete`;
   }
   setText("todayRevenue", formatPeso(todayRevenue));
-  setText("monthlyRevenue", formatPeso(0));
+  setText("monthlyRevenue", formatPeso(monthlyRevenue));
   const monthLabel = document.getElementById("monthlyRevenueLabel");
   if (monthLabel) {
     monthLabel.textContent = `${new Date().toLocaleDateString("en-US", {
@@ -266,28 +401,153 @@ function formatPeso(value) {
     })
   );
 }
-function renderWeeklyChart() {
+function renderWeeklyChart(transactions) {
   const container = document.getElementById("weeklyBars");
   if (!container) {
     return;
   }
   container.innerHTML = "";
-  const production = [0, 0, 0, 0, 0, 0, 0];
-  const goal = [0, 0, 0, 0, 0, 0, 0];
-  const max = 5000;
+  const today = new Date();
+  const dayOfWeek = today.getDay();
+  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const monday = new Date(today);
+  monday.setHours(0, 0, 0, 0);
+  monday.setDate(today.getDate() + mondayOffset);
+  const production = [];
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(monday);
+    date.setDate(monday.getDate() + i);
+    const key = formatDateKey(date);
+    const total = transactions
+      .filter((transaction) => getTransactionDate(transaction) === key)
+      .reduce((sum, transaction) => sum + getTransactionAmount(transaction), 0);
+    production.push(total);
+  }
+  const goal = [
+    DAILY_GOAL,
+    DAILY_GOAL,
+    DAILY_GOAL,
+    DAILY_GOAL,
+    DAILY_GOAL,
+    DAILY_GOAL,
+    DAILY_GOAL,
+  ];
+  const max = DAILY_GOAL;
   for (let i = 0; i < 7; i++) {
     const day = document.createElement("div");
     day.className = "day-bar";
     const productionBar = document.createElement("div");
     productionBar.className = "bar production-bar";
-    productionBar.style.height = `${(production[i] / max) * 100}%`;
+    productionBar.style.height = `${Math.min(100, (production[i] / max) * 100)}%`;
     const goalBar = document.createElement("div");
     goalBar.className = "bar goal-bar";
-    goalBar.style.height = `${(goal[i] / max) * 100}%`;
+    goalBar.style.height = `${Math.min(100, (goal[i] / max) * 100)}%`;
     day.appendChild(productionBar);
     day.appendChild(goalBar);
     container.appendChild(day);
   }
+}
+function renderProcedureChart(transactions) {
+  const procedureDonut = document.getElementById("procedureDonut");
+  const procedureTotal = document.getElementById("procedureTotal");
+  if (!procedureDonut || !procedureTotal) {
+    return;
+  }
+  const procedureTotals = {
+    "Tooth Filling": 0,
+    "Dental Cleaning": 0,
+    Consultation: 0,
+    "Tooth Extraction": 0,
+    Emergency: 0,
+  };
+  transactions.forEach((transaction) => {
+    const service = getTransactionService(transaction).toLowerCase();
+    const amount = getTransactionAmount(transaction);
+    if (service.includes("filling")) {
+      procedureTotals["Tooth Filling"] += amount;
+    } else if (service.includes("cleaning")) {
+      procedureTotals["Dental Cleaning"] += amount;
+    } else if (
+      service.includes("consultation") ||
+      service.includes("evaluation")
+    ) {
+      procedureTotals["Consultation"] += amount;
+    } else if (service.includes("extraction")) {
+      procedureTotals["Tooth Extraction"] += amount;
+    } else if (service.includes("emergency")) {
+      procedureTotals["Emergency"] += amount;
+    }
+  });
+  const total = Object.values(procedureTotals).reduce(
+    (sum, value) => sum + value,
+    0,
+  );
+  procedureTotal.textContent = formatPeso(total).replace(".00", "");
+  if (total === 0) {
+    procedureDonut.style.background = "conic-gradient(#dfe5e1 0 100%)";
+  } else {
+    let current = 0;
+    const segments = [];
+    const segmentColors = [
+      "#3b82f6",
+      "#10b981",
+      "#f59e0b",
+      "#ef4444",
+      "#8b5cf6",
+    ];
+    Object.values(procedureTotals).forEach((value, index) => {
+      const percentage = (value / total) * 100;
+      segments.push(
+        `${segmentColors[index]} ${current}% ${current + percentage}%`,
+      );
+      current += percentage;
+    });
+    procedureDonut.style.background = `conic-gradient(${segments.join(", ")})`;
+  }
+  setProcedureLabel(
+    "fillingLabel",
+    "Fillings",
+    procedureTotals["Tooth Filling"],
+    total,
+  );
+  setProcedureLabel(
+    "cleaningLabel",
+    "Cleaning",
+    procedureTotals["Dental Cleaning"],
+    total,
+  );
+  setProcedureLabel(
+    "evaluationLabel",
+    "Evaluation",
+    procedureTotals["Consultation"],
+    total,
+  );
+  setProcedureLabel(
+    "extractionLabel",
+    "Extraction",
+    procedureTotals["Tooth Extraction"],
+    total,
+  );
+  setProcedureLabel(
+    "emergencyLabel",
+    "Emergency",
+    procedureTotals["Emergency"],
+    total,
+  );
+}
+function setProcedureLabel(id, label, value, total) {
+  const element = document.getElementById(id);
+  if (!element) {
+    return;
+  }
+  const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+  element.textContent = `${label} ${percentage}%`;
+}
+function formatDateKey(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 function setText(id, value) {
   const element = document.getElementById(id);
@@ -297,7 +557,4 @@ function setText(id, value) {
 }
 function goToAppointments() {
   window.location.href = "Appointment.html";
-}
-function goToPatients() {
-  window.location.href = "Patient.html";
 }

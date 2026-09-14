@@ -62,7 +62,7 @@ function getStaffData() {
       image: "",
       role: "Staff",
       department: "Clinic Operations",
-      staffId: "STF-0001",
+      staffId: "No staff ID available",
       accessLevel: "Staff",
       email: "",
       contact: "",
@@ -89,7 +89,8 @@ function getStaffData() {
       "",
     role: currentUser.role || "Staff",
     department: currentUser.department || "Clinic Operations",
-    staffId: currentUser.staffId || currentUser.staff_id || "STF-0001",
+    staffId:
+      currentUser.staffId || currentUser.staff_id || "No staff ID available",
     accessLevel:
       currentUser.accessLevel ||
       currentUser.access_level ||

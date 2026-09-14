@@ -3,6 +3,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 const APPOINTMENTS_STORAGE_KEY = "appointments";
 const PATIENTS_STORAGE_KEY = "dentanueva_patients";
+const DOCTORS_STORAGE_KEY = "dentanueva_doctors";
 const TRANSACTIONS_STORAGE_KEY = "dentaNuevaFinanceTransactions";
 const INVENTORY_STORAGE_KEY = "dentanueva_inventory_items";
 function initializeDashboard() {
@@ -21,6 +22,7 @@ function initializeDashboard() {
     if (
       event.key === APPOINTMENTS_STORAGE_KEY ||
       event.key === PATIENTS_STORAGE_KEY ||
+      event.key === DOCTORS_STORAGE_KEY ||
       event.key === TRANSACTIONS_STORAGE_KEY ||
       event.key === INVENTORY_STORAGE_KEY
     ) {
@@ -52,49 +54,14 @@ function initializeDashboard() {
 const dashboardData = {
   patients: [],
   appointments: [],
-  dentists: [
-    {
-      id: 1,
-      key: "santos",
-      name: "Dr. Santos",
-      specialization: "General Dentistry",
-      status: "available",
-    },
-    {
-      id: 2,
-      key: "reyes",
-      name: "Dr. Reyes",
-      specialization: "Orthodontics",
-      status: "withpatient",
-    },
-    {
-      id: 3,
-      key: "garcia",
-      name: "Dr. Garcia",
-      specialization: "General Dentistry",
-      status: "offduty",
-    },
-    {
-      id: 4,
-      key: "cruz",
-      name: "Dr. Cruz",
-      specialization: "General Dentistry",
-      status: "available",
-    },
-    {
-      id: 5,
-      key: "ramos",
-      name: "Dr. Ramos",
-      specialization: "Oral Surgery",
-      status: "available",
-    },
-  ],
+  dentists: [],
   inventory: [],
   transactions: [],
 };
 function loadDashboardData() {
   dashboardData.appointments = getStoredAppointments();
   dashboardData.patients = getStoredPatients();
+  dashboardData.dentists = getStoredDentists();
   dashboardData.inventory = getStoredInventory();
   dashboardData.transactions = getStoredTransactions();
 }
@@ -306,26 +273,6 @@ function resolveDentistName(value) {
   if (dentist) {
     return dentist.name;
   }
-  const dentistMap = {
-    santos: "Dr. Santos",
-    msantos: "Dr. Santos",
-    drsantos: "Dr. Santos",
-    reyes: "Dr. Reyes",
-    mreyes: "Dr. Reyes",
-    drreyes: "Dr. Reyes",
-    garcia: "Dr. Garcia",
-    mgarcia: "Dr. Garcia",
-    drgarcia: "Dr. Garcia",
-    cruz: "Dr. Cruz",
-    lcruz: "Dr. Cruz",
-    drcruz: "Dr. Cruz",
-    ramos: "Dr. Ramos",
-    jramos: "Dr. Ramos",
-    drramos: "Dr. Ramos",
-  };
-  if (dentistMap[normalized]) {
-    return dentistMap[normalized];
-  }
   if (
     /^dr\./i.test(original) ||
     /^dr\s/i.test(original) ||
@@ -354,6 +301,149 @@ function getStoredPatients() {
   }
   const patients = extractPatientCollection(primaryPatients);
   return removeDuplicatePatients(patients);
+}
+function getStoredDentists() {
+  const storedDoctors = readLocalStorageJSON(DOCTORS_STORAGE_KEY);
+  if (storedDoctors === null) {
+    return [];
+  }
+  const doctors = extractDoctorCollection(storedDoctors);
+  return removeDuplicateDentists(
+    doctors.map(normalizeDashboardDentist).filter((dentist) => dentist.id),
+  );
+}
+function extractDoctorCollection(data) {
+  if (!data) {
+    return [];
+  }
+  if (Array.isArray(data)) {
+    return data.filter(isDoctorRecord);
+  }
+  if (typeof data !== "object") {
+    return [];
+  }
+  const preferredProperties = [
+    "doctors",
+    "dentists",
+    "doctorRecords",
+    "doctor_records",
+    "doctorList",
+    "doctorsList",
+    "dentistList",
+    "records",
+    "data",
+    "items",
+    "list",
+  ];
+  for (const property of preferredProperties) {
+    if (Array.isArray(data[property])) {
+      const doctors = data[property].filter(isDoctorRecord);
+      if (doctors.length > 0) {
+        return doctors;
+      }
+      if (data[property].length === 0) {
+        return [];
+      }
+    }
+  }
+  const objectValues = Object.values(data);
+  const directDoctorValues = objectValues.filter(isDoctorRecord);
+  if (directDoctorValues.length > 0) {
+    return directDoctorValues;
+  }
+  let bestNestedCollection = [];
+  for (const value of objectValues) {
+    if (!value || typeof value !== "object") {
+      continue;
+    }
+    const nestedDoctors = extractDoctorCollection(value);
+    if (nestedDoctors.length > bestNestedCollection.length) {
+      bestNestedCollection = nestedDoctors;
+    }
+  }
+  return bestNestedCollection;
+}
+function isDoctorRecord(record) {
+  if (!record || typeof record !== "object" || Array.isArray(record)) {
+    return false;
+  }
+  const dentistId =
+    record.dentistId ??
+    record.doctorId ??
+    record.dentist_id ??
+    record.doctor_id ??
+    record.id ??
+    "";
+  return String(dentistId).trim() !== "";
+}
+function normalizeDashboardDentist(doctor) {
+  const dentistId =
+    doctor.dentistId ??
+    doctor.doctorId ??
+    doctor.dentist_id ??
+    doctor.doctor_id ??
+    doctor.id ??
+    "";
+  const firstName = doctor.firstName ?? doctor.first_name ?? "";
+  const lastName = doctor.lastName ?? doctor.last_name ?? "";
+  const name =
+    doctor.name ??
+    doctor.fullName ??
+    doctor.full_name ??
+    doctor.doctorName ??
+    doctor.doctor_name ??
+    doctor.dentistName ??
+    doctor.dentist_name ??
+    `${firstName} ${lastName}`.trim() ??
+    "";
+  const specialization =
+    doctor.specialization ??
+    doctor.specialisation ??
+    doctor.specialty ??
+    doctor.speciality ??
+    doctor.field ??
+    doctor.department ??
+    "General Dentistry";
+  const status =
+    doctor.status ??
+    doctor.availabilityStatus ??
+    doctor.availability ??
+    doctor.currentStatus ??
+    "available";
+  const key =
+    doctor.key ??
+    String(name)
+      .toLowerCase()
+      .replace(/^dr\.\s*/i, "")
+      .replace(/^dr\s+/i, "")
+      .replace(/\s+/g, "")
+      .replace(/[-_]/g, "");
+  return {
+    ...doctor,
+    id: String(dentistId).trim(),
+    key: String(key).trim(),
+    name: String(name).trim() || "Unknown Dentist",
+    specialization: String(specialization).trim() || "General Dentistry",
+    status: String(status).trim() || "available",
+  };
+}
+function removeDuplicateDentists(dentists) {
+  const unique = [];
+  const seen = new Set();
+  dentists.forEach((dentist) => {
+    if (!dentist || typeof dentist !== "object") {
+      return;
+    }
+    const identity = String(dentist.id || "")
+      .trim()
+      .toLowerCase();
+    if (!identity || seen.has(identity)) {
+      return;
+    }
+    seen.add(identity);
+    unique.push(dentist);
+  });
+  return unique;
 }
 function readLocalStorageJSON(key) {
   try {
@@ -711,7 +801,7 @@ function renderDentistAvailability() {
 function createDentistHTML(dentist) {
   const statusInfo = getDentistStatus(dentist.status);
   const initials = getInitials(dentist.name);
-  return `<div class="dentist-item" data-dentist-id="${dentist.id}" role="button" tabindex="0"><div class="dentist-avatar">${escapeHTML(initials)}</div><div class="dentist-info"><div class="dentist-name">${escapeHTML(dentist.name)}</div><div class="dentist-spec">${escapeHTML(dentist.specialization)}</div></div><span class="dentist-status ${statusInfo.className}"><span class="status-dot"></span>${statusInfo.label}</span></div>`;
+  return `<div class="dentist-item" data-dentist-id="${escapeHTML(dentist.id)}" role="button" tabindex="0"><div class="dentist-avatar">${escapeHTML(initials)}</div><div class="dentist-info"><div class="dentist-name">${escapeHTML(dentist.name)}</div><div class="dentist-spec">${escapeHTML(dentist.specialization)}</div></div><span class="dentist-status ${statusInfo.className}"><span class="status-dot"></span>${statusInfo.label}</span></div>`;
 }
 function getDentistStatus(status) {
   switch (String(status).toLowerCase()) {
@@ -1067,9 +1157,9 @@ function setupDentistInteractions() {
     if (!item) {
       return;
     }
-    const dentistId = Number(item.dataset.dentistId);
+    const dentistId = String(item.dataset.dentistId || "").trim();
     const dentist = dashboardData.dentists.find(
-      (doctor) => doctor.id === dentistId,
+      (doctor) => String(doctor.id) === dentistId,
     );
     if (!dentist) {
       return;

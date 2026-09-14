@@ -2,6 +2,7 @@ const APPOINTMENTS_STORAGE_KEY = "appointments";
 const LEGACY_STORAGE_KEY = "dentanueva_appointments";
 const PATIENTS_STORAGE_KEY = "dentanueva_patients";
 const CURRENT_USER_KEY = "currentUser";
+const DOCTORS_STORAGE_KEY = "dentanueva_doctors";
 const RESCHEDULE_REQUESTS_STORAGE_KEY = "dentanueva_reschedule_requests";
 const SERVICES = [
   { id: "consultation", name: "Consultation", duration: 30 },
@@ -27,29 +28,8 @@ const SERVICES = [
   { id: "oral_prophylaxis", name: "Oral Prophylaxis", duration: 45 },
   { id: "retainer_fitting", name: "Retainer Fitting", duration: 30 },
 ];
-const DENTISTS = {
-  santos: {
-    id: "santos",
-    name: "Dr. M. Santos",
-    specialization: "General Dentistry",
-    initials: "MS",
-    avatarClass: "avatar-green",
-  },
-  cruz: {
-    id: "cruz",
-    name: "Dr. L. Cruz",
-    specialization: "Orthodontics",
-    initials: "LC",
-    avatarClass: "avatar-blue",
-  },
-  ramos: {
-    id: "ramos",
-    name: "Dr. J. Ramos",
-    specialization: "Oral Surgery",
-    initials: "JR",
-    avatarClass: "avatar-purple",
-  },
-};
+let DENTISTS = {};
+let doctors = [];
 const CLINIC_SCHEDULE = { startHour: 10, endHour: 20, slotMinutes: 30 };
 let patients = [];
 let appointments = [];
@@ -62,11 +42,14 @@ let requestAppointmentId = null;
 let requestTime = "";
 let staffRequestTargetId = null;
 let staffRequestTime = "";
+let bookingStep = 1;
 let calendarDate = new Date();
 document.addEventListener("DOMContentLoaded", initializePage);
 function initializePage() {
   currentUser = getCurrentUser();
   loadPatients();
+  loadDoctors();
+  renderDentistSelector();
   loadAppointments();
   resolveCurrentPatient();
   normalizeSelectedDate();
@@ -77,6 +60,8 @@ function initializePage() {
   setInterval(() => {
     currentUser = getCurrentUser();
     loadPatients();
+    loadDoctors();
+    renderDentistSelector();
     loadAppointments();
     resolveCurrentPatient();
     normalizeSelectedDate();
@@ -97,11 +82,32 @@ function setupEvents() {
     .getElementById("confirmBooking")
     ?.addEventListener("click", confirmBooking);
   document
+    .getElementById("continueBooking")
+    ?.addEventListener("click", goToBookingStep2);
+  document
+    .getElementById("backBooking")
+    ?.addEventListener("click", goToBookingStep1);
+  document
+    .getElementById("updateMedicalRecordBtn")
+    ?.addEventListener("click", openMedicalRecordForUpdate);
+  document
+    .getElementById("closeRecordEditModal")
+    ?.addEventListener("click", closeMedicalRecordEditor);
+  document
+    .getElementById("cancelRecordEdit")
+    ?.addEventListener("click", closeMedicalRecordEditor);
+  document
+    .getElementById("saveRecordEdit")
+    ?.addEventListener("click", saveMedicalRecordEditor);
+  document
     .getElementById("closeAppointmentModal")
     ?.addEventListener("click", closeAppointmentDetail);
   document
     .getElementById("closeAppointmentDetail")
     ?.addEventListener("click", closeAppointmentDetail);
+  document
+    .getElementById("deleteAppointmentBtn")
+    ?.addEventListener("click", deleteAppointment);
   document
     .getElementById("requestRescheduleBtn")
     ?.addEventListener("click", openRescheduleRequestModal);
@@ -176,18 +182,23 @@ function setupEvents() {
       if (overlay.id === "rescheduleRequestModal")
         closeRescheduleRequestModal();
       if (overlay.id === "staffRescheduleModal") closeStaffRescheduleModal();
+      if (overlay.id === "recordEditModal") closeMedicalRecordEditor();
     });
   });
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
     closeServiceDropdown();
     closeTimePicker();
+    closeMedicalRecordEditor();
   });
 }
 function handleStorageChange(event) {
   if (event.key === CURRENT_USER_KEY) {
     currentUser = getCurrentUser();
     loadPatients();
+    loadDoctors();
+    renderDentistSelector();
+    loadAppointments();
     resolveCurrentPatient();
     normalizeSelectedDate();
     renderAll();
@@ -197,9 +208,12 @@ function handleStorageChange(event) {
     event.key === APPOINTMENTS_STORAGE_KEY ||
     event.key === LEGACY_STORAGE_KEY ||
     event.key === PATIENTS_STORAGE_KEY ||
+    event.key === DOCTORS_STORAGE_KEY ||
     event.key === RESCHEDULE_REQUESTS_STORAGE_KEY
   ) {
     loadPatients();
+    loadDoctors();
+    renderDentistSelector();
     loadAppointments();
     resolveCurrentPatient();
     normalizeSelectedDate();
@@ -328,7 +342,7 @@ function getDentistId(appointment) {
     appointment?.dentist_id ||
     appointment?.dentistId ||
     appointment?.dentist ||
-    "santos"
+    ""
   );
 }
 function getDentistName(appointment) {
@@ -366,8 +380,10 @@ function getPatientStatusLabel(status, appointmentDate) {
 }
 function getCurrentUser() {
   try {
-    const stored = localStorage.getItem(CURRENT_USER_KEY);
-    if (!stored) return null;
+    const stored = sessionStorage.getItem(CURRENT_USER_KEY);
+    if (!stored) {
+      return null;
+    }
     const parsed = JSON.parse(stored);
     return parsed && typeof parsed === "object" ? parsed : null;
   } catch {
@@ -391,6 +407,106 @@ function loadPatients() {
     patients = [];
   }
 }
+function loadDoctors() {
+  try {
+    const stored = localStorage.getItem(DOCTORS_STORAGE_KEY);
+    if (!stored) {
+      doctors = [];
+      DENTISTS = {};
+      return;
+    }
+    const parsed = JSON.parse(stored);
+    const source = Array.isArray(parsed)
+      ? parsed
+      : Array.isArray(parsed?.doctors)
+        ? parsed.doctors
+        : [];
+    doctors = source
+      .map(normalizeDoctor)
+      .filter((doctor) => doctor.id && doctor.name);
+    DENTISTS = doctors.reduce((result, doctor) => {
+      result[doctor.id] = doctor;
+      return result;
+    }, {});
+  } catch {
+    doctors = [];
+    DENTISTS = {};
+  }
+}
+function normalizeDoctor(doctor) {
+  const id = String(
+    doctor.dentistId ||
+      doctor.dentist_id ||
+      doctor.doctorId ||
+      doctor.doctor_id ||
+      doctor.id ||
+      "",
+  )
+    .trim()
+    .toLowerCase();
+  const firstName = String(doctor.firstName || doctor.first_name || "").trim();
+  const lastName = String(doctor.lastName || doctor.last_name || "").trim();
+  const name = String(
+    doctor.fullName ||
+      doctor.full_name ||
+      doctor.name ||
+      doctor.doctorName ||
+      doctor.dentistName ||
+      `${firstName} ${lastName}`,
+  ).trim();
+  const specialization = String(
+    doctor.specialization ||
+      doctor.specialty ||
+      doctor.speciality ||
+      doctor.department ||
+      "Dental Care",
+  ).trim();
+  const initials =
+    name
+      .replace(/^Dr\.?\s+/i, "")
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part.charAt(0).toUpperCase())
+      .join("") || "DR";
+  return {
+    ...doctor,
+    id,
+    dentistId: id,
+    name,
+    specialization,
+    initials,
+    avatarClass: doctor.avatarClass || "avatar-green",
+  };
+}
+function renderDentistSelector() {
+  const select = document.getElementById("dentistSelect");
+  if (!select) return;
+  const currentValue = String(select.value || "")
+    .trim()
+    .toLowerCase();
+  select.innerHTML = "";
+  if (!doctors.length) {
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = "No registered dentist available";
+    option.disabled = true;
+    option.selected = true;
+    select.appendChild(option);
+    return;
+  }
+  doctors.forEach((doctor) => {
+    const option = document.createElement("option");
+    option.value = doctor.id;
+    option.textContent = doctor.name;
+    option.dataset.dentistId = doctor.id;
+    option.dataset.specialization = doctor.specialization;
+    select.appendChild(option);
+  });
+  select.value = doctors.some((doctor) => doctor.id === currentValue)
+    ? currentValue
+    : doctors[0].id;
+}
 function loadAppointments() {
   try {
     const primaryStored = localStorage.getItem(APPOINTMENTS_STORAGE_KEY);
@@ -407,29 +523,76 @@ function loadAppointments() {
       : Array.isArray(parsed?.appointments)
         ? parsed.appointments
         : [];
-    appointments = storedAppointments.map((appointment) => {
-      const rawPatientId =
-        appointment?.patient_id ||
-        appointment?.patientId ||
-        appointment?.patientID ||
-        "";
-      const matchedPatient = findPatientByIdentifier(rawPatientId);
-      const canonicalPatientId =
-        getCanonicalPatientId(matchedPatient) || String(rawPatientId).trim();
-      if (!canonicalPatientId) return appointment;
-      return {
-        ...appointment,
-        patientId: canonicalPatientId,
-        patient_id: canonicalPatientId,
-      };
-    });
+    appointments = storedAppointments
+      .map((appointment) => {
+        const rawPatientId =
+          appointment?.patient_id ||
+          appointment?.patientId ||
+          appointment?.patientID ||
+          "";
+        const matchedPatient = findPatientByIdentifier(rawPatientId);
+        const canonicalPatientId =
+          getCanonicalPatientId(matchedPatient) || String(rawPatientId).trim();
+        if (!canonicalPatientId) return appointment;
+        return {
+          ...appointment,
+          patientId: canonicalPatientId,
+          patient_id: canonicalPatientId,
+        };
+      })
+      .map((appointment) => {
+        if (
+          (appointment.dentist === "villanueva" || !appointment.dentist) &&
+          doctors.length === 1 &&
+          !DENTISTS.villanueva
+        ) {
+          return {
+            ...appointment,
+            dentist: doctors[0].id,
+            dentistId: doctors[0].id,
+            dentist_id: doctors[0].id,
+          };
+        }
+        return appointment;
+      });
   } catch {
     appointments = [];
   }
 }
 function saveAppointments() {
-  localStorage.setItem(APPOINTMENTS_STORAGE_KEY, JSON.stringify(appointments));
-  localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify(appointments));
+  try {
+    const stored = localStorage.getItem(APPOINTMENTS_STORAGE_KEY);
+    let storedAppointments = [];
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed)) {
+        storedAppointments = parsed;
+      }
+    }
+    const mergedAppointments = [...storedAppointments];
+    appointments.forEach((appointment) => {
+      const appointmentId = getAppointmentId(appointment);
+      const existingIndex = mergedAppointments.findIndex(
+        (existing) => getAppointmentId(existing) === appointmentId,
+      );
+      if (existingIndex === -1) {
+        mergedAppointments.push(appointment);
+      } else {
+        mergedAppointments[existingIndex] = appointment;
+      }
+    });
+    appointments = mergedAppointments;
+    localStorage.setItem(
+      APPOINTMENTS_STORAGE_KEY,
+      JSON.stringify(mergedAppointments),
+    );
+    localStorage.setItem(
+      LEGACY_STORAGE_KEY,
+      JSON.stringify(mergedAppointments),
+    );
+  } catch (error) {
+    console.error("Unable to save appointments:", error);
+  }
 }
 function getPatientIdentifiers(patient) {
   return [
@@ -465,36 +628,39 @@ function findPatientByIdentifier(identifier) {
   );
 }
 function resolveCurrentPatient() {
-  const currentUserPatientId = String(currentUser?.patientId || "").trim();
-  const patientId =
-    currentUserPatientId ||
-    localStorage.getItem("currentPatientId") ||
-    localStorage.getItem("patientId") ||
-    localStorage.getItem("loggedInPatientId") ||
-    localStorage.getItem("current_patient_id");
-  const username =
-    localStorage.getItem("currentPatientUsername") ||
-    localStorage.getItem("username") ||
-    localStorage.getItem("loggedInUsername");
-  const email =
-    localStorage.getItem("currentPatientEmail") ||
-    localStorage.getItem("patientEmail") ||
-    localStorage.getItem("email");
-  currentPatient =
-    findPatientByIdentifier(patientId) ||
-    patients.find(
-      (patient) =>
-        username &&
-        String(patient?.username || "").toLowerCase() ===
-          String(username).toLowerCase(),
-    ) ||
-    patients.find(
-      (patient) =>
-        email &&
-        String(patient?.email || "").toLowerCase() ===
-          String(email).toLowerCase(),
-    ) ||
-    null;
+  const userId = String(
+    currentUser?.id || currentUser?.userId || currentUser?.user_id || "",
+  ).trim();
+  const email = String(
+    currentUser?.email || currentUser?.emailAddress || "",
+  ).trim();
+  const patientId = String(currentUser?.patientId || "").trim();
+  currentPatient = null;
+  if (userId) {
+    currentPatient =
+      patients.find((patient) => {
+        const patientUserId = String(
+          patient?.user_id || patient?.userId || patient?.userIdRef || "",
+        ).trim();
+        return (
+          patientUserId && patientUserId.toLowerCase() === userId.toLowerCase()
+        );
+      }) || null;
+  }
+  if (!currentPatient && email) {
+    currentPatient =
+      patients.find((patient) => {
+        const patientEmail = String(
+          patient?.email || patient?.emailAddress || "",
+        ).trim();
+        return (
+          patientEmail && patientEmail.toLowerCase() === email.toLowerCase()
+        );
+      }) || null;
+  }
+  if (!currentPatient && patientId) {
+    currentPatient = findPatientByIdentifier(patientId);
+  }
   if (!currentPatient) {
     const storedPatient =
       localStorage.getItem("currentPatient") ||
@@ -509,38 +675,31 @@ function resolveCurrentPatient() {
           findPatientByIdentifier(parsedPatient?.id) ||
           findPatientByIdentifier(parsedPatient?.user_id) ||
           findPatientByIdentifier(parsedPatient?.userId) ||
-          parsedPatient;
+          null;
       } catch {
         currentPatient = null;
       }
     }
   }
-  if (!currentPatient && (patientId || username || email)) {
-    currentPatient = {
-      patient_id: patientId || "",
-      username: username || "",
-      email: email || "",
-    };
+  if (currentPatient && currentUser) {
+    const resolvedPatientId = getCanonicalPatientId(currentPatient);
+    if (resolvedPatientId) {
+      currentUser.patientId = resolvedPatientId;
+      sessionStorage.setItem(CURRENT_USER_KEY, JSON.stringify(currentUser));
+    }
   }
 }
 function getCurrentPatientId() {
+  if (currentPatient) {
+    const patientId = getCanonicalPatientId(currentPatient);
+    if (patientId) return patientId;
+  }
   const currentUserPatientId = String(currentUser?.patientId || "").trim();
   if (currentUserPatientId) {
     const patient = findPatientByIdentifier(currentUserPatientId);
     return getCanonicalPatientId(patient) || currentUserPatientId;
   }
-  if (!currentPatient) return "";
-  return (
-    getCanonicalPatientId(currentPatient) ||
-    getCanonicalPatientId(
-      findPatientByIdentifier(currentPatient?.patient_id),
-    ) ||
-    getCanonicalPatientId(findPatientByIdentifier(currentPatient?.patientId)) ||
-    getCanonicalPatientId(findPatientByIdentifier(currentPatient?.id)) ||
-    getCanonicalPatientId(findPatientByIdentifier(currentPatient?.user_id)) ||
-    getCanonicalPatientId(findPatientByIdentifier(currentPatient?.userId)) ||
-    ""
-  );
+  return "";
 }
 function getCurrentPatientName() {
   if (!currentPatient) return "Unknown Patient";
@@ -555,21 +714,25 @@ function getCurrentPatientName() {
   );
 }
 function getPatientAppointments() {
-  const patientId = getCurrentPatientId();
-  if (!patientId) return appointments;
+  const patientId = String(getCurrentPatientId() || "")
+    .trim()
+    .toLowerCase();
+  if (!patientId) {
+    return [];
+  }
   return appointments.filter((appointment) => {
-    const appointmentPatientId =
+    const appointmentPatientId = String(
       appointment?.patient_id ||
-      appointment?.patientId ||
-      appointment?.patientID ||
-      "";
-    if (!appointmentPatientId) return false;
-    return (
-      getCanonicalPatientId(findPatientByIdentifier(appointmentPatientId)) ===
-        patientId ||
-      String(appointmentPatientId).trim().toLowerCase() ===
-        patientId.toLowerCase()
-    );
+        appointment?.patientId ||
+        appointment?.patientID ||
+        "",
+    )
+      .trim()
+      .toLowerCase();
+    if (!appointmentPatientId) {
+      return false;
+    }
+    return appointmentPatientId === patientId;
   });
 }
 function getDateAppointments(dateKey) {
@@ -745,6 +908,8 @@ function updateServiceDurationInfo() {
 }
 function openBookingModal(date = null, dentist = null) {
   currentUser = getCurrentUser();
+  loadDoctors();
+  renderDentistSelector();
   resolveCurrentPatient();
   const modal = document.getElementById("bookingModal");
   if (!modal) return;
@@ -763,7 +928,10 @@ function openBookingModal(date = null, dentist = null) {
     durationInput.value = 30;
     durationInput.disabled = true;
   }
-  if (dentistInput) dentistInput.value = DENTISTS[dentist] ? dentist : "santos";
+  if (dentistInput) {
+    renderDentistSelector();
+    dentistInput.value = DENTISTS[dentist] ? dentist : doctors[0]?.id || "";
+  }
   if (dateInput) {
     dateInput.min = dateToKey(new Date());
     dateInput.value = selectedKey;
@@ -772,6 +940,9 @@ function openBookingModal(date = null, dentist = null) {
   calendarDate = new Date(selectedDate);
   calendarDate.setDate(1);
   selectedTime = "";
+  bookingStep = 1;
+  loadBookingPatientInformation();
+  loadBookingMedicalInformation();
   closeServiceDropdown();
   closeTimePicker();
   renderServiceDropdown("");
@@ -779,9 +950,181 @@ function openBookingModal(date = null, dentist = null) {
   renderCalendar();
   updateAvailableTimeSlots();
   updateBookingButton();
+  updateBookingStepUI();
   modal.classList.add("show");
   modal.setAttribute("aria-hidden", "false");
   document.body.style.overflow = "hidden";
+}
+function loadBookingPatientInformation() {
+  const patientIdInput = document.getElementById("bookingPatientId");
+  const firstNameInput = document.getElementById("firstName");
+  const lastNameInput = document.getElementById("lastName");
+  const dateOfBirthInput = document.getElementById("dateOfBirth");
+  const genderInput = document.getElementById("gender");
+  const phoneInput = document.getElementById("phone");
+  const emailInput = document.getElementById("email");
+  const addressInput = document.getElementById("address");
+  const emergencyNameInput = document.getElementById("emergencyName");
+  const emergencyContactInput = document.getElementById("emergencyContact");
+  const patientId = getCurrentPatientId();
+  if (patientIdInput) {
+    patientIdInput.value = patientId || "";
+  }
+  if (!currentPatient) {
+    if (firstNameInput) firstNameInput.value = "";
+    if (lastNameInput) lastNameInput.value = "";
+    if (dateOfBirthInput) dateOfBirthInput.value = "";
+    if (genderInput) genderInput.value = "";
+    if (phoneInput) phoneInput.value = "";
+    if (emailInput) emailInput.value = "";
+    if (addressInput) addressInput.value = "";
+    if (emergencyNameInput) emergencyNameInput.value = "";
+    if (emergencyContactInput) emergencyContactInput.value = "";
+    return;
+  }
+  if (firstNameInput) {
+    firstNameInput.value =
+      currentPatient.first_name || currentPatient.firstName || "";
+  }
+  if (lastNameInput) {
+    lastNameInput.value =
+      currentPatient.last_name || currentPatient.lastName || "";
+  }
+  if (dateOfBirthInput) {
+    dateOfBirthInput.value =
+      currentPatient.date_of_birth || currentPatient.dateOfBirth || "";
+  }
+  if (genderInput) {
+    genderInput.value = currentPatient.gender || "";
+  }
+  if (phoneInput) {
+    phoneInput.value =
+      currentPatient.phone ||
+      currentPatient.phone_number ||
+      currentPatient.contact_number ||
+      "";
+  }
+  if (emailInput) {
+    emailInput.value = currentPatient.email || "";
+  }
+  if (addressInput) {
+    addressInput.value = currentPatient.address || "";
+  }
+  if (emergencyNameInput) {
+    emergencyNameInput.value =
+      currentPatient.emergency_name || currentPatient.emergencyName || "";
+  }
+  if (emergencyContactInput) {
+    emergencyContactInput.value =
+      currentPatient.emergency_contact || currentPatient.emergencyContact || "";
+  }
+}
+function loadBookingMedicalInformation() {
+  if (!currentPatient || !currentPatient.medicalForm) {
+    const checkboxes = document.querySelectorAll(
+      '#bookingModal input[type="checkbox"][name="dentalConcern"], #bookingModal input[type="checkbox"][name="medicalHistory"], #bookingModal input[type="checkbox"][name="allergies"]',
+    );
+    checkboxes.forEach((checkbox) => {
+      checkbox.checked = false;
+    });
+    const radioGroups = document.querySelectorAll(
+      '#bookingModal input[type="radio"]',
+    );
+    radioGroups.forEach((radio) => {
+      radio.checked = false;
+    });
+    const textFields = [
+      "dentalConcernOther",
+      "negativeExperienceNote",
+      "lastDentalVisit",
+      "lastDentalTreatment",
+      "medicationList",
+      "medicalOther",
+      "allergyOther",
+    ];
+    textFields.forEach((id) => {
+      const input = document.getElementById(id);
+      if (input) input.value = "";
+    });
+    return;
+  }
+  const medicalForm = currentPatient.medicalForm;
+  const setCheckboxValues = (name, values) => {
+    const selectedValues = Array.isArray(values) ? values : [];
+    document
+      .querySelectorAll(`#bookingModal input[name="${name}"]`)
+      .forEach((checkbox) => {
+        checkbox.checked = selectedValues.includes(checkbox.value);
+      });
+  };
+  setCheckboxValues("dentalConcern", medicalForm.dentalConcern);
+  setCheckboxValues("medicalHistory", medicalForm.medicalHistory);
+  setCheckboxValues("allergies", medicalForm.allergies);
+  const dentalConcernOtherCheck = document.getElementById(
+    "dentalConcernOtherCheck",
+  );
+  const medicalOtherCheck = document.getElementById("medicalOtherCheck");
+  const allergyOtherCheck = document.getElementById("allergyOtherCheck");
+  if (dentalConcernOtherCheck) {
+    dentalConcernOtherCheck.checked = !!medicalForm.dentalConcernOther;
+  }
+  if (medicalOtherCheck) {
+    medicalOtherCheck.checked = !!medicalForm.medicalOther;
+  }
+  if (allergyOtherCheck) {
+    allergyOtherCheck.checked = !!medicalForm.allergyOther;
+  }
+  const dentalConcernOther = document.getElementById("dentalConcernOther");
+  const negativeExperience = document.querySelector(
+    '#bookingModal input[name="negativeExperience"]:checked',
+  );
+  const negativeExperienceNote = document.getElementById(
+    "negativeExperienceNote",
+  );
+  const lastDentalVisit = document.getElementById("lastDentalVisit");
+  const lastDentalTreatment = document.getElementById("lastDentalTreatment");
+  const currentMedications = document.querySelector(
+    '#bookingModal input[name="currentMedications"]:checked',
+  );
+  const medicationList = document.getElementById("medicationList");
+  const medicalOther = document.getElementById("medicalOther");
+  const allergyOther = document.getElementById("allergyOther");
+  if (dentalConcernOther) {
+    dentalConcernOther.value = medicalForm.dentalConcernOther || "";
+  }
+  document
+    .querySelectorAll('#bookingModal input[name="negativeExperience"]')
+    .forEach((radio) => {
+      radio.checked = radio.value === medicalForm.negativeExperience;
+    });
+  if (negativeExperienceNote) {
+    negativeExperienceNote.value = medicalForm.negativeExperienceNote || "";
+  }
+  if (lastDentalVisit) {
+    lastDentalVisit.value = medicalForm.medLastVisit || "";
+  }
+  if (lastDentalTreatment) {
+    lastDentalTreatment.value = medicalForm.medLastTreatment || "";
+  }
+  document
+    .querySelectorAll('#bookingModal input[name="currentMedications"]')
+    .forEach((radio) => {
+      radio.checked = radio.value === medicalForm.currentMedications;
+    });
+  if (medicationList) {
+    medicationList.value = medicalForm.currentMedicationsList || "";
+  }
+  if (medicalOther) {
+    medicalOther.value = medicalForm.medicalOther || "";
+  }
+  if (allergyOther) {
+    allergyOther.value = medicalForm.allergyOther || "";
+  }
+  document
+    .querySelectorAll('#bookingModal input[name="currentMedications"]')
+    .forEach((radio) => {
+      radio.checked = radio.value === medicalForm.currentMedications;
+    });
 }
 function closeBookingModal() {
   const modal = document.getElementById("bookingModal");
@@ -791,6 +1134,8 @@ function closeBookingModal() {
   document.body.style.overflow = "";
   closeServiceDropdown();
   closeTimePicker();
+  bookingStep = 1;
+  updateBookingStepUI();
 }
 function handleServiceInput(event) {
   renderServiceDropdown(event.target.value);
@@ -964,7 +1309,8 @@ function updateAvailableTimeSlots() {
   if (!dropdown || !trigger || !triggerLabel) return;
   const date =
     document.getElementById("dateSelect")?.value || dateToKey(selectedDate);
-  const dentist = document.getElementById("dentistSelect")?.value || "santos";
+  const dentist =
+    document.getElementById("dentistSelect")?.value || doctors[0]?.id || "";
   const duration = Number(document.getElementById("durationInput")?.value || 0);
   dropdown.innerHTML = "";
   if (!date || isPastDate(date)) {
@@ -1091,7 +1437,9 @@ function generateAvailableSlots(date, dentist, duration) {
   return result;
 }
 function updateBookingButton() {
-  const button = document.getElementById("confirmBooking");
+  const button = document.getElementById(
+    bookingStep === 1 ? "continueBooking" : "confirmBooking",
+  );
   if (!button) return;
   const service = document.getElementById("serviceInput")?.value.trim() || "";
   const date = document.getElementById("dateSelect")?.value || "";
@@ -1161,54 +1509,381 @@ function updateConflictNotice(conflict) {
   if (!notice) return;
   notice.classList.toggle("show", conflict);
 }
-function confirmBooking() {
-  currentUser = getCurrentUser();
-  resolveCurrentPatient();
-  const serviceInput = document.getElementById("serviceInput");
-  const dateInput = document.getElementById("dateSelect");
-  const dentistInput = document.getElementById("dentistSelect");
-  const durationInput = document.getElementById("durationInput");
-  const service = serviceInput?.value.trim() || "";
-  const date = dateInput?.value || "";
-  const dentist = dentistInput?.value || "";
+function validateAppointmentDetails() {
+  const service = document.getElementById("serviceInput")?.value.trim() || "";
+  const date = document.getElementById("dateSelect")?.value || "";
+  const dentist = document.getElementById("dentistSelect")?.value || "";
+  const duration = Number(document.getElementById("durationInput")?.value || 0);
   const selectedService = SERVICES.find(
     (item) => item.name.toLowerCase() === service.toLowerCase(),
   );
-  if (!selectedService) {
-    showToast("Please select a valid service.");
-    return;
-  }
-  const duration = selectedService.duration;
-  if (durationInput) {
-    durationInput.value = duration;
-    durationInput.disabled = true;
-  }
   if (
-    !service ||
+    !selectedService ||
+    duration !== selectedService.duration ||
     !date ||
     isPastDate(date) ||
     !dentist ||
-    !duration ||
+    !DENTISTS[dentist] ||
     !selectedTime
   ) {
     showToast("Please complete all appointment details.");
-    return;
+    return false;
   }
   if (hasScheduleConflict(date, dentist, selectedTime, duration)) {
     showToast("The selected time is no longer available.");
     updateAvailableTimeSlots();
+    return false;
+  }
+  return true;
+}
+function updateBookingStepUI() {
+  const step1 = document.getElementById("bookingStep1");
+  const step2 = document.getElementById("bookingStep2");
+  const continueButton = document.getElementById("continueBooking");
+  const confirmButton = document.getElementById("confirmBooking");
+  const backButton = document.getElementById("backBooking");
+  const modalTitle = document.getElementById("modalTitle");
+  const modalSubtitle = document.getElementById("modalSubtitle");
+  const stepLabel = document.getElementById("bookingStepLabel");
+  if (step1) step1.hidden = bookingStep !== 1;
+  if (step2) step2.hidden = bookingStep !== 2;
+  if (continueButton) continueButton.hidden = bookingStep !== 1;
+  if (confirmButton) confirmButton.hidden = bookingStep !== 2;
+  if (backButton) backButton.hidden = bookingStep !== 2;
+  if (modalTitle)
+    modalTitle.textContent =
+      bookingStep === 1 ? "New Appointment" : "Patient Information";
+  if (modalSubtitle)
+    modalSubtitle.textContent =
+      bookingStep === 1
+        ? "Create a new appointment"
+        : "Review and update your information before booking";
+  if (stepLabel) stepLabel.textContent = `Step ${bookingStep} of 2`;
+  const progressStep1 = document.getElementById("bookingProgressStep1");
+  const progressStep2 = document.getElementById("bookingProgressStep2");
+  if (progressStep1)
+    progressStep1.classList.toggle("active", bookingStep === 1);
+  if (progressStep2)
+    progressStep2.classList.toggle("active", bookingStep === 2);
+  if (bookingStep === 2) updateMedicalRecordSummary();
+  updateBookingButton();
+}
+function goToBookingStep2() {
+  currentUser = getCurrentUser();
+  resolveCurrentPatient();
+  if (!validateAppointmentDetails()) return;
+  bookingStep = 2;
+  updateBookingStepUI();
+}
+function goToBookingStep1() {
+  bookingStep = 1;
+  updateBookingStepUI();
+}
+function openMedicalRecordForUpdate() {
+  if (!currentPatient) {
+    showToast("Your patient record could not be loaded.");
     return;
   }
+  populateMedicalRecordEditor();
+  const modal = document.getElementById("recordEditModal");
+  if (!modal) return;
+  modal.classList.add("show");
+  modal.setAttribute("aria-hidden", "false");
+}
+function closeMedicalRecordEditor() {
+  const modal = document.getElementById("recordEditModal");
+  if (!modal) return;
+  modal.classList.remove("show");
+  modal.setAttribute("aria-hidden", "true");
+}
+function getRecordEditorValues(name) {
+  return Array.from(
+    document.querySelectorAll(`#recordEditModal input[name="${name}"]:checked`),
+  ).map((input) => input.value);
+}
+function setRecordEditorValues(name, values) {
+  const selectedValues = Array.isArray(values) ? values : [];
+  document
+    .querySelectorAll(`#recordEditModal input[name="${name}"]`)
+    .forEach((input) => {
+      input.checked = selectedValues.includes(input.value);
+    });
+}
+function populateMedicalRecordEditor() {
+  const medical = currentPatient?.medicalForm || {};
+  setRecordEditorValues("recordEditDentalConcern", medical.dentalConcern);
+  setRecordEditorValues("recordEditMedicalHistory", medical.medicalHistory);
+  setRecordEditorValues("recordEditAllergies", medical.allergies);
+  document.getElementById("recordEditDentalConcernOther").value =
+    medical.dentalConcernOther || "";
+  document.getElementById("recordEditMedicalOther").value =
+    medical.medicalOther || "";
+  document.getElementById("recordEditAllergyOther").value =
+    medical.allergyOther || "";
+  document.getElementById("recordEditDentalConcernOtherCheck").checked =
+    Boolean(medical.dentalConcernOther);
+  document.getElementById("recordEditMedicalOtherCheck").checked = Boolean(
+    medical.medicalOther,
+  );
+  document.getElementById("recordEditAllergyOtherCheck").checked = Boolean(
+    medical.allergyOther,
+  );
+  document
+    .querySelectorAll('input[name="recordEditNegativeExperience"]')
+    .forEach(
+      (input) =>
+        (input.checked = input.value === (medical.negativeExperience || "No")),
+    );
+  document.getElementById("recordEditNegativeExperienceNote").value =
+    medical.negativeExperienceNote || "";
+  document.getElementById("recordEditLastDentalVisit").value =
+    medical.medLastVisit || "";
+  document.getElementById("recordEditLastDentalTreatment").value =
+    medical.medLastTreatment || "";
+  document
+    .querySelectorAll('input[name="recordEditCurrentMedications"]')
+    .forEach(
+      (input) =>
+        (input.checked = input.value === (medical.currentMedications || "No")),
+    );
+  document.getElementById("recordEditMedicationList").value =
+    medical.currentMedicationsList || "";
+  document.getElementById("recordEditConsent").checked =
+    medical.consent === true;
+}
+function saveMedicalRecordEditor() {
+  if (!currentPatient) return;
+  const consent = document.getElementById("recordEditConsent")?.checked;
+  if (!consent) {
+    showToast("Please confirm that your medical information is accurate.");
+    return;
+  }
+  const allergies = getRecordEditorValues("recordEditAllergies");
+  const otherAllergy =
+    document.getElementById("recordEditAllergyOther")?.value.trim() || "";
+  if (
+    allergies.includes("No Known Allergies") &&
+    (allergies.length > 1 || otherAllergy)
+  ) {
+    showToast("No Known Allergies cannot be selected with another allergy.");
+    return;
+  }
+  const now = new Date().toISOString();
+  const existingMedical = currentPatient.medicalForm || {};
+  const updatedMedicalForm = {
+    ...existingMedical,
+    dentalConcern: getRecordEditorValues("recordEditDentalConcern"),
+    dentalConcernOther:
+      document.getElementById("recordEditDentalConcernOther")?.value.trim() ||
+      "",
+    negativeExperience:
+      document.querySelector(
+        'input[name="recordEditNegativeExperience"]:checked',
+      )?.value || "No",
+    negativeExperienceNote:
+      document
+        .getElementById("recordEditNegativeExperienceNote")
+        ?.value.trim() || "",
+    medLastVisit:
+      document.getElementById("recordEditLastDentalVisit")?.value || "",
+    medLastTreatment:
+      document.getElementById("recordEditLastDentalTreatment")?.value.trim() ||
+      "",
+    currentMedications:
+      document.querySelector(
+        'input[name="recordEditCurrentMedications"]:checked',
+      )?.value || "No",
+    currentMedicationsList:
+      document.getElementById("recordEditMedicationList")?.value.trim() || "",
+    medicalHistory: getRecordEditorValues("recordEditMedicalHistory"),
+    medicalOther:
+      document.getElementById("recordEditMedicalOther")?.value.trim() || "",
+    allergies,
+    allergyOther: otherAllergy,
+    consent: true,
+    completed: true,
+    submittedBy: existingMedical.submittedBy || "patient",
+    createdAt: existingMedical.createdAt || now,
+    updatedAt: now,
+  };
+  currentPatient.medicalForm = updatedMedicalForm;
+  currentPatient.updatedAt = now;
+  const patientId = getCanonicalPatientId(currentPatient);
+  const patientIndex = patients.findIndex(
+    (patient) => getCanonicalPatientId(patient) === patientId,
+  );
+  if (patientIndex !== -1) {
+    patients[patientIndex] = { ...patients[patientIndex], ...currentPatient };
+  } else {
+    patients.push(currentPatient);
+  }
+  localStorage.setItem(PATIENTS_STORAGE_KEY, JSON.stringify(patients));
+  updateMedicalRecordSummary();
+  closeMedicalRecordEditor();
+  showToast("Medical record updated successfully.");
+}
+function updateMedicalRecordSummary() {
+  const summary = document.getElementById("medicalRecordSummary");
+  if (!summary) return;
+  const medicalForm = currentPatient?.medicalForm;
+  if (!medicalForm) {
+    summary.innerHTML = `<div class="medical-record-summary-empty"><i class="fa-regular fa-file-lines"></i><div><strong>No medical record yet</strong><span>Complete your medical record before confirming this appointment.</span></div></div>`;
+    return;
+  }
+  const concerns = Array.isArray(medicalForm.dentalConcern)
+    ? [...medicalForm.dentalConcern.filter(Boolean)]
+    : [];
+  const history = Array.isArray(medicalForm.medicalHistory)
+    ? [...medicalForm.medicalHistory.filter(Boolean)]
+    : [];
+  const allergies = Array.isArray(medicalForm.allergies)
+    ? [...medicalForm.allergies.filter(Boolean)]
+    : [];
+  if (medicalForm.dentalConcernOther) {
+    concerns.push(`Other: ${medicalForm.dentalConcernOther}`);
+  }
+  if (medicalForm.medicalOther) {
+    history.push(`Other: ${medicalForm.medicalOther}`);
+  }
+  if (medicalForm.allergyOther) {
+    allergies.push(`Other: ${medicalForm.allergyOther}`);
+  }
+  const medication =
+    medicalForm.currentMedications === "Yes"
+      ? medicalForm.currentMedicationsList || "Currently taking medications"
+      : medicalForm.currentMedications === "No"
+        ? "No current medications"
+        : "Not specified";
+  const concernText = concerns.length
+    ? concerns.join(", ")
+    : "No recorded concern";
+  const historyText = history.length
+    ? history.join(", ")
+    : "No recorded medical history";
+  const allergyText = allergies.length
+    ? allergies.join(", ")
+    : "No recorded allergies";
+  const lastVisit = medicalForm.medLastVisit || "Not specified";
+  const lastTreatment = medicalForm.medLastTreatment || "Not specified";
+  const dentalExperience =
+    medicalForm.negativeExperience === "Yes"
+      ? medicalForm.negativeExperienceNote ||
+        "Previous negative experience reported"
+      : "None reported";
+  summary.innerHTML = `<div class="medical-record-summary-grid"><div><span>Dental Concern</span><strong>${escapeHtml(concernText)}</strong></div><div><span>Medical History</span><strong>${escapeHtml(historyText)}</strong></div><div><span>Allergies</span><strong>${escapeHtml(allergyText)}</strong></div><div><span>Medication Status</span><strong>${escapeHtml(medication)}</strong></div><div><span>Last Dental Visit</span><strong>${escapeHtml(lastVisit)}</strong></div><div><span>Last Treatment</span><strong>${escapeHtml(lastTreatment)}</strong></div><div class="medical-record-summary-item-wide"><span>Dental Experience</span><strong>${escapeHtml(dentalExperience)}</strong></div></div><div class="medical-record-summary-status"><i class="fa-solid fa-circle-check"></i><span>Record available for this appointment</span></div>`;
+}
+function confirmBooking() {
+  currentUser = getCurrentUser();
+  resolveCurrentPatient();
+  if (!validateAppointmentDetails()) return;
   const patientId = getCurrentPatientId();
   if (!patientId) {
     showToast("Unable to identify your patient account.");
     return;
   }
+  const firstName =
+    currentPatient?.firstName || currentPatient?.first_name || "";
+  const lastName = currentPatient?.lastName || currentPatient?.last_name || "";
+  const dateOfBirth =
+    currentPatient?.dateOfBirth || currentPatient?.date_of_birth || "";
+  const gender = currentPatient?.gender || currentPatient?.patientGender || "";
+  const phone = currentPatient?.phone || currentPatient?.phone_number || "";
+  const email = currentPatient?.email || "";
+  const address = currentPatient?.address || "";
+  const emergencyName =
+    currentPatient?.emergencyName || currentPatient?.emergency_name || "";
+  const emergencyContact =
+    currentPatient?.emergencyContact || currentPatient?.emergency_contact || "";
+  if (
+    !firstName ||
+    !lastName ||
+    !dateOfBirth ||
+    !gender ||
+    !phone ||
+    !email ||
+    !address ||
+    !emergencyName ||
+    !emergencyContact
+  ) {
+    showToast("Please complete all patient information.");
+    return;
+  }
+  const medicalForm = currentPatient?.medicalForm;
+  if (!medicalForm?.completed) {
+    showToast("Please complete your medical record before booking.");
+    return;
+  }
+  if (!medicalForm.consent) {
+    showToast(
+      "Please confirm your consent in your medical record before booking.",
+    );
+    return;
+  }
+  const now = new Date().toISOString();
+  const updatedMedicalForm = { ...medicalForm, updatedAt: now };
+  const service = document.getElementById("serviceInput")?.value.trim() || "";
+  const date = document.getElementById("dateSelect")?.value || "";
+  const dentist = document.getElementById("dentistSelect")?.value || "";
+  const selectedService = SERVICES.find(
+    (item) => item.name.toLowerCase() === service.toLowerCase(),
+  );
+  const duration = selectedService ? selectedService.duration : 0;
+  const durationInput = document.getElementById("durationInput");
+  if (durationInput) {
+    durationInput.value = duration;
+    durationInput.disabled = true;
+  }
+  loadPatients();
+  let patient = patients.find(
+    (item) =>
+      String(getCanonicalPatientId(item)).toLowerCase() ===
+      String(patientId).toLowerCase(),
+  );
+  if (!patient && currentPatient) patient = currentPatient;
+  if (!patient) {
+    patient = {
+      patientId,
+      id: patientId,
+      userId: currentUser?.id || null,
+      firstName,
+      lastName,
+      fullName: `${firstName} ${lastName}`.trim(),
+      email,
+      phone,
+      dateOfBirth,
+      gender,
+      address,
+      emergencyName,
+      emergencyContact,
+      appointments: [],
+    };
+    patients.push(patient);
+  }
+  patient.patientId = patientId;
+  patient.id = patientId;
+  patient.userId =
+    patient.userId || currentUser?.id || currentUser?.userId || null;
+  patient.firstName = firstName;
+  patient.lastName = lastName;
+  patient.fullName = `${firstName} ${lastName}`.trim();
+  patient.email = email;
+  patient.phone = phone;
+  patient.dateOfBirth = dateOfBirth;
+  patient.gender = gender;
+  patient.address = address;
+  patient.emergencyName = emergencyName;
+  patient.emergencyContact = emergencyContact;
+  patient.medicalForm = updatedMedicalForm;
+  patient.appointments = Array.isArray(patient.appointments)
+    ? patient.appointments
+    : [];
+  currentPatient = patient;
+  localStorage.setItem(PATIENTS_STORAGE_KEY, JSON.stringify(patients));
   const appointment = {
     id: `appt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
     patientId,
     patient_id: patientId,
-    patient: getCurrentPatientName(),
+    patient: `${firstName} ${lastName}`.trim(),
     date,
     appointment_date: date,
     start: selectedTime,
@@ -1350,6 +2025,57 @@ function openAppointmentDetail(appointmentId) {
   modal.setAttribute("aria-hidden", "false");
   document.body.style.overflow = "hidden";
 }
+function deleteAppointment() {
+  if (!detailAppointmentId) {
+    showToast("Appointment could not be identified.");
+    return;
+  }
+  const appointment = findAppointmentById(detailAppointmentId);
+  if (!appointment) {
+    showToast("Appointment could not be found.");
+    return;
+  }
+  const appointmentLabel = `${getAppointmentService(appointment)} on ${formatDate(getAppointmentDate(appointment))} at ${formatTime(getAppointmentTime(appointment))}`;
+  const confirmed = window.confirm(
+    `Delete this appointment?\n\n${appointmentLabel}\n\nThis action cannot be undone.`,
+  );
+  if (!confirmed) return;
+  const appointmentId = getAppointmentId(appointment);
+  appointments = appointments.filter(
+    (item) => getAppointmentId(item) !== appointmentId,
+  );
+  localStorage.setItem(APPOINTMENTS_STORAGE_KEY, JSON.stringify(appointments));
+  localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify(appointments));
+  if (currentPatient) {
+    currentPatient.appointments = Array.isArray(currentPatient.appointments)
+      ? currentPatient.appointments.filter(
+          (item) => getAppointmentId(item) !== appointmentId,
+        )
+      : [];
+    patients = patients.map((patient) => {
+      const patientId = getCanonicalPatientId(patient);
+      return patientId &&
+        patientId.toLowerCase() === getCurrentPatientId().toLowerCase()
+        ? currentPatient
+        : patient;
+    });
+    localStorage.setItem(PATIENTS_STORAGE_KEY, JSON.stringify(patients));
+  }
+  const requests = loadRescheduleRequests();
+  const remainingRequests = requests.filter(
+    (request) =>
+      String(request?.appointment_id || request?.appointmentId || "") !==
+      appointmentId,
+  );
+  localStorage.setItem(
+    RESCHEDULE_REQUESTS_STORAGE_KEY,
+    JSON.stringify(remainingRequests),
+  );
+  detailAppointmentId = null;
+  closeAppointmentDetail();
+  renderAll();
+  showToast("Appointment deleted successfully.");
+}
 function closeAppointmentDetail() {
   const modal = document.getElementById("appointmentModal");
   if (!modal) return;
@@ -1385,7 +2111,6 @@ function openRescheduleRequestModal() {
   closeAppointmentDetail();
   modal.classList.add("show");
   modal.setAttribute("aria-hidden", "false");
-  document.body.style.overflow = "hidden";
 }
 function closeRescheduleRequestModal() {
   const modal = document.getElementById("rescheduleRequestModal");
@@ -1565,8 +2290,7 @@ function renderStaffRequestTimeGrid(date) {
     if (count) count.textContent = "Invalid date";
     return;
   }
-  const requests = loadRescheduleRequests();
-  const request = requests.find(
+  const request = loadRescheduleRequests().find(
     (item) =>
       String(item?.id || item?.request_id) === String(staffRequestTargetId),
   );
@@ -1574,9 +2298,8 @@ function renderStaffRequestTimeGrid(date) {
   const appointment = findAppointmentById(
     request?.appointmentId || request?.appointment_id,
   );
-  const dentist =
-    request?.currentDentist ||
-    (appointment ? getDentistId(appointment) : "santos");
+  if (!appointment) return;
+  const dentist = getDentistId(appointment);
   const duration = Number(
     appointment?.duration ||
       appointment?.duration_minutes ||
@@ -1605,33 +2328,21 @@ function renderStaffRequestTimeGrid(date) {
   });
 }
 function confirmStaffRescheduleResponse() {
-  if (!staffRequestTargetId) {
-    showToast("No reschedule request selected.");
-    return;
-  }
-  const newDate = document.getElementById("staffRequestDate")?.value || "";
-  if (!newDate) {
-    showToast("Please select a preferred new date.");
-    return;
-  }
-  if (isPastDate(newDate)) {
-    showToast("Please select a current or future date.");
-    return;
-  }
-  if (!staffRequestTime) {
-    showToast("Please select a preferred new time.");
-    return;
-  }
-  const requests = loadRescheduleRequests();
-  const requestIndex = requests.findIndex(
+  if (!staffRequestTargetId) return;
+  const request = loadRescheduleRequests().find(
     (item) =>
       String(item?.id || item?.request_id) === String(staffRequestTargetId),
   );
-  if (requestIndex === -1) {
-    showToast("Reschedule request could not be found.");
+  if (!request) {
+    closeStaffRescheduleModal();
     return;
   }
-  const request = requests[requestIndex];
+  const dateInput = document.getElementById("staffRequestDate");
+  const newDate = dateInput?.value || "";
+  if (!newDate || !staffRequestTime) {
+    showToast("Please select a new date and time.");
+    return;
+  }
   const appointment = findAppointmentById(
     request?.appointmentId || request?.appointment_id,
   );
@@ -1639,67 +2350,64 @@ function confirmStaffRescheduleResponse() {
     showToast("The appointment could not be found.");
     return;
   }
-  const dentist = getDentistId(appointment);
   const duration = Number(
     appointment.duration ||
       appointment.duration_minutes ||
       appointment.durationMinutes ||
       30,
   );
-  if (hasScheduleConflict(newDate, dentist, staffRequestTime, duration)) {
-    showToast("The selected time is no longer available.");
-    renderStaffRequestTimeGrid(newDate);
+  if (isPastDate(newDate)) {
+    showToast("The selected date has already passed.");
+    return;
+  }
+  if (
+    hasScheduleConflict(
+      newDate,
+      getDentistId(appointment),
+      staffRequestTime,
+      duration,
+    )
+  ) {
+    showToast("The selected time is already occupied.");
     return;
   }
   appointment.date = newDate;
   appointment.appointment_date = newDate;
+  appointment.appointmentDate = newDate;
   appointment.start = staffRequestTime;
+  appointment.time = staffRequestTime;
   appointment.appointment_time = staffRequestTime;
-  appointments = appointments.map((item) =>
-    getAppointmentId(item) === getAppointmentId(appointment)
-      ? appointment
-      : item,
+  appointment.appointmentTime = staffRequestTime;
+  appointment.rescheduleRequest = null;
+  const requests = loadRescheduleRequests();
+  const index = requests.findIndex(
+    (item) =>
+      String(item?.id || item?.request_id) === String(staffRequestTargetId),
   );
+  if (index !== -1) {
+    requests[index] = {
+      ...requests[index],
+      status: "Approved",
+      approved_date: newDate,
+      approved_time: staffRequestTime,
+      updated_at: new Date().toISOString(),
+    };
+  }
+  saveRescheduleRequests(requests);
   saveAppointments();
   syncAppointmentToPatient(appointment);
-  request.status = "approved";
-  request.approvedAt = new Date().toISOString();
-  request.approvedDate = newDate;
-  request.approvedTime = staffRequestTime;
-  requests[requestIndex] = request;
-  saveRescheduleRequests(requests);
-  selectedDate = keyToDate(newDate);
-  calendarDate = new Date(selectedDate);
-  calendarDate.setDate(1);
   closeStaffRescheduleModal();
   renderAll();
-  showToast("Your appointment has been rescheduled.");
+  showToast("The reschedule request was approved.");
 }
 function loadRescheduleRequests() {
+  const stored = localStorage.getItem(RESCHEDULE_REQUESTS_STORAGE_KEY);
+  if (!stored) {
+    return [];
+  }
   try {
-    const stored = localStorage.getItem(RESCHEDULE_REQUESTS_STORAGE_KEY);
-    if (!stored) return [];
     const parsed = JSON.parse(stored);
-    const requests = Array.isArray(parsed)
-      ? parsed
-      : Array.isArray(parsed?.requests)
-        ? parsed.requests
-        : [];
-    const validRequests = requests.filter((request) => {
-      const appointmentId =
-        request?.appointment_id || request?.appointmentId || "";
-      if (!appointmentId) {
-        return true;
-      }
-      return Boolean(findAppointmentById(appointmentId));
-    });
-    if (validRequests.length !== requests.length) {
-      localStorage.setItem(
-        RESCHEDULE_REQUESTS_STORAGE_KEY,
-        JSON.stringify(validRequests),
-      );
-    }
-    return validRequests;
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
   }
@@ -1710,94 +2418,69 @@ function saveRescheduleRequests(requests) {
     JSON.stringify(requests),
   );
 }
-function findAppointmentById(id) {
-  return appointments.find(
-    (appointment) => getAppointmentId(appointment) === String(id),
-  );
-}
-function isStaffInitiatedRequest(request) {
-  return Boolean(
-    request?.appointmentId || request?.currentDate || request?.reasonLabel,
-  );
-}
 function renderRescheduleAlert() {
   const alert = document.getElementById("rescheduleAlert");
-  if (!alert) return;
-  const patientId = getCurrentPatientId();
-  if (!patientId) {
-    alert.hidden = true;
-    return;
-  }
   const requests = loadRescheduleRequests();
-  const request = requests.find((item) => {
-    const requestPatientId =
-      item?.patient_id || item?.patientId || item?.patient || "";
-    const appointmentId = item?.appointment_id || item?.appointmentId || "";
-    const status = normalizeStatus(item?.status || "");
-    if (String(requestPatientId) !== String(patientId)) {
-      return false;
-    }
-    if (status !== "pending") {
-      return false;
-    }
-    if (!appointmentId) {
-      return false;
-    }
-    const appointment = findAppointmentById(appointmentId);
-    return Boolean(appointment);
-  });
-  if (!request) {
-    alert.hidden = true;
+  const patientId = String(getCurrentPatientId()).trim().toLowerCase();
+  if (!alert || !patientId) {
+    if (alert) alert.classList.remove("show");
     return;
   }
-  const badge = document.getElementById("rescheduleReasonBadge");
-  const message = document.getElementById("rescheduleMessage");
-  const details = document.getElementById("rescheduleAlertDetails");
-  if (badge) {
-    badge.textContent = "Pending";
+  const pending = requests.filter(
+    (request) =>
+      String(request?.patient_id || request?.patientId || "")
+        .trim()
+        .toLowerCase() === patientId &&
+      normalizeStatus(request?.status || "") === "approved",
+  );
+  if (!pending.length) {
+    alert.classList.remove("show");
+    return;
   }
+  const latest = pending[pending.length - 1];
+  const appointment = findAppointmentById(
+    latest?.appointment_id || latest?.appointmentId,
+  );
+  const message = document.getElementById("rescheduleAlertMessage");
   if (message) {
+    const date = latest?.approved_date || latest?.approvedDate || "";
+    const time = latest?.approved_time || latest?.approvedTime || "";
+    const dentist = appointment ? getDentistName(appointment) : "your dentist";
     message.textContent =
-      request.message ||
-      "Your appointment has a pending schedule change request.";
+      date && time
+        ? `Your reschedule request was approved for ${formatDate(date)} at ${formatTime(time)} with ${dentist}.`
+        : "Your reschedule request was approved.";
   }
-  if (details) {
-    const appointment = findAppointmentById(
-      request.appointment_id || request.appointmentId,
-    );
-    if (appointment) {
-      details.textContent = `${formatShortDate(getAppointmentDate(appointment))} · ${formatTime(getAppointmentTime(appointment))} · ${getAppointmentService(appointment)}`;
-    } else {
-      details.textContent = "The clinic staff is reviewing your request.";
-    }
-  }
-  alert.hidden = false;
+  alert.classList.add("show");
 }
 function handleRescheduleAlert() {
-  const requests = loadRescheduleRequests();
-  const patientId = getCurrentPatientId();
-  const request = requests.find((item) => {
-    const requestPatientId =
-      item?.patient_id || item?.patientId || item?.patient || "";
-    return (
-      String(requestPatientId) === patientId &&
-      normalizeStatus(item?.status || "pending") === "pending"
-    );
-  });
-  if (!request) return;
-  if (isStaffInitiatedRequest(request)) {
-    openStaffRescheduleModal(request);
-    return;
-  }
-  const appointment = findAppointmentById(request.appointment_id);
-  if (appointment) openAppointmentDetail(getAppointmentId(appointment));
+  const alert = document.getElementById("rescheduleAlert");
+  if (!alert) return;
+  alert.classList.remove("show");
+}
+function findAppointmentById(id) {
+  if (!id) return null;
+  return (
+    appointments.find(
+      (appointment) => String(getAppointmentId(appointment)) === String(id),
+    ) || null
+  );
 }
 function getAppointmentId(appointment) {
-  return String(
+  return (
+    appointment?.id ||
+    appointment?.appointmentId ||
     appointment?.appointment_id ||
-      appointment?.appointmentId ||
-      appointment?.id ||
-      `${getAppointmentDate(appointment)}-${getAppointmentTime(appointment)}-${getDentistId(appointment)}`,
+    ""
+  );
+}
+function isActiveAppointment(appointment) {
+  const status = normalizeStatus(getAppointmentStatus(appointment));
+  return (
+    status !== "completed" &&
+    status !== "cancelled" &&
+    status !== "canceled" &&
+    status !== "noshow"
   );
 }
 function getStatusClass(status) {
@@ -1806,34 +2489,15 @@ function getStatusClass(status) {
   if (normalized === "cancelled" || normalized === "canceled")
     return "status-cancelled";
   if (normalized === "noshow") return "status-no-show";
-  if (normalized === "inconsultation" || normalized === "readycomplete")
-    return "status-consultation";
+  if (normalized === "inconsultation") return "status-consultation";
+  if (normalized === "readycomplete") return "status-complete";
   return "status-scheduled";
 }
-function isActiveAppointment(appointment) {
-  const status = normalizeStatus(getAppointmentStatus(appointment));
-  return (
-    status !== "cancelled" &&
-    status !== "canceled" &&
-    status !== "completed" &&
-    status !== "noshow"
-  );
-}
 function escapeHtml(value) {
-  return String(value ?? "")
+  return String(value)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-function showToast(message) {
-  const toast = document.getElementById("toast");
-  if (!toast) return;
-  toast.textContent = message;
-  toast.classList.add("show");
-  clearTimeout(showToast.timer);
-  showToast.timer = setTimeout(() => {
-    toast.classList.remove("show");
-  }, 3000);
+    .replace(/'/g, "&#39;");
 }

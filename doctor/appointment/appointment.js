@@ -1,5 +1,6 @@
 const APPOINTMENTS_STORAGE_KEY = "appointments";
 const LEGACY_STORAGE_KEY = "dentanueva_appointments";
+const DOCTORS_STORAGE_KEY = "dentanueva_doctors";
 const START_HOUR = 10;
 const END_HOUR = 20;
 const SLOT_MIN = 30;
@@ -17,53 +18,7 @@ let statusActionTargetId = null;
 let statusActionType = null;
 let toastTimer = null;
 let currentDoctorDentistId = null;
-function getCurrentUser() {
-  const storedUser = sessionStorage.getItem("currentUser");
-  if (!storedUser) {
-    return null;
-  }
-  try {
-    const user = JSON.parse(storedUser);
-    if (user && typeof user === "object") {
-      return user;
-    }
-    return null;
-  } catch (error) {
-    console.error("Unable to read current user:", error);
-    return null;
-  }
-}
-function getCurrentDoctorDentistId() {
-  const currentUser = getCurrentUser();
-  if (!currentUser) {
-    return null;
-  }
-  if (currentUser.dentistId) {
-    return String(currentUser.dentistId).trim().toLowerCase();
-  }
-  const fullName = String(currentUser.fullName || "")
-    .trim()
-    .toLowerCase();
-  if (
-    fullName === "nathalia villanueva" ||
-    fullName === "dr. nathalia villanueva"
-  ) {
-    return "villanueva";
-  }
-  if (fullName === "l. cruz" || fullName === "dr. l. cruz") {
-    return "cruz";
-  }
-  if (fullName === "j. ramos" || fullName === "dr. j. ramos") {
-    return "ramos";
-  }
-  return null;
-}
-function initializeCurrentDoctor() {
-  const currentUser = getCurrentUser();
-  currentDoctorDentistId = getCurrentDoctorDentistId();
-  console.log("Logged-in user:", currentUser);
-  console.log("Current Doctor Dentist ID:", currentDoctorDentistId);
-}
+let currentDoctor = null;
 document.addEventListener("DOMContentLoaded", () => {
   initializeCurrentDoctor();
   initializeDate();
@@ -83,6 +38,330 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }, 1000);
 });
+function getCurrentUser() {
+  const storedUser = sessionStorage.getItem("currentUser");
+  if (!storedUser) {
+    return null;
+  }
+  try {
+    const user = JSON.parse(storedUser);
+    if (user && typeof user === "object") {
+      return user;
+    }
+    return null;
+  } catch (error) {
+    console.error("Unable to read current user:", error);
+    return null;
+  }
+}
+function getStoredDoctors() {
+  try {
+    const stored = localStorage.getItem(DOCTORS_STORAGE_KEY);
+    if (!stored) {
+      return [];
+    }
+    const parsed = JSON.parse(stored);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    return parsed.filter((user) => {
+      if (!user || typeof user !== "object") {
+        return false;
+      }
+      const role = String(user.role || user.userRole || user.accountType || "")
+        .trim()
+        .toLowerCase();
+      const doctorId = String(
+        user.doctorId ||
+          user.doctor_id ||
+          user.doctorID ||
+          user.dentistId ||
+          user.dentist_id ||
+          user.dentistID ||
+          "",
+      ).trim();
+      return role === "doctor" || Boolean(doctorId);
+    });
+  } catch (error) {
+    console.error("Unable to load doctor accounts:", error);
+    return [];
+  }
+}
+function getDoctorIdFromUser(user) {
+  if (!user || typeof user !== "object") {
+    return "";
+  }
+  return String(
+    user.dentistId ||
+      user.dentist_id ||
+      user.dentistID ||
+      user.doctorId ||
+      user.doctor_id ||
+      user.doctorID ||
+      "",
+  )
+    .trim()
+    .toLowerCase();
+}
+function getDoctorNameFromUser(user) {
+  if (!user || typeof user !== "object") {
+    return "";
+  }
+  const firstName = user.firstname || user.firstName || "";
+  const lastName = user.lastname || user.lastName || "";
+  return String(
+    user.name ||
+      user.fullName ||
+      user.full_name ||
+      user.fullname ||
+      `${firstName} ${lastName}`.trim() ||
+      "",
+  ).trim();
+}
+function normalizeDoctorName(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/^doctor\s+/i, "")
+    .replace(/^dr\.\s*/i, "")
+    .replace(/^dr\s+/i, "")
+    .replace(/[._-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+function findDoctorAccount(currentUser) {
+  if (!currentUser) {
+    return null;
+  }
+  const doctors = getStoredDoctors();
+  const currentDoctorId = getDoctorIdFromUser(currentUser);
+  if (currentDoctorId) {
+    const byDoctorId = doctors.find((doctor) => {
+      return getDoctorIdFromUser(doctor) === currentDoctorId;
+    });
+    if (byDoctorId) {
+      return byDoctorId;
+    }
+  }
+  const currentUserId = String(
+    currentUser.id || currentUser.userId || currentUser.user_id || "",
+  )
+    .trim()
+    .toLowerCase();
+  if (currentUserId) {
+    const byUserId = doctors.find((doctor) => {
+      const doctorUserId = String(
+        doctor.id || doctor.userId || doctor.user_id || "",
+      )
+        .trim()
+        .toLowerCase();
+      return doctorUserId === currentUserId;
+    });
+    if (byUserId) {
+      return byUserId;
+    }
+  }
+  const currentEmail = String(currentUser.email || "")
+    .trim()
+    .toLowerCase();
+  if (currentEmail) {
+    const byEmail = doctors.find((doctor) => {
+      const doctorEmail = String(doctor.email || "")
+        .trim()
+        .toLowerCase();
+      return doctorEmail === currentEmail;
+    });
+    if (byEmail) {
+      return byEmail;
+    }
+  }
+  const currentName = normalizeDoctorName(getDoctorNameFromUser(currentUser));
+  if (currentName) {
+    const byName = doctors.find((doctor) => {
+      return normalizeDoctorName(getDoctorNameFromUser(doctor)) === currentName;
+    });
+    if (byName) {
+      return byName;
+    }
+  }
+  return null;
+}
+function registerCurrentDoctor() {
+  const currentUser = getCurrentUser();
+  if (!currentUser) {
+    return;
+  }
+  const doctorId = getDoctorIdFromUser(currentUser);
+  if (!doctorId) {
+    return;
+  }
+  const doctorName = getDoctorNameFromUser(currentUser);
+  if (!doctorName) {
+    return;
+  }
+  const specialization = String(
+    currentUser.specialization ||
+      currentUser.specialty ||
+      currentUser.speciality ||
+      currentUser.department ||
+      "Dental Care",
+  ).trim();
+  let doctors = [];
+  try {
+    const stored = localStorage.getItem(DOCTORS_STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed)) {
+        doctors = parsed;
+      }
+    }
+  } catch (error) {
+    console.error("Unable to read doctor registry:", error);
+    doctors = [];
+  }
+  const doctorRecord = {
+    ...currentUser,
+    doctorId:
+      currentUser.doctorId ||
+      currentUser.doctor_id ||
+      currentUser.doctorID ||
+      doctorId,
+    dentistId:
+      currentUser.dentistId ||
+      currentUser.dentist_id ||
+      currentUser.dentistID ||
+      doctorId,
+    name: doctorName,
+    fullName: currentUser.fullName || currentUser.full_name || doctorName,
+    specialization,
+    role: "doctor",
+  };
+  const existingIndex = doctors.findIndex((doctor) => {
+    return getDoctorIdFromUser(doctor) === doctorId;
+  });
+  if (existingIndex === -1) {
+    doctors.push(doctorRecord);
+  } else {
+    doctors[existingIndex] = {
+      ...doctors[existingIndex],
+      ...doctorRecord,
+    };
+  }
+  localStorage.setItem(DOCTORS_STORAGE_KEY, JSON.stringify(doctors));
+}
+function getCurrentDoctorDentistId() {
+  const currentUser = getCurrentUser();
+  if (!currentUser) {
+    return null;
+  }
+  const currentUserDoctorId = getDoctorIdFromUser(currentUser);
+  if (currentUserDoctorId) {
+    return currentUserDoctorId;
+  }
+  const doctorAccount = findDoctorAccount(currentUser);
+  if (doctorAccount) {
+    const doctorId = getDoctorIdFromUser(doctorAccount);
+    if (doctorId) {
+      return doctorId;
+    }
+  }
+  return null;
+}
+function initializeCurrentDoctor() {
+  const currentUser = getCurrentUser();
+  registerCurrentDoctor();
+  const doctorAccount = findDoctorAccount(currentUser);
+  currentDoctor = doctorAccount || currentUser;
+  currentDoctorDentistId = getCurrentDoctorDentistId();
+}
+function getDoctorIdentityValues(doctor) {
+  if (!doctor || typeof doctor !== "object") {
+    return [];
+  }
+  const values = [
+    doctor.doctorId,
+    doctor.doctor_id,
+    doctor.doctorID,
+    doctor.dentistId,
+    doctor.dentist_id,
+    doctor.dentistID,
+    doctor.id,
+    doctor.userId,
+    doctor.user_id,
+    doctor.username,
+    doctor.email,
+    doctor.name,
+    doctor.fullName,
+    doctor.full_name,
+    doctor.fullname,
+    getDoctorNameFromUser(doctor),
+  ];
+  return values
+    .filter(
+      (value) => value !== null && value !== undefined && String(value).trim(),
+    )
+    .map((value) => String(value).trim().toLowerCase());
+}
+function resolveAppointmentDoctorId(value, appointment = null) {
+  const doctors = getStoredDoctors();
+  const original = String(value || "").trim();
+  const normalizedOriginal = original.toLowerCase();
+  if (!original && appointment) {
+    const appointmentDoctorId = String(
+      appointment.doctorId ||
+        appointment.doctor_id ||
+        appointment.doctorID ||
+        appointment.dentistId ||
+        appointment.dentist_id ||
+        appointment.dentistID ||
+        "",
+    ).trim();
+    if (appointmentDoctorId) {
+      return appointmentDoctorId.toLowerCase();
+    }
+  }
+  if (!original && !appointment) {
+    return "";
+  }
+  const directDoctor = doctors.find((doctor) => {
+    const identities = getDoctorIdentityValues(doctor);
+    return identities.includes(normalizedOriginal);
+  });
+  if (directDoctor) {
+    return getDoctorIdFromUser(directDoctor);
+  }
+  const normalizedName = normalizeDoctorName(original);
+  if (normalizedName) {
+    const doctorByName = doctors.find((doctor) => {
+      return (
+        normalizeDoctorName(getDoctorNameFromUser(doctor)) === normalizedName
+      );
+    });
+    if (doctorByName) {
+      return getDoctorIdFromUser(doctorByName);
+    }
+  }
+  return normalizedOriginal;
+}
+function getDoctorDisplayName(doctorId) {
+  const doctors = getStoredDoctors();
+  const normalizedId = String(doctorId || "")
+    .trim()
+    .toLowerCase();
+  if (!normalizedId) {
+    return "Unassigned";
+  }
+  const doctor = doctors.find((item) => {
+    return getDoctorIdFromUser(item) === normalizedId;
+  });
+  if (doctor) {
+    const name = getDoctorNameFromUser(doctor);
+    if (name) {
+      return /^dr\./i.test(name) ? name : `Dr. ${name}`;
+    }
+  }
+  return "Unassigned";
+}
 function initializeDate() {
   const today = new Date();
   selectedDate = new Date(
@@ -126,17 +405,40 @@ function saveAppointmentsToStorage() {
   localStorage.setItem(APPOINTMENTS_STORAGE_KEY, JSON.stringify(appointments));
 }
 function normalizeAppointment(appt) {
+  const appointmentDoctorId = resolveAppointmentDoctorId(
+    appt.dentist ||
+      appt.dentistId ||
+      appt.dentist_id ||
+      appt.dentistID ||
+      appt.doctorId ||
+      appt.doctor_id ||
+      appt.doctorID ||
+      appt.doctor ||
+      appt.doctorName ||
+      "",
+    appt,
+  );
   const normalized = {
     id:
       appt.id || `appt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
     patient: appt.patient || appt.patientName || "Unknown Patient",
     patientId: appt.patientId || appt.patient_id || "",
-    date: appt.date || "",
-    start: appt.start || appt.time || "10:00",
-    type: appt.type || appt.service || "Consultation",
-    dentist: String(appt.dentist || "")
-      .trim()
-      .toLowerCase(),
+    date: appt.date || appt.appointment_date || appt.appointmentDate || "",
+    start:
+      appt.start ||
+      appt.time ||
+      appt.appointment_time ||
+      appt.appointmentTime ||
+      "10:00",
+    type:
+      appt.type ||
+      appt.service ||
+      appt.service_type ||
+      appt.serviceType ||
+      "Consultation",
+    dentist: appointmentDoctorId,
+    dentistId: appointmentDoctorId,
+    dentist_id: appointmentDoctorId,
     duration:
       Number(appt.duration) || getDefaultDuration(appt.type || appt.service),
     status: appt.status || APPOINTMENT_STATUS.SCHEDULED,
@@ -268,25 +570,28 @@ function getStatusLabel(status) {
   }
 }
 function filteredAppts() {
-  const doctorDentistId = currentDoctorDentistId;
+  const doctorDentistId = String(currentDoctorDentistId || "")
+    .trim()
+    .toLowerCase();
   if (!doctorDentistId) {
-    console.warn("No current Doctor dentistId was found.");
     return [];
   }
   const selectedDateKey = dateToKey(selectedDate);
   const searchInput = document.getElementById("searchInput");
   const searchTerm = searchInput ? searchInput.value.trim().toLowerCase() : "";
-  let filtered = appointments.filter(function (appt) {
-    const appointmentDentist = String(appt.dentist || "")
+  let filtered = appointments.filter((appt) => {
+    const appointmentDoctorId = String(
+      appt.dentist || appt.dentistId || appt.dentist_id || "",
+    )
       .trim()
       .toLowerCase();
-    return appointmentDentist === doctorDentistId;
+    return appointmentDoctorId === doctorDentistId;
   });
-  filtered = filtered.filter(function (appt) {
+  filtered = filtered.filter((appt) => {
     return appt.date === selectedDateKey;
   });
   if (searchTerm) {
-    filtered = filtered.filter(function (appt) {
+    filtered = filtered.filter((appt) => {
       const patientName = String(appt.patient || "")
         .trim()
         .toLowerCase();
@@ -298,7 +603,7 @@ function filteredAppts() {
       );
     });
   }
-  filtered.sort(function (a, b) {
+  filtered.sort((a, b) => {
     return timeToMinutes(a.start) - timeToMinutes(b.start);
   });
   return filtered;
@@ -362,10 +667,15 @@ function makeDayBtn(date, muted) {
     button.classList.add("today");
   }
   const hasAppointment = appointments.some((appt) => {
-    const appointmentDentist = String(appt.dentist || "")
+    const appointmentDoctorId = String(
+      appt.dentist || appt.dentistId || appt.dentist_id || "",
+    )
       .trim()
       .toLowerCase();
-    return appt.date === key && appointmentDentist === currentDoctorDentistId;
+    const doctorDentistId = String(currentDoctorDentistId || "")
+      .trim()
+      .toLowerCase();
+    return appt.date === key && appointmentDoctorId === doctorDentistId;
   });
   if (hasAppointment) {
     button.classList.add("has-appt");
@@ -562,16 +872,18 @@ function openViewModal(id) {
   if (!appt) {
     return;
   }
-  const appointmentDentist = String(appt.dentist || "")
+  const appointmentDentist = String(
+    appt.dentist || appt.dentistId || appt.dentist_id || "",
+  )
     .trim()
     .toLowerCase();
   const doctorDentistId = String(currentDoctorDentistId || "")
     .trim()
     .toLowerCase();
   if (!doctorDentistId || appointmentDentist !== doctorDentistId) {
-    console.warn("Access denied: appointment belongs to another dentist.", {
+    console.warn("Access denied: appointment belongs to another doctor.", {
       appointmentId: appt.id,
-      appointmentDentist: appointmentDentist,
+      appointmentDoctorId: appointmentDentist,
       currentDoctor: doctorDentistId,
     });
     return;
@@ -683,16 +995,18 @@ function checkInAppointment(id) {
   if (!appt) {
     return;
   }
-  const appointmentDentist = String(appt.dentist || "")
+  const appointmentDentist = String(
+    appt.dentist || appt.dentistId || appt.dentist_id || "",
+  )
     .trim()
     .toLowerCase();
   const doctorDentistId = String(currentDoctorDentistId || "")
     .trim()
     .toLowerCase();
   if (!doctorDentistId || appointmentDentist !== doctorDentistId) {
-    console.warn("Check In blocked: appointment belongs to another dentist.", {
+    console.warn("Check In blocked: appointment belongs to another doctor.", {
       appointmentId: appt.id,
-      appointmentDentist: appointmentDentist,
+      appointmentDoctorId: appointmentDentist,
       currentDoctor: doctorDentistId,
     });
     return;
@@ -747,7 +1061,9 @@ function confirmStatusAction() {
     closeStatusConfirmation();
     return;
   }
-  const appointmentDentist = String(appt.dentist || "")
+  const appointmentDentist = String(
+    appt.dentist || appt.dentistId || appt.dentist_id || "",
+  )
     .trim()
     .toLowerCase();
   const doctorDentistId = String(currentDoctorDentistId || "")
@@ -755,10 +1071,10 @@ function confirmStatusAction() {
     .toLowerCase();
   if (!doctorDentistId || appointmentDentist !== doctorDentistId) {
     console.warn(
-      "Status action blocked: appointment belongs to another dentist.",
+      "Status action blocked: appointment belongs to another doctor.",
       {
         appointmentId: appt.id,
-        appointmentDentist: appointmentDentist,
+        appointmentDoctorId: appointmentDentist,
         currentDoctor: doctorDentistId,
         action: statusActionType,
       },

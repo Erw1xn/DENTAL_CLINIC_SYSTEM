@@ -66,7 +66,18 @@ function loadPatientDashboardData() {
 }
 
 function getCurrentPatient() {
-  const currentUser = readJSON("currentUser");
+  let currentUser = null;
+  try {
+    const storedUser = sessionStorage.getItem("currentUser");
+    if (storedUser) {
+      const parsedUser = JSON.parse(storedUser);
+      if (parsedUser && typeof parsedUser === "object") {
+        currentUser = parsedUser;
+      }
+    }
+  } catch (error) {
+    currentUser = null;
+  }
 
   const patientsData = readJSON(PATIENTS_STORAGE_KEY);
   const patients = extractPatients(patientsData);

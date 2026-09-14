@@ -19,13 +19,83 @@ function initializeMedicalRecords() {
   currentUser = getCurrentUser();
   loadOrCreatePatientRecord();
   bindEvents();
+  bindClinicalImageViewer();
   populatePatientProfile();
   updatePageState();
+  openPatientRecordTab(null);
+}
+
+function bindClinicalImageViewer() {
+  const imagePanel = $("patientPageImages");
+  if (!imagePanel) {
+    return;
+  }
+  imagePanel.addEventListener("click", (event) => {
+    const image = event.target.closest(".patient-clinical-image-panel img");
+    if (!image) {
+      return;
+    }
+    const card = image.closest(".patient-clinical-image-readonly");
+    const getImageByLabel = (label) =>
+      Array.from(card?.querySelectorAll(".patient-clinical-image-panel") || [])
+        .find(
+          (panel) => panel.querySelector("span")?.textContent.trim() === label,
+        )
+        ?.querySelector("img")?.src || "";
+    openClinicalImageViewer(
+      card?.querySelector(".staff-clinical-image-header h4")?.textContent ||
+        "Clinical Images",
+      getImageByLabel("BEFORE"),
+      getImageByLabel("AFTER"),
+    );
+  });
+}
+
+function openClinicalImageViewer(title, beforeImage, afterImage) {
+  const modal = document.createElement("div");
+  modal.className = "clinical-image-viewer";
+  modal.innerHTML = `
+    <div class="clinical-image-viewer-dialog">
+      <button type="button" class="clinical-image-viewer-close" aria-label="Close">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+      <div class="clinical-image-viewer-header">
+        <span>CLINICAL DOCUMENTATION</span>
+        <h3>${escapeHTML(title)}</h3>
+      </div>
+      <div class="clinical-image-viewer-pair">
+        <div class="clinical-image-viewer-side">
+          <span class="before">BEFORE</span>
+          ${beforeImage ? `<img src="${escapeHTML(beforeImage)}" alt="Before" />` : `<div class="clinical-image-viewer-empty">No before image</div>`}
+        </div>
+        <div class="clinical-image-viewer-side">
+          <span class="after">AFTER</span>
+          ${afterImage ? `<img src="${escapeHTML(afterImage)}" alt="After" />` : `<div class="clinical-image-viewer-empty">No after image</div>`}
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  const closeViewer = () => modal.remove();
+  modal
+    .querySelector(".clinical-image-viewer-close")
+    ?.addEventListener("click", closeViewer);
+  modal.addEventListener("click", (event) => {
+    if (event.target === modal) {
+      closeViewer();
+    }
+  });
+  document.addEventListener("keydown", function handleEscape(event) {
+    if (event.key === "Escape") {
+      closeViewer();
+      document.removeEventListener("keydown", handleEscape);
+    }
+  });
 }
 
 function getCurrentUser() {
   try {
-    const stored = localStorage.getItem(CURRENT_USER_KEY);
+    const stored = sessionStorage.getItem(CURRENT_USER_KEY);
 
     if (!stored) {
       return null;
@@ -63,65 +133,53 @@ function savePatients(patients) {
 
 function loadOrCreatePatientRecord() {
   const patients = getPatients();
-
   if (!currentUser) {
     currentPatient = null;
     return;
   }
-
-  const currentUserPatientId = String(currentUser.patientId || "").trim();
-
   const userId = String(
     currentUser.id || currentUser.userId || currentUser.user_id || "",
   ).trim();
-
   const userEmail = String(currentUser.email || currentUser.emailAddress || "")
     .trim()
     .toLowerCase();
-
   let existingPatient = null;
-
-  if (currentUserPatientId) {
-    existingPatient = patients.find((patient) => {
-      const patientId = String(patient.patientId || patient.id || "").trim();
-
-      return patientId === currentUserPatientId;
-    });
-  }
-
-  if (!existingPatient && userId) {
+  if (userId) {
     existingPatient = patients.find((patient) => {
       const patientUserId = String(
         patient.userId || patient.userIdRef || patient.user_id || "",
       ).trim();
-
       return patientUserId && patientUserId === userId;
     });
   }
-
   if (!existingPatient && userEmail) {
     existingPatient = patients.find((patient) => {
       const patientEmail = String(patient.email || "")
         .trim()
         .toLowerCase();
-
       return patientEmail && patientEmail === userEmail;
     });
   }
-
+  if (!existingPatient && currentUser.patientId) {
+    const currentUserPatientId = String(currentUser.patientId).trim();
+    const matchingPatient = patients.filter((patient) => {
+      const patientId = String(patient.patientId || patient.id || "").trim();
+      return patientId === currentUserPatientId;
+    });
+    if (matchingPatient.length === 1) {
+      existingPatient = matchingPatient[0];
+    }
+  }
   if (existingPatient) {
     currentPatient = normalizePatient(existingPatient);
-
-    if (userId && !currentPatient.userId) {
+    if (userId) {
       currentPatient.userId = userId;
     }
-
     const patientsIndex = patients.findIndex(
       (patient) =>
         String(patient.patientId || patient.id || "").trim() ===
         String(currentPatient.patientId || currentPatient.id || "").trim(),
     );
-
     if (patientsIndex !== -1) {
       patients[patientsIndex] = {
         ...patients[patientsIndex],
@@ -132,39 +190,29 @@ function loadOrCreatePatientRecord() {
           userId ||
           "",
       };
-
       savePatients(patients);
     }
-
     const patientId = currentPatient.patientId || currentPatient.id;
-
     if (patientId && currentUser.patientId !== patientId) {
       currentUser.patientId = patientId;
-      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(currentUser));
+      sessionStorage.setItem(CURRENT_USER_KEY, JSON.stringify(currentUser));
     }
-
     return;
   }
-
   const firstName = currentUser.firstName || currentUser.firstname || "";
-
   const lastName = currentUser.lastName || currentUser.lastname || "";
-
   const fullName = String(
     currentUser.fullName ||
       currentUser.full_name ||
       currentUser.name ||
       `${firstName} ${lastName}`,
   ).trim();
-
-  const patientId = currentUserPatientId || generatePatientId();
-
+  const patientId = generatePatientId();
   const now = new Date().toISOString();
-
   const newPatient = {
     id: patientId,
     patientId: patientId,
-    userId: currentUser.id || currentUser.userId || currentUser.user_id || "",
+    userId: userId,
     firstName: firstName,
     lastName: lastName,
     fullName: fullName,
@@ -185,16 +233,11 @@ function loadOrCreatePatientRecord() {
     createdAt: now,
     updatedAt: now,
   };
-
   patients.push(newPatient);
-
   savePatients(patients);
-
   currentPatient = newPatient;
-
   currentUser.patientId = patientId;
-
-  localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(currentUser));
+  sessionStorage.setItem(CURRENT_USER_KEY, JSON.stringify(currentUser));
 }
 
 function normalizePatient(patient) {
@@ -334,15 +377,11 @@ function getInitials(name) {
 function bindEvents() {
   $("startRecordBtn")?.addEventListener("click", openMedicalModal);
 
-  $("viewPatientInformationBtn")?.addEventListener(
-    "click",
-    openPatientInformationModal,
-  );
-
-  $("closePatientInformation")?.addEventListener(
-    "click",
-    closePatientInformationModal,
-  );
+  document.querySelectorAll(".patient-record-tab").forEach((tab) => {
+    tab.addEventListener("click", () => {
+      openPatientRecordTab(tab.dataset.tab);
+    });
+  });
 
   $("closeMedicalModal")?.addEventListener("click", closeMedicalModal);
 
@@ -362,15 +401,6 @@ function bindEvents() {
     }
   });
 
-  $("patientInformationModalBackdrop")?.addEventListener(
-    "mousedown",
-    (event) => {
-      if (event.target === $("patientInformationModalBackdrop")) {
-        closePatientInformationModal();
-      }
-    },
-  );
-
   $("successModalBackdrop")?.addEventListener("mousedown", (event) => {
     if (event.target === $("successModalBackdrop")) {
       closeSuccessModal();
@@ -381,14 +411,8 @@ function bindEvents() {
     if (event.key !== "Escape") {
       return;
     }
-
     closeMedicalModal();
-    closePatientInformationModal();
     closeSuccessModal();
-  });
-
-  document.querySelectorAll('input[name="allergies"]').forEach((checkbox) => {
-    checkbox.addEventListener("change", handleAllergySelection);
   });
 
   $("dentalConcernOtherCheck")?.addEventListener(
@@ -464,6 +488,852 @@ function populatePatientProfile() {
     $("profileAvatar").textContent = getInitials(fullName);
   }
 }
+function openPatientRecordTab(tabName) {
+  const tabs = document.querySelectorAll(".patient-record-tab");
+  const panels = document.querySelectorAll(".patient-record-panel");
+  const currentActiveTab = [...tabs].find((tab) =>
+    tab.classList.contains("active"),
+  );
+  const isClosing =
+    currentActiveTab && currentActiveTab.dataset.tab === tabName;
+  const activeTabName = isClosing ? null : tabName;
+  tabs.forEach((tab) => {
+    const isActive = tab.dataset.tab === activeTabName;
+    tab.classList.toggle("active", isActive);
+    tab.setAttribute("aria-selected", isActive ? "true" : "false");
+  });
+  panels.forEach((panel) => {
+    const isActive = panel.dataset.panel === activeTabName;
+    panel.classList.toggle("active", isActive);
+    panel.hidden = !isActive;
+  });
+  if (activeTabName) {
+    renderPatientRecordTab(activeTabName);
+  }
+}
+
+function renderPatientRecordTab(tabName) {
+  if (!currentPatient) {
+    return;
+  }
+
+  if (tabName === "overview") {
+    renderPatientOverview();
+    return;
+  }
+
+  if (tabName === "medical") {
+    renderPatientMedicalRecord();
+    return;
+  }
+
+  if (tabName === "dental") {
+    renderPatientDentalChart();
+    return;
+  }
+
+  if (tabName === "images") {
+    renderPatientClinicalImages();
+    return;
+  }
+
+  if (tabName === "treatments") {
+    renderPatientTreatments();
+    return;
+  }
+
+  if (tabName === "appointments") {
+    renderPatientAppointments();
+  }
+}
+
+function renderPatientOverview() {
+  const container = $("patientPageOverview");
+
+  if (!container) {
+    return;
+  }
+
+  const name = getPatientFullName(currentPatient);
+  const patientId = currentPatient.patientId || currentPatient.id || "—";
+  const gender =
+    currentPatient.gender || currentPatient.patientGender || "Not specified";
+
+  container.innerHTML = `
+    <div class="patient-overview-card">
+      <div class="patient-overview-card-header">
+        <div>
+          <span class="record-page-eyebrow">PATIENT INFORMATION</span>
+          <h3>Personal Information</h3>
+        </div>
+      </div>
+
+      <div class="patient-overview-information-grid">
+        ${patientOverviewItem("Patient Name", name)}
+        ${patientOverviewItem("Patient ID", patientId)}
+        ${patientOverviewItem("Date of Birth", formatDate(currentPatient.dateOfBirth))}
+        ${patientOverviewItem("Gender", gender)}
+        ${patientOverviewItem("Phone", currentPatient.phone)}
+        ${patientOverviewItem("Email", currentPatient.email)}
+        ${patientOverviewItem("Emergency Contact", currentPatient.emergencyName)}
+        ${patientOverviewItem("Emergency Contact No.", currentPatient.emergencyContact)}
+        ${patientOverviewItem("Address", currentPatient.address, true)}
+      </div>
+    </div>
+  `;
+}
+
+function patientOverviewItem(label, value, fullWidth = false) {
+  return `
+    <div class="patient-overview-information-item${fullWidth ? " full-width" : ""}">
+      <div>
+        <span>${escapeHTML(label)}</span>
+        <strong>${escapeHTML(String(value || "Not provided"))}</strong>
+      </div>
+    </div>
+  `;
+}
+
+function renderPatientMedicalRecord() {
+  const container = $("patientPageMedical");
+
+  if (!container) {
+    return;
+  }
+
+  const medical = currentPatient.medicalForm;
+
+  if (!medical?.completed) {
+    container.innerHTML = `
+      <div class="patient-record-empty">
+        <i class="fa-solid fa-notes-medical"></i>
+        <h3>No Medical Record Yet</h3>
+        <p>Your medical and dental history has not been completed yet.</p>
+      </div>
+    `;
+    return;
+  }
+
+  const dentalConcerns = [
+    ...(Array.isArray(medical.dentalConcern) ? medical.dentalConcern : []),
+  ];
+
+  if (medical.dentalConcernOther) {
+    dentalConcerns.push(medical.dentalConcernOther);
+  }
+
+  const medicalHistory = [
+    ...(Array.isArray(medical.medicalHistory) ? medical.medicalHistory : []),
+  ];
+
+  if (medical.medicalOther) {
+    medicalHistory.push(medical.medicalOther);
+  }
+
+  const allergies = [
+    ...(Array.isArray(medical.allergies) ? medical.allergies : []),
+  ];
+
+  if (medical.allergyOther) {
+    allergies.push(medical.allergyOther);
+  }
+
+  container.innerHTML = `
+    <div class="patient-medical-record-grid">
+      <div class="patient-record-info-card">
+        <h3>Dental Concern</h3>
+        ${patientRecordInfo("Reason for Visit", dentalConcerns.join(", ") || "None provided")}
+        ${patientRecordInfo("Negative Dental Experience", medical.negativeExperience || "No")}
+        ${patientRecordInfo("Explanation", medical.negativeExperienceNote || "Not provided")}
+      </div>
+
+      <div class="patient-record-info-card">
+        <h3>Dental History</h3>
+        ${patientRecordInfo("Last Dental Visit", formatDate(medical.medLastVisit))}
+        ${patientRecordInfo("Last Treatment", medical.medLastTreatment || "Not provided")}
+        ${patientRecordInfo("Current Medications", medical.currentMedications || "No")}
+        ${patientRecordInfo("Medication / Supplement List", medical.currentMedicationsList || "Not provided")}
+      </div>
+
+      <div class="patient-record-info-card">
+        <h3>Medical History</h3>
+        ${patientRecordInfo("Medical Conditions", medicalHistory.join(", ") || "None provided")}
+      </div>
+
+      <div class="patient-record-info-card">
+        <h3>Allergies</h3>
+        ${patientRecordInfo("Allergies", allergies.join(", ") || "None provided")}
+      </div>
+    </div>
+  `;
+}
+
+function patientRecordInfo(label, value) {
+  return `
+    <div class="patient-record-info-row">
+      <span>${escapeHTML(label)}</span>
+      <strong>${escapeHTML(String(value || "Not provided"))}</strong>
+    </div>
+  `;
+}
+
+function renderPatientDentalChart() {
+  const container = $("patientPageDental");
+
+  if (!container || !currentPatient) {
+    return;
+  }
+
+  const dentalChart =
+    currentPatient.dentalChart && typeof currentPatient.dentalChart === "object"
+      ? currentPatient.dentalChart
+      : {};
+
+  const teeth =
+    dentalChart.teeth && typeof dentalChart.teeth === "object"
+      ? dentalChart.teeth
+      : {};
+
+  const recordedTeeth = Object.keys(teeth)
+    .filter((toothNumber) => {
+      const record = teeth[toothNumber];
+      return (
+        record &&
+        (String(record.procedure || "").trim() ||
+          (Array.isArray(record.history) && record.history.length))
+      );
+    })
+    .sort((a, b) => Number(a) - Number(b));
+
+  const upperLeft = ["18", "17", "16", "15", "14", "13", "12", "11"];
+  const upperRight = ["21", "22", "23", "24", "25", "26", "27", "28"];
+  const lowerLeft = ["48", "47", "46", "45", "44", "43", "42", "41"];
+  const lowerRight = ["31", "32", "33", "34", "35", "36", "37", "38"];
+
+  const toothButton = (number) => {
+    const record = teeth[number] || {};
+    const hasRecord =
+      String(record.procedure || "").trim() ||
+      (Array.isArray(record.history) && record.history.length);
+
+    return `
+      <div class="patient-dental-tooth-item">
+        <span class="patient-dental-tooth-number">${escapeHTML(number)}</span>
+        <div class="patient-dental-tooth ${hasRecord ? "recorded" : ""}">
+          <i class="fa-solid fa-tooth"></i>
+        </div>
+      </div>
+    `;
+  };
+
+  const buildHistory = (number) => {
+    const record = teeth[number] || {};
+
+    let history = Array.isArray(record.history) ? [...record.history] : [];
+
+    if (!history.length && record.procedure) {
+      history = [
+        {
+          procedure: record.procedure,
+          note: record.note || "",
+          updatedAt: record.updatedAt || "",
+        },
+      ];
+    }
+
+    history.sort((a, b) => {
+      return (
+        new Date(b.updatedAt || 0).getTime() -
+        new Date(a.updatedAt || 0).getTime()
+      );
+    });
+
+    return history
+      .map(
+        (item, index) => `
+        <div class="patient-dental-history-entry">
+          <div class="patient-dental-history-entry-dot"></div>
+          <div class="patient-dental-history-entry-content">
+            <div class="patient-dental-history-entry-title">
+              ${escapeHTML(item.procedure || "Dental Procedure")}
+              ${
+                index === 0
+                  ? `<span class="patient-dental-latest">LATEST</span>`
+                  : ""
+              }
+            </div>
+
+            ${
+              item.updatedAt
+                ? `
+                  <div class="patient-dental-history-entry-date">
+                    ${escapeHTML(
+                      formatDate(String(item.updatedAt).slice(0, 10)),
+                    )}
+                  </div>
+                `
+                : ""
+            }
+
+            ${
+              item.note
+                ? `
+                  <div class="patient-dental-history-entry-note">
+                    ${escapeHTML(item.note)}
+                  </div>
+                `
+                : ""
+            }
+          </div>
+        </div>
+      `,
+      )
+      .join("");
+  };
+
+  const historyRecords = recordedTeeth
+    .map(
+      (number) => `
+      <div class="patient-dental-history-card">
+        <div class="patient-dental-history-tooth">
+          <div class="patient-dental-history-tooth-icon">
+            <i class="fa-solid fa-tooth"></i>
+          </div>
+          <div>
+            <span>TOOTH</span>
+            <strong>${escapeHTML(number)}</strong>
+          </div>
+        </div>
+
+        <div class="patient-dental-history-content">
+          ${buildHistory(number)}
+        </div>
+      </div>
+    `,
+    )
+    .join("");
+
+  container.innerHTML = `
+    <div class="patient-record-section">
+      <div class="patient-record-section-header">
+        <div>
+          <span class="patient-record-section-eyebrow">
+            ODONTOGRAM
+          </span>
+
+          <h3>Dental Chart</h3>
+
+          <p>
+            Patient-specific dental procedures recorded by the Doctor.
+          </p>
+        </div>
+
+        <span class="patient-record-count">
+          ${recordedTeeth.length}
+          ${recordedTeeth.length === 1 ? "tooth" : "teeth"} recorded
+        </span>
+      </div>
+
+      <div class="patient-dental-chart-view">
+        <div class="patient-dental-arch-label">
+          UPPER ARCH
+        </div>
+
+        <div class="patient-dental-arch-row">
+          ${upperLeft.map(toothButton).join("")}
+
+          <div class="patient-dental-midline">
+            MIDLINE
+          </div>
+
+          ${upperRight.map(toothButton).join("")}
+        </div>
+
+        <div class="patient-dental-divider"></div>
+
+        <div class="patient-dental-arch-row">
+          ${lowerLeft.map(toothButton).join("")}
+
+          <div class="patient-dental-midline"></div>
+
+          ${lowerRight.map(toothButton).join("")}
+        </div>
+
+        <div class="patient-dental-arch-label">
+          LOWER ARCH
+        </div>
+      </div>
+    </div>
+
+    <div class="patient-record-section">
+      <div class="patient-record-section-header">
+        <div>
+          <span class="patient-record-section-eyebrow">
+            PROCEDURE HISTORY
+          </span>
+
+          <h3>
+            ${
+              recordedTeeth.length
+                ? "Recorded Dental Procedures"
+                : "No Dental Procedures Yet"
+            }
+          </h3>
+
+          <p>
+            Dental procedures recorded by the Doctor.
+          </p>
+        </div>
+      </div>
+
+      ${
+        historyRecords
+          ? `
+            <div class="patient-dental-history-list">
+              ${historyRecords}
+            </div>
+          `
+          : `
+            <div class="patient-record-empty">
+              <i class="fa-solid fa-tooth"></i>
+              <strong>No dental procedures recorded</strong>
+              <span>
+                Dental procedures will appear here after they are recorded by the Doctor.
+              </span>
+            </div>
+          `
+      }
+    </div>
+
+    <div class="patient-record-view-only">
+      <i class="fa-solid fa-eye"></i>
+      <div>
+        <strong>View Only</strong>
+        <span>
+          Displaying dental procedures recorded by the Doctor. No changes can be made from the Patient account.
+        </span>
+      </div>
+    </div>
+  `;
+}
+
+function renderPatientClinicalImages() {
+  const container = $("patientPageImages");
+
+  if (!container || !currentPatient) {
+    return;
+  }
+
+  const clinicalImages = Array.isArray(currentPatient.clinicalImages)
+    ? [...currentPatient.clinicalImages]
+    : [];
+
+  clinicalImages.sort((a, b) => {
+    return (
+      new Date(b.date || b.createdAt || 0).getTime() -
+      new Date(a.date || a.createdAt || 0).getTime()
+    );
+  });
+
+  if (!clinicalImages.length) {
+    container.innerHTML = `
+      <div class="patient-record-section">
+        <div class="patient-record-section-header">
+          <div>
+            <span class="patient-record-section-eyebrow">
+              CLINICAL DOCUMENTATION
+            </span>
+            <h3>Clinical Images</h3>
+            <p>
+              Clinical photographs recorded by the Doctor.
+            </p>
+          </div>
+        </div>
+
+        <div class="patient-record-empty">
+          <i class="fa-regular fa-images"></i>
+          <strong>No clinical images yet</strong>
+          <span>
+            Clinical images will appear here after they are uploaded by the Doctor.
+          </span>
+        </div>
+      </div>
+    `;
+
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="patient-record-section">
+      <div class="patient-record-section-header">
+        <div>
+          <span class="patient-record-section-eyebrow">
+            CLINICAL DOCUMENTATION
+          </span>
+
+          <h3>Clinical Images</h3>
+
+          <p>
+            Before and after clinical photographs recorded by the Doctor.
+          </p>
+        </div>
+
+        <span class="patient-record-count">
+          ${clinicalImages.length}
+          ${clinicalImages.length === 1 ? "record" : "records"}
+        </span>
+      </div>
+
+      <div class="staff-clinical-images-list">
+        ${clinicalImages
+          .map((image) => {
+            const title = image.title || "Clinical Image";
+            const description = image.description || "";
+            const date = image.date || image.createdAt || "";
+
+            const beforeImage =
+              image.beforeImageData ||
+              image.beforeImage ||
+              image.imageData ||
+              "";
+
+            const afterImage = image.afterImageData || image.afterImage || "";
+
+            return `
+              <div class="staff-clinical-image-card patient-clinical-image-readonly">
+                <div class="staff-clinical-image-header">
+                  <div>
+                    <h4>${escapeHTML(title)}</h4>
+
+                    ${
+                      date
+                        ? `
+                          <span>
+                            <i class="fa-regular fa-calendar"></i>
+                            ${escapeHTML(formatDate(String(date).slice(0, 10)))}
+                          </span>
+                        `
+                        : ""
+                    }
+                  </div>
+
+                  <span class="patient-record-view-only-mini">
+                    <i class="fa-solid fa-eye"></i>
+                    View Only
+                  </span>
+                </div>
+
+                ${
+                  description
+                    ? `
+                      <div class="staff-clinical-image-description">
+                        ${escapeHTML(description)}
+                      </div>
+                    `
+                    : ""
+                }
+
+                <div class="patient-clinical-image-pair">
+                  ${
+                    beforeImage
+                      ? `
+                        <div class="patient-clinical-image-panel">
+                          <span>BEFORE</span>
+                          <img
+                            src="${escapeHTML(beforeImage)}"
+                            alt="Before ${escapeHTML(title)}"
+                          />
+                        </div>
+                      `
+                      : ""
+                  }
+
+                  ${
+                    afterImage
+                      ? `
+                        <div class="patient-clinical-image-panel">
+                          <span>AFTER</span>
+                          <img
+                            src="${escapeHTML(afterImage)}"
+                            alt="After ${escapeHTML(title)}"
+                          />
+                        </div>
+                      `
+                      : ""
+                  }
+                </div>
+              </div>
+            `;
+          })
+          .join("")}
+      </div>
+    </div>
+
+    <div class="patient-record-view-only">
+      <i class="fa-solid fa-eye"></i>
+      <div>
+        <strong>View Only</strong>
+        <span>
+          Clinical images are uploaded and managed by the Doctor. Patients cannot add, replace, or delete clinical images.
+        </span>
+      </div>
+    </div>
+  `;
+}
+
+function renderPatientTreatments() {
+  const container = $("patientPageTreatments");
+
+  if (!container || !currentPatient) {
+    return;
+  }
+
+  const treatments = Array.isArray(currentPatient.treatments)
+    ? [...currentPatient.treatments]
+    : [];
+
+  treatments.sort((a, b) => {
+    return (
+      new Date(b.date || b.createdAt || 0).getTime() -
+      new Date(a.date || a.createdAt || 0).getTime()
+    );
+  });
+
+  if (!treatments.length) {
+    container.innerHTML = `
+      <div class="patient-record-section">
+        <div class="patient-record-section-header">
+          <div>
+            <span class="patient-record-section-eyebrow">
+              TREATMENTS
+            </span>
+
+            <h3>Actual Treatment</h3>
+
+            <p>
+              Actual dental procedures performed and recorded by the Doctor.
+            </p>
+          </div>
+
+          <span class="patient-record-count">
+            0 treatments
+          </span>
+        </div>
+
+        <div class="patient-record-empty">
+          <i class="fa-solid fa-tooth"></i>
+          <strong>No treatments recorded yet</strong>
+          <span>
+            Completed treatments will appear here after they are recorded by the Doctor.
+          </span>
+        </div>
+      </div>
+    `;
+
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="patient-record-section">
+      <div class="patient-record-section-header">
+        <div>
+          <span class="patient-record-section-eyebrow">
+            TREATMENTS
+          </span>
+
+          <h3>Actual Treatment</h3>
+
+          <p>
+            Actual dental procedures performed and recorded by the Doctor.
+          </p>
+        </div>
+
+        <span class="patient-record-count">
+          ${treatments.length}
+          ${treatments.length === 1 ? "treatment" : "treatments"}
+        </span>
+      </div>
+
+      <div class="staff-treatment-list">
+        ${treatments
+          .map((treatment) => {
+            const procedure =
+              treatment.procedure || treatment.treatment || "Dental Treatment";
+
+            const tooth = treatment.toothNumber || treatment.tooth || "";
+
+            const date = treatment.date || treatment.createdAt || "";
+
+            const note = treatment.note || treatment.notes || "";
+
+            const appointmentId = treatment.appointmentId || "";
+
+            return `
+              <div class="staff-treatment-card patient-treatment-readonly">
+                <div class="patient-treatment-date">
+                  ${
+                    date
+                      ? `
+                        <strong>
+                          ${escapeHTML(formatDate(String(date).slice(0, 10)))}
+                        </strong>
+                      `
+                      : `
+                        <strong>Date not provided</strong>
+                      `
+                  }
+
+                  <span>
+                    <i class="fa-regular fa-clock"></i>
+                    Actual Treatment
+                  </span>
+                </div>
+
+                <div class="patient-treatment-main">
+                  <div class="patient-treatment-title-row">
+                    <h4>${escapeHTML(procedure)}</h4>
+
+                    <span class="patient-record-view-only-mini">
+                      <i class="fa-solid fa-eye"></i>
+                      View Only
+                    </span>
+                  </div>
+
+                  ${
+                    tooth
+                      ? `
+                        <div class="patient-treatment-detail">
+                          <span>TOOTH</span>
+                          <strong>${escapeHTML(tooth)}</strong>
+                        </div>
+                      `
+                      : ""
+                  }
+
+                  ${
+                    appointmentId
+                      ? `
+                        <div class="patient-treatment-detail">
+                          <span>APPOINTMENT ID</span>
+                          <strong>${escapeHTML(appointmentId)}</strong>
+                        </div>
+                      `
+                      : ""
+                  }
+
+                  ${
+                    note
+                      ? `
+                        <div class="patient-treatment-note">
+                          <span>NOTES</span>
+                          <p>${escapeHTML(note)}</p>
+                        </div>
+                      `
+                      : ""
+                  }
+                </div>
+              </div>
+            `;
+          })
+          .join("")}
+      </div>
+    </div>
+
+    <div class="patient-record-view-only">
+      <i class="fa-solid fa-eye"></i>
+      <div>
+        <strong>View Only</strong>
+        <span>
+          Treatment records are recorded by the Doctor. Patients cannot add, edit, or delete treatment records.
+        </span>
+      </div>
+    </div>
+  `;
+}
+
+function renderPatientAppointments() {
+  const container = $("patientPageAppointments");
+
+  if (!container) {
+    return;
+  }
+
+  const appointments = Array.isArray(currentPatient.appointments)
+    ? [...currentPatient.appointments]
+    : [];
+
+  if (!appointments.length) {
+    container.innerHTML = `
+      <div class="patient-record-empty">
+        <i class="fa-solid fa-calendar-check"></i>
+        <h3>No Appointments Yet</h3>
+        <p>Your appointment history will appear here.</p>
+      </div>
+    `;
+    return;
+  }
+
+  appointments.sort((a, b) => {
+    const dateA = new Date(
+      `${a.appointment_date || a.date || ""}T${
+        a.appointment_time || a.start || "00:00"
+      }`,
+    ).getTime();
+
+    const dateB = new Date(
+      `${b.appointment_date || b.date || ""}T${
+        b.appointment_time || b.start || "00:00"
+      }`,
+    ).getTime();
+
+    return dateB - dateA;
+  });
+
+  container.innerHTML = `
+    <div class="patient-record-table-card">
+      <div class="patient-record-table-header">
+        <div>
+          <span class="record-page-eyebrow">VISIT HISTORY</span>
+          <h3>Appointments</h3>
+        </div>
+      </div>
+
+      <div class="patient-record-table-wrapper">
+        <table class="patient-record-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Time</th>
+              <th>Service</th>
+              <th>Dentist</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            ${appointments
+              .map(
+                (appointment) => `
+                  <tr>
+                    <td>${escapeHTML(formatDate(appointment.appointment_date || appointment.date))}</td>
+                    <td>${escapeHTML(
+                      appointment.appointment_time || appointment.start || "—",
+                    )}</td>
+                    <td>${escapeHTML(
+                      appointment.service_type || appointment.type || "—",
+                    )}</td>
+                    <td>${escapeHTML(appointment.dentist || "—")}</td>
+                    <td>${escapeHTML(appointment.status || "—")}</td>
+                  </tr>
+                `,
+              )
+              .join("")}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
 
 function updatePageState() {
   const hasProfile = currentPatient && isProfileComplete(currentPatient);
@@ -508,11 +1378,16 @@ function updatePageState() {
   if (hasMedical) {
     if ($("recordDescription")) {
       $("recordDescription").textContent =
-        "Your medical record has been submitted and is available for clinic review.";
+        "Your medical record has been submitted and is available for viewing.";
     }
 
     if ($("startRecordBtnText")) {
-      $("startRecordBtnText").textContent = "Edit Medical Record";
+      $("startRecordBtnText").textContent = "Medical Record Completed";
+    }
+
+    if ($("startRecordBtn")) {
+      $("startRecordBtn").disabled = false;
+      $("startRecordBtn").removeAttribute("aria-disabled");
     }
   } else {
     if ($("recordDescription")) {
@@ -522,6 +1397,11 @@ function updatePageState() {
 
     if ($("startRecordBtnText")) {
       $("startRecordBtnText").textContent = "Complete Medical Record";
+    }
+
+    if ($("startRecordBtn")) {
+      $("startRecordBtn").disabled = false;
+      $("startRecordBtn").removeAttribute("aria-disabled");
     }
   }
 }
@@ -635,101 +1515,6 @@ function hasMedicalHistory(medical) {
   );
 }
 
-function openPatientInformationModal() {
-  if (!currentPatient) {
-    alert("Your patient profile could not be loaded. Please log in again.");
-    return;
-  }
-
-  populatePatientInformation();
-
-  $("patientInformationModalBackdrop")?.classList.add("open");
-
-  $("patientInformationModalBackdrop")?.setAttribute("aria-hidden", "false");
-
-  document.body.style.overflow = "hidden";
-}
-
-function closePatientInformationModal() {
-  $("patientInformationModalBackdrop")?.classList.remove("open");
-
-  $("patientInformationModalBackdrop")?.setAttribute("aria-hidden", "true");
-
-  if (
-    !$("medicalModalBackdrop")?.classList.contains("open") &&
-    !$("successModalBackdrop")?.classList.contains("open")
-  ) {
-    document.body.style.overflow = "";
-  }
-}
-
-function populatePatientInformation() {
-  if (!currentPatient) {
-    return;
-  }
-
-  const fullName = getPatientFullName(currentPatient);
-
-  const patientId = currentPatient.patientId || currentPatient.id || "—";
-
-  const dateOfBirth =
-    currentPatient.dateOfBirth || currentUser?.dateOfBirth || "";
-
-  const gender =
-    currentPatient.gender ||
-    currentPatient.patientGender ||
-    currentUser?.gender ||
-    currentUser?.patientGender ||
-    "—";
-
-  const phone =
-    currentPatient.phone ||
-    currentUser?.phone ||
-    currentUser?.contactNumber ||
-    currentUser?.contact ||
-    "—";
-
-  const email =
-    currentPatient.email ||
-    currentUser?.email ||
-    currentUser?.emailAddress ||
-    "—";
-
-  const emergencyName =
-    currentPatient.emergencyName || currentUser?.emergencyName || "—";
-
-  const emergencyContact =
-    currentPatient.emergencyContact || currentUser?.emergencyContact || "—";
-
-  const address = currentPatient.address || currentUser?.address || "—";
-
-  $("patientInformationModalTitle").textContent = fullName;
-
-  $("patientInformationName").textContent = fullName;
-
-  $("patientInformationPatientId").textContent = patientId;
-
-  $("patientInformationBirthDate").textContent = formatDate(dateOfBirth);
-
-  $("patientInformationAge").textContent = getAge(dateOfBirth);
-
-  $("patientInformationGender").textContent = gender;
-
-  $("patientInformationPhone").textContent = phone;
-
-  $("patientInformationEmail").textContent = email;
-
-  $("patientInformationEmergencyName").textContent = emergencyName;
-
-  $("patientInformationEmergencyContact").textContent = emergencyContact;
-
-  $("patientInformationAddress").textContent = address;
-
-  if ($("patientInformationAvatar")) {
-    $("patientInformationAvatar").textContent = getInitials(fullName);
-  }
-}
-
 function getAge(dateValue) {
   if (!dateValue) {
     return "—";
@@ -758,7 +1543,7 @@ function getAge(dateValue) {
     return "—";
   }
 
-  return `${age} years`;
+  return `${age} years old`;
 }
 
 function openMedicalModal() {
@@ -767,29 +1552,24 @@ function openMedicalModal() {
     return;
   }
 
-  currentStep = 1;
+  currentStep =
+    currentPatient?.medicalForm?.completed === true ? TOTAL_STEPS : 1;
 
   loadExistingPatientData();
   loadExistingMedicalData();
   updateOtherFieldState();
   updateModalStep();
 
-  $("medicalModalBackdrop").classList.add("open");
-
-  $("medicalModalBackdrop").setAttribute("aria-hidden", "false");
+  $("medicalModalBackdrop")?.classList.add("open");
+  $("medicalModalBackdrop")?.setAttribute("aria-hidden", "false");
 
   document.body.style.overflow = "hidden";
 }
 
 function closeMedicalModal() {
   $("medicalModalBackdrop")?.classList.remove("open");
-
   $("medicalModalBackdrop")?.setAttribute("aria-hidden", "true");
-
-  if (
-    !$("patientInformationModalBackdrop")?.classList.contains("open") &&
-    !$("successModalBackdrop")?.classList.contains("open")
-  ) {
+  if (!$("successModalBackdrop")?.classList.contains("open")) {
     document.body.style.overflow = "";
   }
 }
@@ -1119,13 +1899,12 @@ function validateCurrentStep() {
 function saveMedicalRecord(event) {
   event.preventDefault();
 
-  if (!validateCurrentStep()) {
+  if (!currentPatient) {
+    alert("Patient record could not be found. Please log in again.");
     return;
   }
 
-  if (!currentPatient) {
-    alert("Patient record could not be found. Please log in again.");
-
+  if (!validateCurrentStep()) {
     return;
   }
 
@@ -1240,37 +2019,27 @@ function saveMedicalRecord(event) {
 
   if (currentUser) {
     currentUser.patientId = currentPatient.patientId || currentPatient.id;
-
     currentUser.firstName = currentPatient.firstName;
-
     currentUser.lastName = currentPatient.lastName;
-
     currentUser.fullName = currentPatient.fullName;
-
     currentUser.email = currentPatient.email;
-
     currentUser.phone = currentPatient.phone;
-
     currentUser.dateOfBirth = currentPatient.dateOfBirth;
-
     currentUser.gender = currentPatient.gender;
-
     currentUser.address = currentPatient.address;
-
     currentUser.emergencyName = currentPatient.emergencyName;
-
     currentUser.emergencyContact = currentPatient.emergencyContact;
-
     localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(currentUser));
   }
 
   closeMedicalModal();
-
   populatePatientProfile();
-
   updatePageState();
-
-  openSuccessModal();
+  openPatientRecordTab("appointments");
+  $("patientRecordPage")?.scrollIntoView({
+    behavior: "smooth",
+    block: "start",
+  });
 }
 
 function getCheckedValues(fieldName) {

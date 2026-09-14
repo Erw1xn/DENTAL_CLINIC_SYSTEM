@@ -12,15 +12,20 @@
     <i class="fa-solid fa-chevron-left" id="toggleIcon"></i>
   </button>
   <div class="sidebar-top">
-    <div class="sidebar-staff-profile">
+    <div
+      class="sidebar-staff-profile"
+      id="sidebarProfileTrigger"
+      role="button"
+      tabindex="0"
+      aria-label="Open Doctor Profile"
+      title="Doctor Profile"
+    >
       <div class="sidebar-staff-avatar">
-        <img id="activeStaffImage" src="" alt="Staff profile" />
-        <span id="activeStaffInitials">EJ</span>
+        <img id="activeDoctorImage" src="" alt="Doctor profile" />
+        <span id="activeDoctorInitials">DR</span>
       </div>
       <div class="sidebar-staff-info">
-        <span class="sidebar-staff-name" id="activeStaffName"
-          >Erwin Jacaba</span
-        >
+        <span class="sidebar-staff-name" id="activeDoctorName">Doctor</span>
         <span class="sidebar-staff-status">
           <span class="staff-status-dot"></span>
           Active now

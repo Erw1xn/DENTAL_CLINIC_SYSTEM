@@ -10,12 +10,13 @@
       href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="../navigationbar/sidebar.css" />
-    <link rel="stylesheet" href="appointment.css" />
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
     />
+    <link rel="stylesheet" href="../navigationbar/sidebar.css" />
+    <link rel="stylesheet" href="../profile/profile.css" />
+    <link rel="stylesheet" href="appointment.css" />
   </head>
   <body>
     <div class="dashboard-wrapper">
@@ -23,7 +24,12 @@
       <main class="main-content">
         <header class="topbar">
           <div class="topbar-left">
-            <h1 class="page-title">Appointments</h1>
+            <div class="page-heading-block">
+              <h1 class="page-title">Appointments</h1>
+              <p class="page-description">
+                Manage and organize patient appointments and daily schedules.
+              </p>
+            </div>
           </div>
           <div class="topbar-right-actions">
             <div class="search-box-wrapper">
@@ -42,7 +48,10 @@
           <div class="left-col-stack">
             <section class="panel calendar-panel">
               <div class="calendar-header">
-                <h4 id="calMonthLabel">—</h4>
+                <div class="calendar-heading">
+                  <span class="panel-eyebrow">CALENDAR</span>
+                  <h4 id="calMonthLabel">—</h4>
+                </div>
                 <div class="calendar-nav-btns">
                   <button
                     type="button"
@@ -64,7 +73,13 @@
             </section>
             <section class="panel summary-panel">
               <div class="summary-header">
-                <h3>Patient Appointments</h3>
+                <div>
+                  <span class="panel-eyebrow">OVERVIEW</span>
+                  <h3>Patient Appointments</h3>
+                </div>
+                <div class="summary-icon">
+                  <i class="fa-regular fa-calendar-check"></i>
+                </div>
               </div>
               <div class="summary-content">
                 <div class="summary-number" id="appointmentCount">0</div>
@@ -74,13 +89,20 @@
           </div>
           <section class="panel schedule-panel">
             <div class="schedule-main-header">
-              <div>
-                <h3 id="scheduleTitle">Today's Appointments</h3>
-                <span id="scheduleDateLabel" class="schedule-date-label"></span>
+              <div class="schedule-heading">
+                <span class="panel-eyebrow">DAILY SCHEDULE</span>
+                <div class="schedule-title-row">
+                  <h3 id="scheduleTitle">Today's Appointments</h3>
+                  <span
+                    id="scheduleDateLabel"
+                    class="schedule-date-label"
+                  ></span>
+                </div>
               </div>
               <div class="appointment-count-label">
+                <span class="count-dot"></span>
                 <span id="headerAppointmentCount">0</span>
-                appointment(s)
+                <span>appointment(s)</span>
               </div>
             </div>
             <div class="time-slots-container" id="timeline"></div>
@@ -88,7 +110,13 @@
           <div class="right-col-stack">
             <section class="panel waiting-panel">
               <div class="waiting-header">
-                <h3>Patient Appointments</h3>
+                <div>
+                  <span class="panel-eyebrow">SELECTED DATE</span>
+                  <h3>Patient Appointments</h3>
+                </div>
+                <div class="waiting-icon">
+                  <i class="fa-solid fa-users"></i>
+                </div>
               </div>
               <div class="waiting-queue-list" id="waitingQueueList"></div>
             </section>
@@ -103,6 +131,10 @@
             <h3 id="modalTitle">Appointment Details</h3>
             <span id="modalSubtitle" class="modal-subtitle"></span>
           </div>
+          <button type="button" id="viewPatientRecordBtn" class="primary-btn">
+            <i class="fa-solid fa-user"></i>
+            View Patient Record
+          </button>
           <button
             class="modal-close-icon"
             type="button"
@@ -159,10 +191,7 @@
           </div>
         </div>
         <div class="modal-actions">
-          <button type="button" id="viewPatientRecordBtn" class="primary-btn">
-            <i class="fa-solid fa-user"></i>
-            View Patient Record
-          </button>
+          <div></div>
           <div class="modal-right-actions">
             <button class="btn-cancel" type="button" onclick="closeModal()">
               Close
@@ -199,6 +228,7 @@
     </div>
     <div class="toast" id="toast"></div>
     <script src="../navigationbar/sidebar.js"></script>
+    <script src="../profile/profile.js"></script>
     <script src="appointment.js"></script>
   </body>
 </html>

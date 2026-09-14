@@ -15,13 +15,8 @@
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
     />
     <link rel="stylesheet" href="../navigationbar/sidebar.css" />
+    <link rel="stylesheet" href="../profile/profile.css" />
     <link rel="stylesheet" href="patient.css" />
-    <link rel="stylesheet" href="overview/overview.css" />
-    <link rel="stylesheet" href="medical_record/medical_record.css" />
-    <link rel="stylesheet" href="dental_chart/dental_chart.css" />
-    <link rel="stylesheet" href="clinical_image/clinical_image.css" />
-    <link rel="stylesheet" href="treatments/treatments.css" />
-    <link rel="stylesheet" href="appointment_history/appointment_history.css" />
   </head>
   <body>
     <div class="patients-layout">
@@ -98,15 +93,7 @@
             </div>
           </section>
           <section class="patient-record-page" id="patientRecordPage" hidden>
-            <div class="patient-record-page-header">
-              <button
-                type="button"
-                class="patient-record-back-btn"
-                id="backToPatientsBtn"
-              >
-                <i class="fa-solid fa-arrow-left"></i>
-                Back to Patients
-              </button>
+            <div class="patient-record-page-header" hidden>
               <div class="patient-record-page-title">
                 <div>
                   <span class="patient-record-page-eyebrow"
@@ -122,6 +109,15 @@
               id="patientPageProfile"
             ></div>
             <div class="patient-record-page-tabs" role="tablist">
+              <button
+                type="button"
+                class="patient-record-back-tab"
+                id="backToPatientsBtn"
+                aria-label="Back to Patients"
+                title="Back to Patients"
+              >
+                <i class="fa-solid fa-arrow-left"></i>
+              </button>
               <button
                 type="button"
                 class="patient-record-page-tab active"
@@ -183,36 +179,42 @@
                 Appointments
               </button>
             </div>
+
             <div class="patient-record-page-content">
               <section
                 class="patient-record-page-panel active"
                 id="patientPageOverview"
                 data-patient-page-panel="overview"
               ></section>
+
               <section
                 class="patient-record-page-panel"
                 id="patientPageMedical"
                 data-patient-page-panel="medical"
                 hidden
               ></section>
+
               <section
                 class="patient-record-page-panel"
                 id="patientPageDental"
                 data-patient-page-panel="dental"
                 hidden
               ></section>
+
               <section
                 class="patient-record-page-panel"
                 id="patientPageImages"
                 data-patient-page-panel="images"
                 hidden
               ></section>
+
               <section
                 class="patient-record-page-panel"
                 id="patientPageTreatments"
                 data-patient-page-panel="treatments"
                 hidden
               ></section>
+
               <section
                 class="patient-record-page-panel"
                 id="patientPageAppointments"
@@ -891,12 +893,7 @@
       </button>
     </div>
     <script src="../navigationbar/sidebar.js"></script>
-    <script src="overview/overview.js"></script>
-    <script src="medical_record/medical_record.js"></script>
-    <script src="dental_chart/dental_chart.js"></script>
-    <script src="clinical_image/clinical_image.js"></script>
-    <script src="treatments/treatments.js"></script>
-    <script src="appointment_history/appointment_history.js"></script>
+    <script src="../profile/profile.js"></script>
     <script src="patient.js"></script>
   </body>
 </html>

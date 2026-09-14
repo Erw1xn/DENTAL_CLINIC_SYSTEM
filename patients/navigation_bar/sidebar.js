@@ -68,7 +68,11 @@ async function loadSidebar(activePageKey) {
 
 function getCurrentUser() {
   try {
-    return JSON.parse(localStorage.getItem("currentUser"));
+    const storedUser = sessionStorage.getItem("currentUser");
+    if (storedUser) {
+      return JSON.parse(storedUser);
+    }
+    return null;
   } catch (error) {
     return null;
   }
@@ -267,7 +271,7 @@ document.addEventListener("click", (e) => {
 
     localStorage.removeItem("isLoggedIn");
     localStorage.removeItem("currentUser");
-
+    sessionStorage.removeItem("currentUser");
     window.location.href = "../../homepage/homepage.html";
   }
 });

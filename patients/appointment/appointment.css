@@ -739,6 +739,183 @@ textarea:focus-visible {
 .modal-overlay.show .modal-container {
   transform: translateY(0) scale(1);
 }
+.record-edit-overlay {
+  z-index: 1100;
+}
+.record-edit-modal {
+  max-width: 610px;
+  max-height: min(760px, calc(100vh - 28px));
+}
+.record-edit-body {
+  padding: 15px 17px 8px;
+  background: #f7faf8;
+}
+.record-edit-intro {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 11px;
+  padding: 9px 10px;
+  background: var(--green-50);
+  border: 1px solid #dcebe1;
+  border-radius: 9px;
+  color: var(--ink-500);
+  font-size: 7.5px;
+  line-height: 1.45;
+}
+.record-edit-intro i {
+  margin-top: 1px;
+  color: var(--green-700);
+}
+.record-edit-section {
+  margin-bottom: 11px;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid #e2ebe5;
+  border-radius: 11px;
+}
+.record-edit-section-heading {
+  margin-bottom: 10px;
+}
+.record-edit-section-heading > div {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.record-edit-step {
+  display: inline-flex;
+  width: 22px;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 7px;
+  background: var(--green-100);
+  color: var(--green-700);
+  font-size: 7px;
+  font-weight: 800;
+}
+.record-edit-section h4 {
+  color: var(--ink-900);
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.record-edit-section-heading p {
+  margin-top: 2px;
+  color: var(--ink-500);
+  font-size: 7px;
+  line-height: 1.4;
+}
+.record-edit-check-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+.record-edit-check-grid > label,
+.record-edit-radio-row > label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 28px;
+  padding: 5px 7px;
+  background: #fbfdfb;
+  border: 1px solid #e5ece7;
+  border-radius: 7px;
+  color: var(--ink-700);
+  font-size: 7.5px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.record-edit-check-grid input[type="checkbox"],
+.record-edit-radio-row input[type="radio"],
+.record-edit-consent input {
+  accent-color: var(--green-700);
+  flex-shrink: 0;
+}
+.record-edit-other {
+  flex-wrap: wrap;
+}
+.record-edit-other > input[type="text"] {
+  width: 100%;
+  height: 27px;
+  padding: 0 7px;
+  border: 1px solid #dfe7e2;
+  border-radius: 6px;
+  color: var(--ink-900);
+  font-size: 7.5px;
+  outline: none;
+}
+.record-edit-other > input[type="text"]:focus,
+.record-edit-field input:focus,
+.record-edit-field textarea:focus {
+  border-color: rgba(22, 128, 61, 0.5);
+  box-shadow: 0 0 0 3px rgba(22, 128, 61, 0.07);
+}
+.record-edit-field {
+  min-width: 0;
+  margin-top: 10px;
+}
+.record-edit-field > label,
+.record-edit-group-label {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--ink-700);
+  font-size: 7.5px;
+  font-weight: 700;
+}
+.record-edit-group-label {
+  margin-top: 11px;
+}
+.record-edit-radio-row {
+  display: flex;
+  gap: 7px;
+}
+.record-edit-radio-row > label {
+  min-width: 62px;
+  justify-content: center;
+}
+.record-edit-form-row {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: 10px;
+}
+.record-edit-field input:not([type="radio"]),
+.record-edit-field textarea {
+  width: 100%;
+  min-height: 35px;
+  padding: 8px 9px;
+  background: #fff;
+  border: 1px solid #dfe7e2;
+  border-radius: 8px;
+  color: var(--ink-900);
+  font-size: 8px;
+  outline: none;
+  resize: vertical;
+}
+.record-edit-field textarea {
+  min-height: 57px;
+}
+.record-edit-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin: 2px 1px 3px;
+  color: var(--ink-500);
+  font-size: 7.5px;
+  line-height: 1.45;
+}
+.record-edit-consent input {
+  margin-top: 1px;
+}
+.record-edit-actions {
+  justify-content: space-between;
+}
+.record-edit-actions #saveRecordEdit {
+  min-width: 124px;
+}
 .appointment-detail-modal {
   max-width: 470px;
 }
@@ -764,7 +941,7 @@ textarea:focus-visible {
   margin-top: 3px;
   color: var(--ink-900);
   font-family: var(--font-display);
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 700;
 }
 .modal-header p {
@@ -1803,4 +1980,338 @@ textarea:focus-visible {
   .empty-state {
     min-height: 160px;
   }
+}
+.booking-modal-container {
+  max-width: 560px;
+}
+.booking-step[hidden],
+#backBooking[hidden],
+#confirmBooking[hidden],
+#continueBooking[hidden] {
+  display: none;
+}
+.booking-step-label {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--green-700);
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.booking-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 19px;
+  background: #f8fbf9;
+  border-bottom: 1px solid #edf1ee;
+}
+.booking-progress-item {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #9aa59e;
+}
+.booking-progress-item > span {
+  width: 23px;
+  height: 23px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: #eef2ef;
+  border: 1px solid #dfe7e2;
+  border-radius: 50%;
+  color: #87938c;
+  font-size: 7.5px;
+  font-weight: 700;
+}
+.booking-progress-item > div {
+  min-width: 0;
+}
+.booking-progress-item strong {
+  display: block;
+  color: #87938c;
+  font-size: 7.5px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.booking-progress-item small {
+  display: block;
+  margin-top: 2px;
+  color: #a0aaa4;
+  font-size: 6.5px;
+  line-height: 1.3;
+}
+.booking-progress-item.active > span {
+  background: var(--green-700);
+  border-color: var(--green-700);
+  color: #fff;
+}
+.booking-progress-item.active strong {
+  color: var(--green-700);
+}
+.booking-progress-line {
+  flex: 1;
+  height: 1px;
+  min-width: 20px;
+  background: #dfe7e2;
+}
+.booking-section {
+  margin-bottom: 14px;
+  padding: 13px;
+  background: #fff;
+  border: 1px solid #e5ebe7;
+  border-radius: 11px;
+}
+.booking-section:last-child {
+  margin-bottom: 0;
+}
+.booking-section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 13px;
+}
+.booking-section-header h4 {
+  color: var(--ink-900);
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+.booking-section-header p {
+  margin-top: 3px;
+  color: var(--ink-500);
+  font-size: 7px;
+  line-height: 1.45;
+}
+.patient-information-section,
+.medical-booking-section > .form-group,
+.medical-booking-section > .booking-consent {
+  display: none;
+}
+.medical-record-update-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--green-600);
+  border-radius: 8px;
+  background: var(--green-50);
+  color: var(--green-700);
+  font-size: 8px;
+  font-weight: 700;
+}
+.medical-record-update-btn:hover {
+  background: var(--green-100);
+}
+.patient-summary-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 13px;
+  padding: 10px 11px;
+  background: #f5faf7;
+  border: 1px solid #dcebe1;
+  border-radius: 9px;
+}
+.patient-summary-icon {
+  width: 31px;
+  height: 31px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: #e5f3e9;
+  border: 1px solid #d5e8db;
+  border-radius: 8px;
+  color: var(--green-700);
+  font-size: 11px;
+}
+.patient-summary-content {
+  min-width: 0;
+}
+.patient-summary-content span {
+  display: block;
+  color: #849087;
+  font-size: 6.5px;
+  font-weight: 600;
+}
+.patient-summary-content strong {
+  display: block;
+  margin-top: 2px;
+  color: var(--green-700);
+  font-size: 8.5px;
+  font-weight: 700;
+}
+.medical-record-summary {
+  margin-bottom: 13px;
+  padding: 10px 11px;
+  background: #f8fbf9;
+  border: 1px solid #e2ebe5;
+  border-radius: 9px;
+}
+.medical-record-summary-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+}
+.medical-record-summary-grid > div {
+  min-width: 0;
+  padding: 8px;
+  background: #fff;
+  border: 1px solid #e6ece8;
+  border-radius: 8px;
+}
+.medical-record-summary-item-wide {
+  grid-column: 1 / -1;
+}
+.medical-record-summary-grid span {
+  display: block;
+  color: #849087;
+  font-size: 6.5px;
+  font-weight: 600;
+}
+.medical-record-summary-grid strong {
+  display: block;
+  margin-top: 3px;
+  color: var(--ink-900);
+  font-size: 7.5px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+.medical-record-summary-empty {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.medical-record-summary-empty > i {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--green-50);
+  border: 1px solid #e1eee5;
+  border-radius: 8px;
+  color: var(--green-700);
+  font-size: 12px;
+}
+.medical-record-summary-empty strong {
+  display: block;
+  color: var(--ink-900);
+  font-size: 8px;
+  font-weight: 700;
+}
+.medical-record-summary-empty span {
+  display: block;
+  margin-top: 3px;
+  color: var(--ink-500);
+  font-size: 7px;
+  line-height: 1.45;
+}
+.medical-record-summary-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  color: var(--green-700);
+  font-size: 8px;
+  font-weight: 700;
+}
+.booking-consent {
+  margin-top: 12px;
+  padding: 10px 11px;
+  background: #f8fbf9;
+  border: 1px solid #e2ebe5;
+  border-radius: 9px;
+}
+.booking-consent label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  color: #657169;
+  font-size: 7.5px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+.booking-consent input {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+.modal-actions {
+  align-items: center;
+}
+#backBooking {
+  margin-right: auto;
+}
+#continueBooking,
+#confirmBooking {
+  min-width: 120px;
+}
+@media (max-width: 480px) {
+  .booking-progress {
+    padding: 10px 14px;
+  }
+  .booking-progress-item small {
+    display: none;
+  }
+  .booking-progress-item strong {
+    font-size: 7px;
+  }
+  .booking-progress-line {
+    min-width: 10px;
+  }
+  .medical-record-summary-grid {
+    grid-template-columns: 1fr;
+  }
+  .record-edit-modal {
+    max-height: calc(100vh - 20px);
+  }
+  .record-edit-body {
+    padding: 13px 12px 6px;
+  }
+  .record-edit-check-grid,
+  .record-edit-form-row {
+    grid-template-columns: 1fr;
+  }
+  .record-edit-section {
+    padding: 10px;
+  }
+  #backBooking {
+    margin-right: 0;
+  }
+}
+.btn-delete {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 13px;
+  border-radius: 8px;
+  background: var(--red-100);
+  color: var(--red-500);
+  border: 1px solid #f0d2d2;
+  font-size: 8.5px;
+  font-weight: 700;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease,
+    transform 0.15s ease;
+}
+.btn-delete:hover {
+  background: #ffe5e5;
+  border-color: #e8bcbc;
+  color: #b82e2e;
+  transform: translateY(-1px);
 }

@@ -7,7 +7,7 @@ async function loadSidebar(activePageKey) {
     return;
   }
   try {
-    const response = await fetch("../../Doctor/navigationbar/sidebar.html");
+    const response = await fetch("/doctor/navigationbar/sidebar.html");
     if (!response.ok) {
       throw new Error("Network response was not ok");
     }
@@ -19,10 +19,10 @@ async function loadSidebar(activePageKey) {
       logoutModal.remove();
     }
     container.innerHTML = tempDiv.innerHTML;
-    loadActiveStaffProfile();
     if (!document.getElementById("logoutModalBackdrop") && logoutModal) {
       document.body.appendChild(logoutModal);
     }
+    loadActiveDoctorProfile();
     let pageKey = activePageKey;
     if (!pageKey) {
       const currentPath = window.location.pathname;
@@ -48,91 +48,6 @@ async function loadSidebar(activePageKey) {
     console.error("Failed to load sidebar navigation:", error);
   }
 }
-function loadActiveStaffProfile() {
-  const staffName = document.getElementById("activeStaffName");
-  const staffImage = document.getElementById("activeStaffImage");
-  const staffInitials = document.getElementById("activeStaffInitials");
-  if (!staffName) {
-    return;
-  }
-  const activeUser = getLoggedInUser();
-  if (!activeUser) {
-    staffName.textContent = "User";
-    staffInitials.textContent = "U";
-    if (staffImage) {
-      staffImage.style.display = "none";
-    }
-    if (staffInitials) {
-      staffInitials.style.display = "block";
-    }
-    return;
-  }
-  const name =
-    activeUser.name ||
-    activeUser.full_name ||
-    activeUser.fullName ||
-    activeUser.fullname ||
-    activeUser.displayName ||
-    activeUser.username ||
-    "User";
-  const image =
-    activeUser.image ||
-    activeUser.profileImage ||
-    activeUser.profile_image ||
-    activeUser.photo ||
-    activeUser.photoURL ||
-    activeUser.avatar ||
-    "";
-  const initials = getInitials(name);
-  staffName.textContent = name;
-  if (image && staffImage) {
-    staffImage.src = image;
-    staffImage.style.display = "block";
-    if (staffInitials) {
-      staffInitials.style.display = "none";
-    }
-  } else {
-    if (staffImage) {
-      staffImage.removeAttribute("src");
-      staffImage.style.display = "none";
-    }
-    if (staffInitials) {
-      staffInitials.textContent = initials;
-      staffInitials.style.display = "block";
-    }
-  }
-}
-function getLoggedInUser() {
-  const storageKeys = [
-    "currentUser",
-    "loggedInUser",
-    "user",
-    "authUser",
-    "activeUser",
-    "sessionUser",
-    "userData",
-    "current_user",
-    "loggedInUserData",
-    "loginUser",
-  ];
-  for (const key of storageKeys) {
-    const localValue = localStorage.getItem(key);
-    if (localValue) {
-      const user = parseUserData(localValue);
-      if (user) {
-        return user;
-      }
-    }
-    const sessionValue = sessionStorage.getItem(key);
-    if (sessionValue) {
-      const user = parseUserData(sessionValue);
-      if (user) {
-        return user;
-      }
-    }
-  }
-  return null;
-}
 function parseUserData(value) {
   try {
     const parsed = JSON.parse(value);
@@ -149,25 +64,127 @@ function parseUserData(value) {
       return parsed;
     }
   } catch (error) {
-    return {
-      name: value,
-    };
+    return null;
   }
   return null;
 }
-function getInitials(name) {
+function getCurrentUser() {
+  const storageKeys = [
+    "currentUser",
+    "loggedInUser",
+    "user",
+    "authUser",
+    "activeUser",
+    "sessionUser",
+    "userData",
+    "current_user",
+    "loggedInUserData",
+    "loginUser",
+  ];
+  for (const key of storageKeys) {
+    const localValue = localStorage.getItem(key);
+    if (localValue) {
+      const user = parseUserData(localValue);
+      if (user && isDoctorUser(user)) {
+        return user;
+      }
+    }
+    const sessionValue = sessionStorage.getItem(key);
+    if (sessionValue) {
+      const user = parseUserData(sessionValue);
+      if (user && isDoctorUser(user)) {
+        return user;
+      }
+    }
+  }
+  return null;
+}
+function isDoctorUser(user) {
+  if (!user || typeof user !== "object") {
+    return false;
+  }
+  const role = String(user.role || user.userRole || user.accountType || "")
+    .trim()
+    .toLowerCase();
+  const doctorId = user.doctorId || user.doctor_id || user.doctorID;
+  return role === "doctor" || Boolean(doctorId);
+}
+function getDoctorInitials(name) {
   if (!name) {
-    return "U";
+    return "DR";
   }
   const cleanName = String(name).trim();
   if (!cleanName) {
-    return "U";
+    return "DR";
   }
-  const parts = cleanName.split(/\s+/).filter(Boolean);
-  if (parts.length === 1) {
-    return parts[0].substring(0, 2).toUpperCase();
+  const cleanedParts = cleanName
+    .replace(/^Dr\.\s*/i, "")
+    .replace(/^Dr\s+/i, "")
+    .split(/\s+/)
+    .filter(Boolean);
+  if (cleanedParts.length === 1) {
+    return cleanedParts[0].substring(0, 2).toUpperCase();
   }
-  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+  return (
+    cleanedParts[0].charAt(0) + cleanedParts[cleanedParts.length - 1].charAt(0)
+  ).toUpperCase();
+}
+function loadActiveDoctorProfile() {
+  const nameEl = document.getElementById("activeDoctorName");
+  const imageEl = document.getElementById("activeDoctorImage");
+  const initialsEl = document.getElementById("activeDoctorInitials");
+  if (!nameEl) {
+    return;
+  }
+  const activeDoctor = getCurrentUser();
+  if (!activeDoctor) {
+    nameEl.textContent = "Doctor";
+    if (imageEl) {
+      imageEl.removeAttribute("src");
+      imageEl.style.display = "none";
+    }
+    if (initialsEl) {
+      initialsEl.textContent = "DR";
+      initialsEl.style.display = "flex";
+    }
+    return;
+  }
+  const firstname = activeDoctor.firstname || activeDoctor.firstName || "";
+  const lastname = activeDoctor.lastname || activeDoctor.lastName || "";
+  const name =
+    activeDoctor.name ||
+    activeDoctor.full_name ||
+    activeDoctor.fullName ||
+    activeDoctor.fullname ||
+    `${firstname} ${lastname}`.trim() ||
+    "Doctor";
+  const image =
+    activeDoctor.image ||
+    activeDoctor.profileImage ||
+    activeDoctor.profile_image ||
+    activeDoctor.photo ||
+    activeDoctor.photoURL ||
+    activeDoctor.avatar ||
+    "";
+  const initials = getDoctorInitials(name);
+  nameEl.textContent = name;
+  if (image && imageEl) {
+    imageEl.src = image;
+    imageEl.style.display = "block";
+    if (initialsEl) {
+      initialsEl.textContent = initials;
+      initialsEl.style.display = "none";
+    }
+  } else {
+    if (imageEl) {
+      imageEl.removeAttribute("src");
+      imageEl.style.display = "none";
+    }
+    if (initialsEl) {
+      initialsEl.textContent = initials;
+      initialsEl.style.display = "flex";
+    }
+  }
 }
 function applySavedSidebarState() {
   const sidebar = document.getElementById("sidebar");
@@ -226,27 +243,53 @@ function initSidebarLogic() {
       sidebarOverlay.classList.remove("active");
     });
   }
+  const profileTrigger = document.getElementById("sidebarProfileTrigger");
+  if (profileTrigger) {
+    profileTrigger.addEventListener("click", (event) => {
+      event.preventDefault();
+      if (typeof window.openProfileModal === "function") {
+        window.openProfileModal();
+      } else {
+        window.dispatchEvent(new Event("open-doctor-profile"));
+      }
+    });
+    profileTrigger.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") {
+        return;
+      }
+      event.preventDefault();
+      if (typeof window.openProfileModal === "function") {
+        window.openProfileModal();
+      } else {
+        window.dispatchEvent(new Event("open-doctor-profile"));
+      }
+    });
+  }
 }
-document.addEventListener("click", (e) => {
-  const logoutBtn = e.target.closest(".btn-logout");
-  const cancelBtn = e.target.closest("#logoutCancelBtn");
-  const confirmBtn = e.target.closest("#logoutConfirmBtn");
+document.addEventListener("click", (event) => {
+  const logoutBtn = event.target.closest(".btn-logout");
+  const cancelBtn = event.target.closest("#logoutCancelBtn");
+  const confirmBtn = event.target.closest("#logoutConfirmBtn");
   const backdrop = document.getElementById("logoutModalBackdrop");
   if (logoutBtn) {
-    e.preventDefault();
+    event.preventDefault();
     if (backdrop) {
       backdrop.classList.add("active");
     }
   }
   if (cancelBtn) {
-    e.preventDefault();
+    event.preventDefault();
     if (backdrop) {
       backdrop.classList.remove("active");
     }
   }
   if (confirmBtn) {
-    e.preventDefault();
+    event.preventDefault();
     localStorage.removeItem("isLoggedIn");
+    sessionStorage.removeItem("currentUser");
+    localStorage.removeItem("currentUser");
     window.location.href = "../../homepage/homepage.html";
   }
 });
+window.getLoggedInDoctor = getCurrentUser;
+window.getDoctorInitials = getDoctorInitials;

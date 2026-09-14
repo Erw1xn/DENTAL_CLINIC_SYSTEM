@@ -1,6 +1,7 @@
 const APPOINTMENTS_STORAGE_KEY = "appointments";
 const LEGACY_STORAGE_KEY = "dentanueva_appointments";
 const PATIENTS_STORAGE_KEY = "dentanueva_patients";
+const DOCTORS_STORAGE_KEY = "dentanueva_doctors";
 const START_HOUR = 10;
 const FIRST_BOOKABLE_HOUR = 10.5;
 const END_HOUR = 20;
@@ -34,23 +35,8 @@ const DEFAULT_SERVICE_SUGGESTIONS = [
   "Root Canal",
   "Braces Adjustment",
 ];
-const dentists = {
-  santos: {
-    name: "Dr. M. Santos",
-    specialty: "Orthodontics",
-    color: "#166F63",
-  },
-  cruz: {
-    name: "Dr. L. Cruz",
-    specialty: "General Dentistry",
-    color: "#E8A93B",
-  },
-  ramos: {
-    name: "Dr. J. Ramos",
-    specialty: "Oral Surgery",
-    color: "#FF6B57",
-  },
-};
+const DENTIST_COLORS = ["#166F63", "#E8A93B", "#FF6B57", "#3B82F6", "#8B5CF6"];
+let dentists = {};
 const APPOINTMENT_STATUS = {
   SCHEDULED: "scheduled",
   IN_CONSULTATION: "in_consultation",
@@ -68,17 +54,17 @@ let modalMode = "new";
 let statusActionTargetId = null;
 let statusActionType = null;
 let toastTimer = null;
-let selectedDentistFilter = "santos";
+let selectedDentistFilter = "";
 let rescheduleRequestTargetId = null;
 document.addEventListener("DOMContentLoaded", () => {
+  loadDentists();
   loadPatients();
   loadAppointments();
   initializeDate();
   setupEvents();
   const dentistFilter = document.getElementById("dentistFilter");
   if (dentistFilter) {
-    dentistFilter.querySelector('option[value="all"]')?.remove();
-    selectedDentistFilter = dentistFilter.value || "santos";
+    selectedDentistFilter = dentistFilter.value || getDefaultDentistId();
   }
   renderAll();
   setInterval(() => {
@@ -97,6 +83,11 @@ document.addEventListener("DOMContentLoaded", () => {
   openAppointmentFromURL();
 });
 function handleStorageChange(event) {
+  if (event.key === DOCTORS_STORAGE_KEY) {
+    loadDentists();
+    loadAppointments();
+    renderAll();
+  }
   if (event.key === PATIENTS_STORAGE_KEY) {
     loadPatients();
     removeAppointmentsForDeletedPatients();
@@ -111,6 +102,151 @@ function handleStorageChange(event) {
     loadAppointments();
     renderAll();
   }
+}
+function getDoctorId(doctor) {
+  return String(
+    doctor?.doctorId ||
+      doctor?.doctor_id ||
+      doctor?.doctorID ||
+      doctor?.dentistId ||
+      doctor?.dentist_id ||
+      doctor?.dentistID ||
+      "",
+  )
+    .trim()
+    .toLowerCase();
+}
+function getDoctorName(doctor) {
+  const firstName = doctor?.firstname || doctor?.firstName || "";
+  const lastName = doctor?.lastname || doctor?.lastName || "";
+  const name = String(
+    doctor?.name ||
+      doctor?.fullName ||
+      doctor?.full_name ||
+      `${firstName} ${lastName}`.trim(),
+  ).trim();
+  return name
+    ? /^dr\.?\s/i.test(name)
+      ? name
+      : `Dr. ${name}`
+    : "Unnamed Doctor";
+}
+function normalizeDentistIdentity(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/^doctor\s+/i, "")
+    .replace(/^dr\.?\s*/i, "")
+    .replace(/[._-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+function loadDentists() {
+  let storedDoctors = [];
+  try {
+    const parsed = JSON.parse(
+      localStorage.getItem(DOCTORS_STORAGE_KEY) || "[]",
+    );
+    storedDoctors = Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    console.error("Unable to load doctor accounts:", error);
+  }
+  const previousSelection = selectedDentistFilter;
+  dentists = {};
+  storedDoctors.forEach((doctor, index) => {
+    const id = getDoctorId(doctor);
+    if (!id) return;
+    dentists[id] = {
+      ...doctor,
+      id,
+      name: getDoctorName(doctor),
+      specialty: doctor.specialization || doctor.specialty || "Dental Care",
+      color: DENTIST_COLORS[index % DENTIST_COLORS.length],
+    };
+  });
+  populateDentistSelects();
+  selectedDentistFilter = dentists[previousSelection]
+    ? previousSelection
+    : getDefaultDentistId();
+  const filter = document.getElementById("dentistFilter");
+  if (filter) filter.value = selectedDentistFilter;
+}
+function getDefaultDentistId() {
+  return Object.keys(dentists)[0] || "";
+}
+function populateDentistSelects() {
+  const options = Object.values(dentists);
+  ["dentistFilter", "f_dentist"].forEach((selectId) => {
+    const select = document.getElementById(selectId);
+    if (!select) return;
+    const currentValue = select.value;
+    select.innerHTML = "";
+    options.forEach((doctor) => {
+      const option = document.createElement("option");
+      option.value = doctor.id;
+      option.textContent = doctor.name;
+      select.appendChild(option);
+    });
+    if (dentists[currentValue]) select.value = currentValue;
+  });
+}
+function getDentistRecord(dentistId) {
+  return (
+    dentists[
+      String(dentistId || "")
+        .trim()
+        .toLowerCase()
+    ] || null
+  );
+}
+function resolveDentistId(value) {
+  const normalizedValue = String(value || "")
+    .trim()
+    .toLowerCase();
+  if (!normalizedValue) return "";
+  if (dentists[normalizedValue]) return normalizedValue;
+  const normalizedIdentity = normalizeDentistIdentity(value);
+  const matchedDoctor = Object.values(dentists).find((doctor) => {
+    const identities = [
+      doctor.id,
+      doctor.doctorId,
+      doctor.doctor_id,
+      doctor.doctorID,
+      doctor.dentistId,
+      doctor.dentist_id,
+      doctor.dentistID,
+      doctor.name,
+      doctor.fullName,
+      doctor.full_name,
+      doctor.email,
+    ];
+    return identities.some(
+      (identity) =>
+        String(identity || "")
+          .trim()
+          .toLowerCase() === normalizedValue ||
+        normalizeDentistIdentity(identity) === normalizedIdentity,
+    );
+  });
+  return matchedDoctor?.id || normalizedValue;
+}
+function appointmentMatchesDentist(appt, dentistId = selectedDentistFilter) {
+  const appointmentDentist =
+    appt.dentist ||
+    appt.dentistId ||
+    appt.dentist_id ||
+    appt.dentistID ||
+    appt.doctor ||
+    appt.doctorId ||
+    appt.doctor_id ||
+    appt.doctorID ||
+    appt.doctorName ||
+    appt.assignedDentist ||
+    appt.assignedDentistId ||
+    appt.assignedDoctor ||
+    appt.assignedDoctorId ||
+    "";
+  return resolveDentistId(appointmentDentist) === resolveDentistId(dentistId);
 }
 function initializeDate() {
   const today = new Date();
@@ -145,7 +281,7 @@ function setupEvents() {
   const dentistFilter = document.getElementById("dentistFilter");
   if (dentistFilter) {
     dentistFilter.addEventListener("change", () => {
-      selectedDentistFilter = dentistFilter.value || "santos";
+      selectedDentistFilter = dentistFilter.value || getDefaultDentistId();
       renderScheduleOverview();
       renderTimeline();
       renderWaitingQueue();
@@ -247,14 +383,23 @@ function loadPatients() {
   }
 }
 function normalizePatient(patient) {
+  const patientId =
+    patient.patientId ||
+    patient.patient_id ||
+    patient.id ||
+    patient.userId ||
+    patient.user_id ||
+    `P${String(Date.now()).slice(-6)}`;
+
   return {
     ...patient,
-    id: patient.id || `P${String(Date.now()).slice(-6)}`,
-    firstName: patient.firstName || "",
-    lastName: patient.lastName || "",
-    dateOfBirth: patient.dateOfBirth || "",
+    id: String(patientId),
+    patientId: String(patientId),
+    firstName: patient.firstName || patient.firstname || "",
+    lastName: patient.lastName || patient.lastname || "",
+    dateOfBirth: patient.dateOfBirth || patient.date_of_birth || "",
     gender: patient.gender || "",
-    phone: patient.phone || "",
+    phone: patient.phone || patient.contactNumber || patient.contact || "",
     email: patient.email || "",
     address: patient.address || "",
     emergencyName: patient.emergencyName || "",
@@ -276,8 +421,23 @@ function getPatientFullName(patient) {
 }
 function findPatientById(patientId) {
   if (!patientId) return null;
+
+  const value = String(patientId).trim().toLowerCase();
+
   return (
-    patients.find((patient) => String(patient.id) === String(patientId)) || null
+    patients.find((patient) =>
+      [
+        patient.id,
+        patient.patientId,
+        patient.patient_id,
+        patient.userId,
+        patient.user_id,
+      ]
+        .filter(
+          (id) => id !== undefined && id !== null && String(id).trim() !== "",
+        )
+        .some((id) => String(id).trim().toLowerCase() === value),
+    ) || null
   );
 }
 function findPatientByName(name) {
@@ -465,24 +625,19 @@ function saveAppointmentsToStorage() {
   localStorage.setItem(LEGACY_STORAGE_KEY, data);
 }
 function removeAppointmentsForDeletedPatients() {
-  if (!Array.isArray(appointments) || !Array.isArray(patients)) {
+  if (!Array.isArray(appointments)) {
     return;
   }
-  const beforeCount = appointments.length;
+
   appointments = appointments.filter((appt) => {
-    if (appt.patientId) {
-      return !!findPatientById(appt.patientId);
-    }
-    if (appt.patient) {
-      return !!findPatientByName(appt.patient);
-    }
-    return false;
+    return (
+      !!appt &&
+      (!!appt.patientId ||
+        !!appt.patient_id ||
+        !!appt.patientID ||
+        !!appt.patient)
+    );
   });
-  const removedCount = beforeCount - appointments.length;
-  if (removedCount > 0) {
-    saveAppointmentsToStorage();
-    synchronizeAllPatientAppointments();
-  }
 }
 function normalizeAppointment(appt) {
   let patientId = appt.patientId || appt.patient_id || appt.patientID || "";
@@ -534,7 +689,22 @@ function normalizeAppointment(appt) {
       appt.appointment_time ||
       "10:00",
     type: appt.type || appt.service || appt.serviceType || "Consultation",
-    dentist: appt.dentist || appt.dentistId || appt.dentist_id || "santos",
+    dentist: resolveDentistId(
+      appt.dentist ||
+        appt.dentistId ||
+        appt.dentist_id ||
+        appt.dentistID ||
+        appt.doctor ||
+        appt.doctorId ||
+        appt.doctor_id ||
+        appt.doctorID ||
+        appt.doctorName ||
+        appt.assignedDentist ||
+        appt.assignedDentistId ||
+        appt.assignedDoctor ||
+        appt.assignedDoctorId ||
+        "",
+    ),
     duration: Number(
       appt.duration ||
         SERVICE_DURATIONS[appt.type] ||
@@ -551,10 +721,14 @@ function normalizeAppointment(appt) {
     paymentAmount: Number(appt.paymentAmount) || 0,
     rescheduleRequest: appt.rescheduleRequest || null,
   };
-  normalized.appointmentId = normalized.id;
-  if (!dentists[normalized.dentist]) {
-    normalized.dentist = "santos";
+  if (
+    normalized.dentist === "villanueva" &&
+    Object.keys(dentists).length === 1 &&
+    !dentists.villanueva
+  ) {
+    normalized.dentist = getDefaultDentistId();
   }
+  normalized.appointmentId = normalized.id;
   if (!Number.isFinite(normalized.duration) || normalized.duration <= 0) {
     normalized.duration = 30;
   }
@@ -1245,7 +1419,7 @@ function openNewModal(date = null, time = null) {
   dateInput.value = selectedKey;
   typeInput.value = "Consultation";
   durationInput.value = SERVICE_DURATIONS.Consultation;
-  dentistInput.value = selectedDentistFilter || "santos";
+  dentistInput.value = selectedDentistFilter || getDefaultDentistId();
   dentistInput.disabled = true;
   updateAvailableTimeSlots(time);
   if (isPastDate(selectedKey)) {
@@ -1508,7 +1682,8 @@ function checkCurrentFormConflict() {
     editingId || null,
   );
   if (conflict) {
-    const dentistName = dentists[conflict.dentist]?.name || conflict.dentist;
+    const dentistName =
+      getDentistRecord(conflict.dentist)?.name || conflict.dentist;
     const end = getAppointmentEndTime(conflict);
     text.textContent = `${dentistName} already has an appointment from ${fmtTime(conflict.start)} to ${fmtTime(end)}.`;
     notice.classList.add("show");
@@ -1554,7 +1729,7 @@ function saveAppt() {
     showToast("Please enter a valid duration.");
     return;
   }
-  if (!dentists[dentist]) {
+  if (!getDentistRecord(dentist)) {
     showToast("Please select a valid dentist.");
     return;
   }
@@ -1600,7 +1775,8 @@ function saveAppt() {
   );
   if (conflict) {
     const conflictEnd = getAppointmentEndTime(conflict);
-    const dentistName = dentists[conflict.dentist].name;
+    const dentistName =
+      getDentistRecord(conflict.dentist)?.name || conflict.dentist;
     document.getElementById("scheduleConflictText").textContent =
       `${dentistName} is already occupied from ${fmtTime(conflict.start)} to ${fmtTime(conflictEnd)}.`;
     document.getElementById("scheduleConflictNotice").classList.add("show");
@@ -1761,7 +1937,7 @@ function openRescheduleRequestModal() {
   }
   if (dentistLabel) {
     dentistLabel.textContent =
-      dentists[appointment.dentist]?.name || appointment.dentist;
+      getDentistRecord(appointment.dentist)?.name || appointment.dentist;
   }
   if (reasonInput) {
     reasonInput.value = existingRequest?.reason || "dentist_unavailable";
@@ -1851,7 +2027,7 @@ function submitRescheduleRequest() {
     currentEndTime: getAppointmentEndTime(appointment),
     currentDentist: appointment.dentist,
     currentDentistName:
-      dentists[appointment.dentist]?.name || appointment.dentist,
+      getDentistRecord(appointment.dentist)?.name || appointment.dentist,
     service: appointment.type,
     reason,
     reasonLabel: getRescheduleReasonLabel(reason),
@@ -2064,7 +2240,9 @@ function recordPaymentForAppointment(id) {
   if (!appt || appt.status !== APPOINTMENT_STATUS.COMPLETED) {
     return;
   }
-  const dentist = dentists[appt.dentist] || {};
+  const dentist = getDentistRecord(appt.dentist) || {
+    name: "Unassigned",
+  };
   const pendingPayment = {
     appointmentId: appt.id,
     patientId: appt.patientId,
@@ -2333,7 +2511,7 @@ function renderScheduleOverview() {
   const selectedKey = dateToKey(selectedDate);
   const dayAppointments = appointments
     .filter((appt) => appt.date === selectedKey)
-    .filter((appt) => appt.dentist === selectedDentistFilter);
+    .filter((appt) => appointmentMatchesDentist(appt));
   const scheduledCount = dayAppointments.filter(
     (appt) => appt.status === APPOINTMENT_STATUS.SCHEDULED,
   ).length;
@@ -2439,7 +2617,26 @@ function filteredAppts() {
     .toLowerCase();
   return appointments
     .filter((appt) => appt.date === dateKey)
-    .filter((appt) => appt.dentist === selectedDentistFilter)
+    .filter((appt) => {
+      const appointmentDentistId = resolveDentistId(
+        appt.dentist ||
+          appt.dentistId ||
+          appt.dentist_id ||
+          appt.dentistID ||
+          appt.doctor ||
+          appt.doctorId ||
+          appt.doctor_id ||
+          appt.doctorID ||
+          appt.doctorName ||
+          appt.assignedDentist ||
+          appt.assignedDentistId ||
+          appt.assignedDoctor ||
+          appt.assignedDoctorId ||
+          "",
+      );
+      const selectedDentistId = resolveDentistId(selectedDentistFilter);
+      return appointmentDentistId === selectedDentistId;
+    })
     .filter((appt) => {
       if (!search) {
         return true;
@@ -2457,7 +2654,7 @@ function filteredAppts() {
       const patientEmail = String(patient?.email || "").toLowerCase();
       const service = String(appt.type || appt.service || "").toLowerCase();
       const dentistName = String(
-        dentists[appt.dentist]?.name || appt.dentist || "",
+        getDentistRecord(appt.dentist)?.name || appt.dentist || "",
       ).toLowerCase();
       return [
         patientName,
@@ -2548,7 +2745,10 @@ function renderTimeline() {
 function createAppointmentCard(appt) {
   const card = document.createElement("div");
   card.className = "appt-card";
-  const dentist = dentists[appt.dentist] || dentists.santos;
+  const dentist = getDentistRecord(appt.dentist) || {
+    name: "Unassigned",
+    color: "#9CA3AF",
+  };
   card.style.borderLeftColor = dentist.color;
   card.dataset.status = appt.status;
   const info = document.createElement("div");
@@ -2585,7 +2785,7 @@ function renderWaitingQueue() {
     .toLowerCase();
   const selectedAppointments = appointments
     .filter((appt) => appt.date === selectedKey)
-    .filter((appt) => appt.dentist === selectedDentistFilter)
+    .filter((appt) => appointmentMatchesDentist(appt))
     .filter((appt) => {
       if (selectedIsPast) return true;
       if (selectedIsToday) {
@@ -2626,7 +2826,10 @@ function renderWaitingQueue() {
     const item = document.createElement("div");
     item.className = "queue-item";
     const initials = getInitials(appt.patient);
-    const dentist = dentists[appt.dentist] || dentists.santos;
+    const dentist = getDentistRecord(appt.dentist) || {
+      name: "Unassigned",
+      color: "#9CA3AF",
+    };
     const statusText = getStatusLabel(appt.status);
     item.innerHTML = `<div class="queue-main"><div class="queue-avatar" style="background:${hexToRgba(dentist.color, 0.12)};color:${dentist.color};">${initials}</div><div class="queue-text"><span class="queue-name">${escapeHtml(appt.patient)}</span><span class="queue-time">Time ${escapeHtml(fmtTime(appt.start))}</span><span class="queue-dentist">${escapeHtml(dentist.name)}</span></div></div><div class="queue-type">${escapeHtml(statusText)}</div>`;
     item.addEventListener("click", () => openViewModal(appt.id));
@@ -2638,11 +2841,16 @@ function renderRealtimeDentistsDuty() {
   if (!list) return;
   list.innerHTML = "";
   const selectedKey = dateToKey(selectedDate);
-  const visibleDentistId = selectedDentistFilter || "santos";
-  const dentist = dentists[visibleDentistId] || dentists.santos;
+  const visibleDentistId = selectedDentistFilter || getDefaultDentistId();
+  const dentist = getDentistRecord(visibleDentistId) || {
+    name: "No doctors available",
+    color: "#9CA3AF",
+  };
   const doctorAppointments = appointments
     .filter(
-      (appt) => appt.date === selectedKey && appt.dentist === visibleDentistId,
+      (appt) =>
+        appt.date === selectedKey &&
+        appointmentMatchesDentist(appt, visibleDentistId),
     )
     .sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
   const now = new Date();
