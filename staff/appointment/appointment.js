@@ -55,7 +55,8 @@ let statusActionTargetId = null;
 let statusActionType = null;
 let toastTimer = null;
 let selectedDentistFilter = "";
-let rescheduleRequestTargetId = null;
+let rescheduleReviewRequestId = null;
+let rescheduleDecisionRequestId = null;
 document.addEventListener("DOMContentLoaded", () => {
   loadDentists();
   loadPatients();
@@ -1395,6 +1396,9 @@ function openNewModal(date = null, time = null) {
   const saveBtn = document.getElementById("saveBtn");
   const deleteBtn = document.getElementById("deleteBtn");
   const requestRescheduleBtn = document.getElementById("requestRescheduleBtn");
+  const viewRescheduleRequestBtn = document.getElementById(
+    "viewRescheduleRequestBtn",
+  );
   const viewNotice = document.getElementById("viewOnlyNotice");
   const pastNotice = document.getElementById("pastRecordNotice");
   const conflictNotice = document.getElementById("scheduleConflictNotice");
@@ -1405,6 +1409,9 @@ function openNewModal(date = null, time = null) {
   saveBtn.disabled = false;
   deleteBtn.style.display = "none";
   requestRescheduleBtn.style.display = "none";
+  if (viewRescheduleRequestBtn) {
+    viewRescheduleRequestBtn.style.display = "none";
+  }
   viewNotice.classList.remove("show");
   conflictNotice.classList.remove("show");
   resetFormEditable();
@@ -1445,6 +1452,9 @@ function openViewModal(id) {
   const saveBtn = document.getElementById("saveBtn");
   const deleteBtn = document.getElementById("deleteBtn");
   const requestRescheduleBtn = document.getElementById("requestRescheduleBtn");
+  const viewRescheduleRequestBtn = document.getElementById(
+    "viewRescheduleRequestBtn",
+  );
   const viewNotice = document.getElementById("viewOnlyNotice");
   const pastNotice = document.getElementById("pastRecordNotice");
   const conflictNotice = document.getElementById("scheduleConflictNotice");
@@ -1492,6 +1502,13 @@ function openViewModal(id) {
     appt.status === APPOINTMENT_STATUS.SCHEDULED && !isPastDate(appt.date)
       ? "inline-flex"
       : "none";
+  const pendingPatientRequest =
+    getPendingPatientRescheduleRequestForAppointment(appt.id);
+  if (viewRescheduleRequestBtn) {
+    viewRescheduleRequestBtn.style.display = pendingPatientRequest
+      ? "inline-flex"
+      : "none";
+  }
   viewNotice.classList.add("show");
   conflictNotice.classList.remove("show");
   if (isPastDate(appt.date)) {
@@ -1897,6 +1914,90 @@ function getDefaultRescheduleMessage(reason) {
   }
   return "";
 }
+function openRescheduleReviewModal(requestId = null) {
+  const appointment = appointments.find((item) => item.id === editingId);
+  if (!appointment) {
+    showToast("The appointment could not be found.");
+    return;
+  }
+  const request =
+    (requestId
+      ? loadRescheduleRequests().find(
+          (item) => String(getRescheduleRequestId(item)) === String(requestId),
+        )
+      : getPendingPatientRescheduleRequestForAppointment(appointment.id)) ||
+    null;
+  if (!request || getRescheduleStatus(request) !== "pending") {
+    showToast("No pending patient reschedule request was found.");
+    const button = document.getElementById("viewRescheduleRequestBtn");
+    if (button) button.style.display = "none";
+    return;
+  }
+  rescheduleReviewRequestId = getRescheduleRequestId(request);
+  const patient = appointment.patient || request.patientName || "Patient";
+  const service = appointment.type || request.service || "Dental Appointment";
+  const dentist =
+    getDentistRecord(appointment.dentist)?.name ||
+    appointment.dentist ||
+    request.currentDentistName ||
+    "Assigned Dentist";
+  const currentDate = appointment.date || request.currentDate || "";
+  const currentTime = appointment.start || request.currentTime || "";
+  const requestedDate = request.preferred_date || request.preferredDate || "";
+  const requestedTime = request.preferred_time || request.preferredTime || "";
+  const reason =
+    request.reasonLabel || getRescheduleReasonLabel(request.reason);
+  const message = request.message || "No message provided.";
+  document.getElementById("reviewRequestInitials").textContent =
+    getInitials(patient);
+  document.getElementById("reviewRequestPatient").textContent = patient;
+  document.getElementById("reviewRequestService").textContent = service;
+  document.getElementById("reviewRequestCurrentSchedule").textContent =
+    currentDate && currentTime
+      ? `${formatDateLong(currentDate)} · ${fmtTime(currentTime)}–${fmtTime(getAppointmentEndTime(appointment))}`
+      : "—";
+  document.getElementById("reviewRequestRequestedSchedule").textContent =
+    requestedDate && requestedTime
+      ? `${formatDateLong(requestedDate)} · ${fmtTime(requestedTime)}`
+      : "—";
+  document.getElementById("reviewRequestReason").textContent = reason;
+  document.getElementById("reviewRequestDentist").textContent = dentist;
+  document.getElementById("reviewRequestMessage").textContent = message;
+  document.getElementById("rescheduleReviewOverlay").classList.add("show");
+}
+function closeRescheduleReviewModal() {
+  document.getElementById("rescheduleReviewOverlay")?.classList.remove("show");
+  rescheduleReviewRequestId = null;
+}
+function openRescheduleDecisionConfirmation(action) {
+  if (!rescheduleReviewRequestId) {
+    showToast("No reschedule request is selected.");
+    return;
+  }
+  const request = loadRescheduleRequests().find(
+    (item) =>
+      String(getRescheduleRequestId(item)) ===
+        String(rescheduleReviewRequestId) &&
+      getRescheduleStatus(item) === "pending",
+  );
+  if (!request) {
+    closeRescheduleReviewModal();
+    showToast("The reschedule request is no longer pending.");
+    return;
+  }
+  const appointment = appointments.find(
+    (item) => String(item.id) === String(getRescheduleAppointmentId(request)),
+  );
+  if (!appointment) {
+    showToast("The appointment could not be found.");
+    return;
+  }
+  rescheduleDecisionRequestId = getRescheduleRequestId(request);
+  openStatusConfirmation(
+    appointment.id,
+    action === "approve" ? "approveReschedule" : "rejectReschedule",
+  );
+}
 function openRescheduleRequestModal() {
   const appointment = appointments.find((item) => item.id === editingId);
   if (!appointment) {
@@ -2061,51 +2162,158 @@ function submitRescheduleRequest() {
   renderAll();
   showToast(`Reschedule request sent to ${getPatientFullName(patient)}.`);
 }
+function getRescheduleRequestId(request) {
+  return request?.request_id || request?.id || "";
+}
+function getRescheduleAppointmentId(request) {
+  return request?.appointment_id || request?.appointmentId || "";
+}
+function getRescheduleStatus(request) {
+  return String(request?.status || "")
+    .trim()
+    .toLowerCase();
+}
+function getRescheduleRequestId(request) {
+  return request?.request_id || request?.id || "";
+}
+function getRescheduleAppointmentId(request) {
+  return request?.appointment_id || request?.appointmentId || "";
+}
+function getRescheduleStatus(request) {
+  return String(request?.status || "")
+    .trim()
+    .toLowerCase();
+}
 function getPendingRescheduleRequests() {
   return loadRescheduleRequests().filter(
-    (request) => request.status === "pending",
+    (request) => getRescheduleStatus(request) === "pending",
   );
+}
+function getPendingPatientRescheduleRequestForAppointment(appointmentId) {
+  return (
+    loadRescheduleRequests().find(
+      (request) =>
+        String(getRescheduleAppointmentId(request)) === String(appointmentId) &&
+        getRescheduleStatus(request) === "pending" &&
+        request?.request_id &&
+        request?.patient_id,
+    ) || null
+  );
+}
+
+function renderRescheduleRequests() {
+  const list = document.getElementById("rescheduleRequestList");
+  const count = document.getElementById("rescheduleRequestCount");
+  if (!list) return;
+  const requests = getPendingRescheduleRequests();
+  if (count) {
+    count.textContent = requests.length;
+    count.style.display = requests.length ? "inline-flex" : "none";
+  }
+  list.innerHTML = "";
+  if (!requests.length) {
+    const empty = document.createElement("div");
+    empty.className = "reschedule-request-empty";
+    empty.innerHTML = `<i class="fa-regular fa-calendar-check"></i><strong>No pending reschedule requests</strong><span>Patient schedule change requests will appear here.</span>`;
+    list.appendChild(empty);
+    return;
+  }
+  requests.forEach((request) => {
+    const appointmentId = getRescheduleAppointmentId(request);
+    const appointment = appointments.find(
+      (appt) => String(appt.id) === String(appointmentId),
+    );
+    const patient = appointment
+      ? appointment.patient
+      : request.patientName || request.patient_id || "Patient";
+    const service =
+      appointment?.type || request.service || "Dental Appointment";
+    const dentist = appointment
+      ? getDentistRecord(appointment.dentist)?.name || appointment.dentist
+      : request.currentDentistName || "Assigned Dentist";
+    const currentDate = appointment?.date || request.currentDate || "";
+    const currentTime = appointment?.start || request.currentTime || "";
+    const preferredDate = request.preferred_date || request.preferredDate || "";
+    const preferredTime = request.preferred_time || request.preferredTime || "";
+    const reason = request.reason || "Reschedule request";
+    const message = request.message || "";
+    const requestId = getRescheduleRequestId(request);
+    const card = document.createElement("div");
+    card.className = "reschedule-request-card";
+    card.innerHTML = `
+      <div class="reschedule-request-card-header">
+        <div class="reschedule-request-avatar">${escapeHtml(getInitials(patient))}</div>
+        <div class="reschedule-request-patient">
+          <strong>${escapeHtml(patient)}</strong>
+          <span>${escapeHtml(service)}</span>
+        </div>
+        <span class="reschedule-request-status">Pending</span>
+      </div>
+      <div class="reschedule-request-schedule">
+        <div>
+          <span>Current Schedule</span>
+          <strong>${escapeHtml(formatDateLong(currentDate))} · ${escapeHtml(fmtTime(currentTime))}</strong>
+        </div>
+        <i class="fa-solid fa-arrow-right"></i>
+        <div>
+          <span>Requested Schedule</span>
+          <strong>${escapeHtml(formatDateLong(preferredDate))} · ${escapeHtml(fmtTime(preferredTime))}</strong>
+        </div>
+      </div>
+      <div class="reschedule-request-meta">
+        <span><strong>Reason:</strong> ${escapeHtml(reason)}</span>
+        <span><strong>Dentist:</strong> ${escapeHtml(dentist)}</span>
+      </div>
+      ${message ? `<div class="reschedule-request-message"><span>Message from Patient</span><p>${escapeHtml(message)}</p></div>` : ""}
+      <div class="reschedule-request-actions">
+        <button type="button" class="reschedule-request-reject"><i class="fa-solid fa-xmark"></i> Reject</button>
+        <button type="button" class="reschedule-request-approve"><i class="fa-solid fa-check"></i> Approve</button>
+      </div>
+    `;
+    const rejectButton = card.querySelector(".reschedule-request-reject");
+    const approveButton = card.querySelector(".reschedule-request-approve");
+    rejectButton?.addEventListener("click", (event) => {
+      event.stopPropagation();
+      rejectRescheduleRequest(requestId);
+    });
+    approveButton?.addEventListener("click", (event) => {
+      event.stopPropagation();
+      approveRescheduleRequest(requestId, preferredDate, preferredTime);
+    });
+    list.appendChild(card);
+  });
 }
 
 function approveRescheduleRequest(requestId, newDate, newTime) {
   const requests = loadRescheduleRequests();
   const requestIndex = requests.findIndex(
-    (request) => String(request.id) === String(requestId),
+    (request) => String(getRescheduleRequestId(request)) === String(requestId),
   );
-
   if (requestIndex === -1) {
     showToast("Reschedule request could not be found.");
     return;
   }
-
   const request = requests[requestIndex];
-
   const appointment = appointments.find(
-    (appt) => String(appt.id) === String(request.appointmentId),
+    (appt) => String(appt.id) === String(getRescheduleAppointmentId(request)),
   );
-
   if (!appointment) {
     showToast("The appointment could not be found.");
     return;
   }
-
   if (!newDate || !newTime) {
     showToast("Please select a valid date and time.");
     return;
   }
-
   if (isPastDate(newDate)) {
     showToast("The selected date has already passed.");
     return;
   }
-
   const duration = Number(appointment.duration) || SLOT_MIN;
-
   const startMinutes = timeToMinutes(newTime);
   const endMinutes = startMinutes + duration;
   const clinicStart = START_HOUR * 60;
   const clinicEnd = END_HOUR * 60;
-
   if (
     startMinutes < clinicStart ||
     endMinutes > clinicEnd ||
@@ -2114,7 +2322,6 @@ function approveRescheduleRequest(requestId, newDate, newTime) {
     showToast("The selected time is outside clinic hours.");
     return;
   }
-
   const conflict = findDentistConflict(
     newDate,
     newTime,
@@ -2122,51 +2329,47 @@ function approveRescheduleRequest(requestId, newDate, newTime) {
     appointment.dentist,
     appointment.id,
   );
-
   if (conflict) {
     showToast("The selected time is already occupied.");
     return;
   }
-
   appointment.date = newDate;
-  appointment.start = newTime;
+  appointment.appointment_date = newDate;
   appointment.appointmentDate = newDate;
+  appointment.start = newTime;
+  appointment.time = newTime;
+  appointment.appointment_time = newTime;
   appointment.appointmentTime = newTime;
   appointment.appointment_id = appointment.id;
   appointment.appointmentId = appointment.id;
-
-  request.status = "approved";
-  request.approvedAt = new Date().toISOString();
-  request.approvedDate = newDate;
-  request.approvedTime = newTime;
-
+  appointment.rescheduleRequest = null;
+  request.status = "Approved";
+  request.approved_at = new Date().toISOString();
+  request.approved_date = newDate;
+  request.approved_time = newTime;
   requests[requestIndex] = request;
-
   saveRescheduleRequests(requests);
   saveAppointmentsToStorage();
   syncAppointmentToPatient(appointment);
+  closeRescheduleReviewModal();
   renderAll();
-
   showToast(`${appointment.patient}'s reschedule request was approved.`);
 }
 
 function rejectRescheduleRequest(requestId) {
   const requests = loadRescheduleRequests();
-
   const requestIndex = requests.findIndex(
-    (request) => String(request.id) === String(requestId),
+    (request) => String(getRescheduleRequestId(request)) === String(requestId),
   );
-
   if (requestIndex === -1) {
     showToast("Reschedule request could not be found.");
     return;
   }
-
-  requests[requestIndex].status = "rejected";
-  requests[requestIndex].rejectedAt = new Date().toISOString();
-
+  requests[requestIndex].status = "Rejected";
+  requests[requestIndex].rejected_at = new Date().toISOString();
   saveRescheduleRequests(requests);
-
+  closeRescheduleReviewModal();
+  renderAll();
   showToast("Reschedule request was rejected.");
 }
 function deleteAppt() {
@@ -2193,7 +2396,8 @@ function confirmDeleteAppt() {
   }
   removeAppointmentFromPatient(target);
   const requests = loadRescheduleRequests().filter(
-    (request) => String(request.appointmentId) !== String(deleteTargetId),
+    (request) =>
+      String(getRescheduleAppointmentId(request)) !== String(deleteTargetId),
   );
   saveRescheduleRequests(requests);
   appointments = appointments.filter((item) => item.id !== deleteTargetId);
@@ -2298,6 +2502,24 @@ function openStatusConfirmation(id, actionType) {
       icon.innerHTML = "";
     }
   }
+  if (actionType === "approveReschedule") {
+    title.textContent = "Approve Reschedule Request?";
+    message.textContent = `${appt.patient}'s appointment will be moved to the requested date and time.`;
+    button.textContent = "Yes, Approve";
+    if (icon) {
+      icon.innerHTML = '<i class="fa-solid fa-check"></i>';
+      icon.classList.remove("status-confirm-icon-warning");
+    }
+  }
+  if (actionType === "rejectReschedule") {
+    title.textContent = "Decline Reschedule Request?";
+    message.textContent = `${appt.patient} will be notified that the requested schedule change was not approved.`;
+    button.textContent = "Yes, Decline";
+    if (icon) {
+      icon.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+      icon.classList.add("status-confirm-icon-warning");
+    }
+  }
   overlay.classList.add("show");
 }
 function closeStatusConfirmation() {
@@ -2317,6 +2539,35 @@ function confirmStatusAction() {
   const appt = appointments.find((item) => item.id === statusActionTargetId);
   if (!appt) {
     closeStatusConfirmation();
+    return;
+  }
+  if (
+    statusActionType === "approveReschedule" ||
+    statusActionType === "rejectReschedule"
+  ) {
+    const requestId = rescheduleDecisionRequestId;
+    const actionType = statusActionType;
+    const request = loadRescheduleRequests().find(
+      (item) =>
+        String(getRescheduleRequestId(item)) === String(requestId) &&
+        getRescheduleStatus(item) === "pending",
+    );
+    if (!request) {
+      closeStatusConfirmation();
+      closeRescheduleReviewModal();
+      rescheduleDecisionRequestId = null;
+      showToast("The reschedule request is no longer pending.");
+      return;
+    }
+    closeStatusConfirmation();
+    if (actionType === "approveReschedule") {
+      const newDate = request.preferred_date || request.preferredDate || "";
+      const newTime = request.preferred_time || request.preferredTime || "";
+      approveRescheduleRequest(requestId, newDate, newTime);
+    } else {
+      rejectRescheduleRequest(requestId);
+    }
+    rescheduleDecisionRequestId = null;
     return;
   }
   if (statusActionType === "finishConsultation") {
@@ -2500,6 +2751,7 @@ function renderAll() {
   renderTimeline();
   renderWaitingQueue();
   renderRealtimeDentistsDuty();
+  renderRescheduleRequests();
   updateAppointmentSideTitle();
 }
 function renderScheduleOverview() {
@@ -2742,6 +2994,15 @@ function renderTimeline() {
     timeline.appendChild(row);
   }
 }
+function getPendingRescheduleRequestForAppointment(appointmentId) {
+  return (
+    loadRescheduleRequests().find(
+      (request) =>
+        String(getRescheduleAppointmentId(request)) === String(appointmentId) &&
+        getRescheduleStatus(request) === "pending",
+    ) || null
+  );
+}
 function createAppointmentCard(appt) {
   const card = document.createElement("div");
   card.className = "appt-card";
@@ -2762,7 +3023,18 @@ function createAppointmentCard(appt) {
   } else if (appt.status === APPOINTMENT_STATUS.READY_COMPLETE) {
     workflowText = " · Complete";
   }
-  info.innerHTML = `<div class="tooth-badge" style="background:${hexToRgba(dentist.color, 0.12)};color:${dentist.color};"><i class="fa-solid fa-tooth"></i></div><div class="appt-info" style="margin-left:14px;"><div class="pname">${escapeHtml(appt.patient)}</div><div class="ptype">${escapeHtml(appt.type)} · ${escapeHtml(dentist.name)}${workflowText}</div></div>`;
+  const pendingRescheduleRequest = getPendingRescheduleRequestForAppointment(
+    appt.id,
+  );
+  const preferredDate =
+    pendingRescheduleRequest?.preferred_date ||
+    pendingRescheduleRequest?.preferredDate ||
+    "";
+  const preferredTime =
+    pendingRescheduleRequest?.preferred_time ||
+    pendingRescheduleRequest?.preferredTime ||
+    "";
+  info.innerHTML = `<div class="tooth-badge" style="background:${hexToRgba(dentist.color, 0.12)};color:${dentist.color};"><i class="fa-solid fa-tooth"></i></div><div class="appt-info" style="margin-left:14px;"><div class="pname">${escapeHtml(appt.patient)}</div><div class="ptype">${escapeHtml(appt.type)} · ${escapeHtml(dentist.name)}${workflowText}</div>${pendingRescheduleRequest ? `<div class="appointment-reschedule-request"><span><i class="fa-solid fa-calendar-days"></i> Reschedule Requested</span><strong>Requested: ${escapeHtml(formatDateLong(preferredDate))} · ${escapeHtml(fmtTime(preferredTime))}</strong></div>` : ""}</div>`;
   const time = document.createElement("div");
   time.className = "appt-time-range";
   time.textContent = `${fmtTime(appt.start)} – ${fmtTime(getAppointmentEndTime(appt))}`;
@@ -2831,7 +3103,18 @@ function renderWaitingQueue() {
       color: "#9CA3AF",
     };
     const statusText = getStatusLabel(appt.status);
-    item.innerHTML = `<div class="queue-main"><div class="queue-avatar" style="background:${hexToRgba(dentist.color, 0.12)};color:${dentist.color};">${initials}</div><div class="queue-text"><span class="queue-name">${escapeHtml(appt.patient)}</span><span class="queue-time">Time ${escapeHtml(fmtTime(appt.start))}</span><span class="queue-dentist">${escapeHtml(dentist.name)}</span></div></div><div class="queue-type">${escapeHtml(statusText)}</div>`;
+    const pendingRescheduleRequest = getPendingRescheduleRequestForAppointment(
+      appt.id,
+    );
+    const preferredDate =
+      pendingRescheduleRequest?.preferred_date ||
+      pendingRescheduleRequest?.preferredDate ||
+      "";
+    const preferredTime =
+      pendingRescheduleRequest?.preferred_time ||
+      pendingRescheduleRequest?.preferredTime ||
+      "";
+    item.innerHTML = `<div class="queue-main"><div class="queue-avatar" style="background:${hexToRgba(dentist.color, 0.12)};color:${dentist.color};">${initials}</div><div class="queue-text"><span class="queue-name">${escapeHtml(appt.patient)}</span><span class="queue-time">Time ${escapeHtml(fmtTime(appt.start))}</span><span class="queue-dentist">${escapeHtml(dentist.name)}</span>${pendingRescheduleRequest ? `<div class="queue-reschedule-request"><span><i class="fa-solid fa-calendar-days"></i> Reschedule Requested</span><strong>${escapeHtml(formatDateLong(preferredDate))} · ${escapeHtml(fmtTime(preferredTime))}</strong></div>` : ""}</div></div><div class="queue-type">${escapeHtml(statusText)}</div>`;
     item.addEventListener("click", () => openViewModal(appt.id));
     list.appendChild(item);
   });

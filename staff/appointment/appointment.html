@@ -162,13 +162,11 @@
                       <div class="side-section-title-line">
                         <h3>Today's Appointments</h3>
                       </div>
-
-                      <span class="side-section-description">
-                        Today's appointments and current status
-                      </span>
+                      <span class="side-section-description"
+                        >Today's appointments and current status</span
+                      >
                     </div>
                   </div>
-
                   <button
                     type="button"
                     class="side-switch-btn"
@@ -178,24 +176,46 @@
                     <span>Dentists</span>
                   </button>
                 </div>
-
                 <div class="side-section-header" id="dentistsHeader">
                   <div class="side-section-title">
                     <div class="side-section-text">
                       <div class="side-section-title-line">
                         <h3>Dentists &amp; Availability</h3>
                       </div>
-
-                      <span class="side-section-description">
-                        Current dentist availability and schedule status
-                      </span>
+                      <span class="side-section-description"
+                        >Current dentist availability and schedule status</span
+                      >
                     </div>
                   </div>
-
                   <button
                     type="button"
                     class="side-switch-btn"
-                    id="showWaitingBtn"
+                    id="showRequestsBtn"
+                    onclick="showAppointmentSideSection('requests')"
+                  >
+                    <span>Requests</span>
+                  </button>
+                </div>
+                <div class="side-section-header" id="rescheduleRequestsHeader">
+                  <div class="side-section-title">
+                    <div class="side-section-text">
+                      <div class="side-section-title-line">
+                        <h3>Reschedule Requests</h3>
+                        <span
+                          class="reschedule-request-count"
+                          id="rescheduleRequestCount"
+                          >0</span
+                        >
+                      </div>
+                      <span class="side-section-description"
+                        >Patient requests waiting for staff review</span
+                      >
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    class="side-switch-btn"
+                    id="showWaitingFromRequestsBtn"
                     onclick="showAppointmentSideSection('waiting')"
                   >
                     <span>Today's Appointments</span>
@@ -206,9 +226,14 @@
               <div class="side-content-body active" id="waitingQueuePage">
                 <div class="waiting-queue-list" id="waitingQueueList"></div>
               </div>
-
               <div class="side-content-body" id="dentistsAvailabilityPage">
                 <div class="dentists-list" id="dentistsDutyList"></div>
+              </div>
+              <div class="side-content-body" id="rescheduleRequestsPage">
+                <div
+                  class="reschedule-request-list"
+                  id="rescheduleRequestList"
+                ></div>
               </div>
             </section>
           </div>
@@ -223,15 +248,26 @@
             <h3 id="modalTitle">New Appointment</h3>
             <span id="modalSubtitle" class="modal-subtitle"></span>
           </div>
-
-          <button
-            class="modal-close-icon"
-            type="button"
-            onclick="closeModal()"
-            aria-label="Close"
-          >
-            <i class="fa-solid fa-xmark"></i>
-          </button>
+          <div class="modal-header-actions">
+            <button
+              type="button"
+              class="btn-view-reschedule-request"
+              id="viewRescheduleRequestBtn"
+              onclick="openRescheduleReviewModal()"
+              style="display: none"
+            >
+              <i class="fa-solid fa-calendar-days"></i>
+              <span>View Request Schedule</span>
+            </button>
+            <button
+              class="modal-close-icon"
+              type="button"
+              onclick="closeModal()"
+              aria-label="Close"
+            >
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
         </div>
 
         <div class="modal-body">
@@ -526,6 +562,81 @@
       </div>
     </div>
 
+    <div class="reschedule-review-overlay" id="rescheduleReviewOverlay">
+      <div class="reschedule-review-box">
+        <div class="reschedule-review-header">
+          <div>
+            <h3>Reschedule Request</h3>
+            <span>Review the patient's requested schedule change</span>
+          </div>
+          <button
+            type="button"
+            class="reschedule-request-close"
+            onclick="closeRescheduleReviewModal()"
+            aria-label="Close"
+          >
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+        <div class="reschedule-review-body">
+          <div class="reschedule-review-patient">
+            <div class="reschedule-review-avatar" id="reviewRequestInitials">
+              EP
+            </div>
+            <div>
+              <strong id="reviewRequestPatient">Patient</strong>
+              <span id="reviewRequestService">Dental Appointment</span>
+            </div>
+          </div>
+          <div class="reschedule-review-schedules">
+            <div class="reschedule-review-schedule">
+              <span>Current Schedule</span>
+              <strong id="reviewRequestCurrentSchedule">—</strong>
+            </div>
+            <div class="reschedule-review-arrow">
+              <i class="fa-solid fa-arrow-right"></i>
+            </div>
+            <div class="reschedule-review-schedule requested">
+              <span>Requested Schedule</span>
+              <strong id="reviewRequestRequestedSchedule">—</strong>
+            </div>
+          </div>
+          <div class="reschedule-review-info">
+            <div class="reschedule-review-info-row">
+              <span>Reason</span>
+              <strong id="reviewRequestReason">—</strong>
+            </div>
+            <div class="reschedule-review-info-row">
+              <span>Dentist</span>
+              <strong id="reviewRequestDentist">—</strong>
+            </div>
+          </div>
+          <div class="reschedule-review-message">
+            <span>Message from Patient</span>
+            <p id="reviewRequestMessage">No message provided.</p>
+          </div>
+        </div>
+        <div class="reschedule-review-actions">
+          <button
+            type="button"
+            class="reschedule-review-decline"
+            onclick="openRescheduleDecisionConfirmation('reject')"
+          >
+            <i class="fa-solid fa-xmark"></i>
+            Decline
+          </button>
+          <button
+            type="button"
+            class="reschedule-review-approve"
+            onclick="openRescheduleDecisionConfirmation('approve')"
+          >
+            <i class="fa-solid fa-check"></i>
+            Approve
+          </button>
+        </div>
+      </div>
+    </div>
+
     <div class="delete-confirm-overlay" id="deleteConfirmOverlay">
       <div class="delete-confirm-box">
         <div class="delete-warning-icon">
@@ -600,31 +711,42 @@
       function showAppointmentSideSection(section) {
         const waitingHeader = document.getElementById("waitingQueueHeader");
         const dentistsHeader = document.getElementById("dentistsHeader");
+        const requestsHeader = document.getElementById(
+          "rescheduleRequestsHeader",
+        );
         const waitingPage = document.getElementById("waitingQueuePage");
         const dentistsPage = document.getElementById(
           "dentistsAvailabilityPage",
         );
-
+        const requestsPage = document.getElementById("rescheduleRequestsPage");
         if (
           !waitingHeader ||
           !dentistsHeader ||
+          !requestsHeader ||
           !waitingPage ||
-          !dentistsPage
+          !dentistsPage ||
+          !requestsPage
         ) {
           return;
         }
-
+        waitingHeader.classList.remove("active");
+        dentistsHeader.classList.remove("active");
+        requestsHeader.classList.remove("active");
+        waitingPage.classList.remove("active");
+        dentistsPage.classList.remove("active");
+        requestsPage.classList.remove("active");
         if (section === "dentists") {
-          waitingHeader.classList.remove("active");
           dentistsHeader.classList.add("active");
-          waitingPage.classList.remove("active");
           dentistsPage.classList.add("active");
           return;
         }
-
-        dentistsHeader.classList.remove("active");
+        if (section === "requests") {
+          requestsHeader.classList.add("active");
+          requestsPage.classList.add("active");
+          renderRescheduleRequests();
+          return;
+        }
         waitingHeader.classList.add("active");
-        dentistsPage.classList.remove("active");
         waitingPage.classList.add("active");
       }
 
@@ -646,7 +768,8 @@
         const dentistFilter = document.getElementById("dentistFilter");
 
         if (dentistFilter) {
-          dentistFilter.value = "villanueva";
+          selectedDentistFilter = getDefaultDentistId();
+          dentistFilter.value = selectedDentistFilter;
         }
 
         const queueList = document.getElementById("waitingQueueList");

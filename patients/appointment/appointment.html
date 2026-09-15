@@ -64,6 +64,46 @@
               View Request
             </button>
           </section>
+          <div
+            class="modal-overlay"
+            id="rescheduleDetailsModal"
+            aria-hidden="true"
+          >
+            <div class="modal-container reschedule-details-modal">
+              <div class="modal-header">
+                <div>
+                  <span class="modal-kicker">Schedule Request</span>
+                  <h3>Reschedule Request Details</h3>
+                  <p>Review the details and current status of your request.</p>
+                </div>
+              </div>
+              <div class="modal-body">
+                <div
+                  class="reschedule-details-status"
+                  id="rescheduleDetailsStatus"
+                ></div>
+                <div class="detail-grid" id="rescheduleDetailsContent"></div>
+              </div>
+              <div class="modal-actions">
+                <button
+                  type="button"
+                  class="btn-secondary"
+                  id="closeRescheduleDetails"
+                >
+                  Close
+                </button>
+                <button
+                  type="button"
+                  class="btn-primary"
+                  id="confirmRescheduleDetails"
+                  hidden
+                >
+                  <i class="fa-solid fa-check"></i>
+                  Confirm
+                </button>
+              </div>
+            </div>
+          </div>
           <div class="top-layout">
             <section class="panel upcoming-panel">
               <div class="panel-header upcoming-panel-header">
