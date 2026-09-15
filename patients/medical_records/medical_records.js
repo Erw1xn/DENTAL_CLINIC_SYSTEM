@@ -537,14 +537,18 @@ function saveProfileEdit(event) {
   const emergencyContact = $("editEmergencyContact").value.trim();
 
   if (!/^(09\d{9}|\+639\d{9})$/.test(phone)) {
-    $("editPhone").setCustomValidity("Please enter a valid Philippine phone number.");
+    $("editPhone").setCustomValidity(
+      "Please enter a valid Philippine phone number.",
+    );
     form.reportValidity();
     $("editPhone").setCustomValidity("");
     return;
   }
 
   if (!/^(09\d{9}|\+639\d{9})$/.test(emergencyContact)) {
-    $("editEmergencyContact").setCustomValidity("Please enter a valid Philippine emergency contact number.");
+    $("editEmergencyContact").setCustomValidity(
+      "Please enter a valid Philippine emergency contact number.",
+    );
     form.reportValidity();
     $("editEmergencyContact").setCustomValidity("");
     return;
