@@ -772,6 +772,11 @@ select:focus-visible {
   color: var(--red-500);
   border-color: #f2caca;
 }
+.appt-status-badge.cancelled {
+  background: #fff0f0;
+  color: #b84a4a;
+  border-color: #f0caca;
+}
 .waiting-panel {
   height: 560px;
   min-height: 560px;
@@ -917,6 +922,27 @@ select:focus-visible {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.queue-reschedule-request,
+.appointment-reschedule-request {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  margin-top: 7px;
+  padding: 5px 8px;
+  border-radius: 7px;
+  background: rgba(34, 125, 84, 0.08);
+  border: 1px solid rgba(34, 125, 84, 0.14);
+  color: var(--green-700);
+  font-size: 7.2px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+}
+.queue-reschedule-request i,
+.appointment-reschedule-request i {
+  font-size: 7px;
+}
 .queue-type {
   max-width: 105px;
   flex-shrink: 0;
@@ -930,6 +956,10 @@ select:focus-visible {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.queue-type.pending {
+  background: rgba(34, 125, 84, 0.09);
+  color: var(--green-700);
 }
 .empty-queue {
   width: 100%;

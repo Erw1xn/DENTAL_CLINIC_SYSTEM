@@ -808,6 +808,49 @@ textarea:focus-visible {
 .modal-overlay.show .modal-container {
   transform: translateY(0) scale(1);
 }
+.cancel-confirm-modal {
+  max-width: 470px;
+  border-color: #f1d8d8;
+  box-shadow:
+    0 28px 80px rgba(75, 26, 26, 0.2),
+    0 8px 25px rgba(75, 26, 26, 0.1);
+}
+.cancel-confirm-modal .modal-header {
+  min-height: 106px;
+  align-items: flex-start;
+  padding: 21px 22px 18px;
+  background: #fffafa;
+  border-bottom-color: #f4e2e2;
+}
+.cancel-confirm-modal .modal-kicker {
+  color: #b84a4a;
+}
+.cancel-confirm-modal .modal-header h3 {
+  margin-top: 6px;
+  font-size: 15px;
+  line-height: 1.25;
+}
+.cancel-confirm-modal .modal-header p {
+  max-width: 360px;
+  margin-top: 7px;
+  color: #6f7772;
+  font-size: 9px;
+  line-height: 1.55;
+}
+.cancel-confirm-modal .modal-close {
+  flex-shrink: 0;
+}
+.cancel-confirm-modal .modal-actions {
+  gap: 9px;
+  padding: 14px 22px 17px;
+  background: #fff;
+}
+.cancel-confirm-modal .modal-actions .btn-secondary,
+.cancel-confirm-modal .modal-actions .btn-delete {
+  min-height: 40px;
+  padding: 0 15px;
+  font-size: 9px;
+}
 .record-edit-overlay {
   z-index: 1100;
 }

@@ -1,6 +1,7 @@
 const APPOINTMENTS_STORAGE_KEY = "appointments";
 const LEGACY_STORAGE_KEY = "dentanueva_appointments";
 const DOCTORS_STORAGE_KEY = "dentanueva_doctors";
+const RESCHEDULE_REQUESTS_STORAGE_KEY = "dentanueva_reschedule_requests";
 const START_HOUR = 10;
 const END_HOUR = 20;
 const SLOT_MIN = 30;
@@ -9,6 +10,8 @@ const APPOINTMENT_STATUS = {
   IN_CONSULTATION: "in_consultation",
   READY_COMPLETE: "ready_complete",
   COMPLETED: "completed",
+  NO_SHOW: "no_show",
+  CANCELLED: "cancelled",
 };
 let appointments = [];
 let currentCalendarDate = new Date();
@@ -559,12 +562,16 @@ function getStatusLabel(status) {
   switch (status) {
     case APPOINTMENT_STATUS.SCHEDULED:
       return "Scheduled";
+    case APPOINTMENT_STATUS.CANCELLED:
+      return "Cancelled";
     case APPOINTMENT_STATUS.IN_CONSULTATION:
       return "In Consultation";
     case APPOINTMENT_STATUS.READY_COMPLETE:
       return "Ready to Complete";
     case APPOINTMENT_STATUS.COMPLETED:
       return "Completed";
+    case APPOINTMENT_STATUS.NO_SHOW:
+      return "No Show";
     default:
       return "Scheduled";
   }
@@ -585,7 +592,28 @@ function filteredAppts() {
     )
       .trim()
       .toLowerCase();
-    return appointmentDoctorId === doctorDentistId;
+    if (appointmentDoctorId !== doctorDentistId) return false;
+    if (appt.status !== APPOINTMENT_STATUS.CANCELLED) return true;
+    return !appointments.some((replacement) => {
+      if (replacement.id === appt.id) return false;
+      if (replacement.date !== appt.date) return false;
+      if (replacement.status === APPOINTMENT_STATUS.CANCELLED) return false;
+      const replacementDoctorId = String(
+        replacement.dentist ||
+          replacement.dentistId ||
+          replacement.dentist_id ||
+          "",
+      )
+        .trim()
+        .toLowerCase();
+      if (replacementDoctorId !== doctorDentistId) return false;
+      const cancelledStart = timeToMinutes(appt.start);
+      const replacementStart = timeToMinutes(replacement.start);
+      const cancelledEnd = cancelledStart + Number(appt.duration || 30);
+      const replacementEnd =
+        replacementStart + Number(replacement.duration || 30);
+      return replacementStart < cancelledEnd && replacementEnd > cancelledStart;
+    });
   });
   filtered = filtered.filter((appt) => {
     return appt.date === selectedDateKey;
@@ -781,11 +809,37 @@ function renderTimeline() {
     timeline.appendChild(row);
   }
 }
+function loadRescheduleRequests() {
+  try {
+    const stored = localStorage.getItem(RESCHEDULE_REQUESTS_STORAGE_KEY);
+    if (!stored) return [];
+    const parsed = JSON.parse(stored);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    console.error("Unable to load reschedule requests:", error);
+    return [];
+  }
+}
+function getPendingRescheduleRequestForAppointment(appointmentId) {
+  return (
+    loadRescheduleRequests().find(
+      (request) =>
+        String(request?.appointment_id || request?.appointmentId || "") ===
+          String(appointmentId) &&
+        String(request?.status || "")
+          .trim()
+          .toLowerCase() === "pending",
+    ) || null
+  );
+}
 function createAppointmentCard(appt) {
   const card = document.createElement("div");
   card.className = "appt-card";
   const initials = getInitials(appt.patient);
   const endTime = getAppointmentEndTime(appt);
+  const pendingRescheduleRequest = getPendingRescheduleRequestForAppointment(
+    appt.id,
+  );
   const info = document.createElement("div");
   info.style.display = "flex";
   info.style.alignItems = "center";
@@ -802,6 +856,7 @@ function createAppointmentCard(appt) {
       <div class="ptype">
         ${escapeHtml(appt.type)}
       </div>
+      ${pendingRescheduleRequest ? `<div class="appointment-reschedule-request"><span><i class="fa-solid fa-calendar-days"></i> Reschedule Requested</span></div>` : ""}
     </div>
   `;
   const time = document.createElement("div");
@@ -841,6 +896,9 @@ function renderWaitingQueue() {
     item.className = "queue-item";
     const initials = getInitials(appt.patient);
     const end = getAppointmentEndTime(appt);
+    const pendingRescheduleRequest = getPendingRescheduleRequestForAppointment(
+      appt.id,
+    );
     item.innerHTML = `
         <div class="queue-main">
           <div class="queue-avatar">
@@ -855,10 +913,11 @@ function renderWaitingQueue() {
               –
               ${fmtTime(end)}
             </span>
+            ${pendingRescheduleRequest ? `<span class="queue-reschedule-request"><i class="fa-solid fa-calendar-days"></i> Reschedule Requested</span>` : ""}
           </div>
         </div>
-        <div class="queue-type">
-          ${escapeHtml(appt.type)}
+        <div class="queue-type${pendingRescheduleRequest ? " pending" : ""}">
+          ${escapeHtml(appt.type)}${pendingRescheduleRequest ? " · Pending" : ""}
         </div>
       `;
     item.addEventListener("click", () => {
@@ -946,6 +1005,14 @@ function createAppointmentStatusButton(appt) {
   const wrapper = document.createElement("div");
   wrapper.className = "appt-status-area";
   if (appt.status === APPOINTMENT_STATUS.SCHEDULED) {
+    if (!isToday(appt.date)) {
+      const badge = document.createElement("span");
+      badge.className = "appt-status-badge scheduled";
+      badge.textContent = "Scheduled";
+      wrapper.appendChild(badge);
+      return wrapper;
+    }
+
     const button = document.createElement("button");
     button.type = "button";
     button.className = "appt-status-btn status-checkin";
@@ -955,6 +1022,16 @@ function createAppointmentStatusButton(appt) {
       checkInAppointment(appt.id);
     });
     wrapper.appendChild(button);
+
+    const noShowButton = document.createElement("button");
+    noShowButton.type = "button";
+    noShowButton.className = "appt-status-btn status-noshow";
+    noShowButton.innerHTML = '<i class="fa-solid fa-user-slash"></i> No Show';
+    noShowButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      openStatusConfirmation(appt.id, "markNoShow");
+    });
+    wrapper.appendChild(noShowButton);
     return wrapper;
   }
   if (appt.status === APPOINTMENT_STATUS.IN_CONSULTATION) {
@@ -988,6 +1065,20 @@ function createAppointmentStatusButton(appt) {
     wrapper.appendChild(badge);
     return wrapper;
   }
+  if (appt.status === APPOINTMENT_STATUS.NO_SHOW) {
+    const badge = document.createElement("span");
+    badge.className = "appt-status-badge no-show";
+    badge.textContent = "No Show";
+    wrapper.appendChild(badge);
+    return wrapper;
+  }
+  if (appt.status === APPOINTMENT_STATUS.CANCELLED) {
+    const badge = document.createElement("span");
+    badge.className = "appt-status-badge cancelled";
+    badge.textContent = "Cancelled";
+    wrapper.appendChild(badge);
+    return wrapper;
+  }
   return wrapper;
 }
 function checkInAppointment(id) {
@@ -1011,7 +1102,7 @@ function checkInAppointment(id) {
     });
     return;
   }
-  if (appt.status !== APPOINTMENT_STATUS.SCHEDULED) {
+  if (appt.status !== APPOINTMENT_STATUS.SCHEDULED || !isToday(appt.date)) {
     return;
   }
   appt.status = APPOINTMENT_STATUS.IN_CONSULTATION;
@@ -1042,6 +1133,12 @@ function openStatusConfirmation(id, actionType) {
     message.textContent = `Are you sure you want to mark ${appt.patient}'s appointment as completed?`;
     button.textContent = "Yes, Complete";
     icon.innerHTML = '<i class="fa-solid fa-circle-check"></i>';
+  }
+  if (actionType === "markNoShow") {
+    title.textContent = "Mark as No Show?";
+    message.textContent = `${appt.patient}'s appointment was not checked in on the scheduled date. Marking this as No Show will close the appointment as missed.`;
+    button.textContent = "Yes, Mark No Show";
+    icon.innerHTML = '<i class="fa-solid fa-user-slash"></i>';
   }
   overlay.classList.add("show");
 }
@@ -1104,6 +1201,18 @@ function confirmStatusAction() {
     closeStatusConfirmation();
     renderAll();
     showToast(`${appt.patient}'s appointment is now completed.`);
+    return;
+  }
+  if (statusActionType === "markNoShow") {
+    if (appt.status !== APPOINTMENT_STATUS.SCHEDULED || !isToday(appt.date)) {
+      closeStatusConfirmation();
+      return;
+    }
+    appt.status = APPOINTMENT_STATUS.NO_SHOW;
+    saveAppointmentsToStorage();
+    closeStatusConfirmation();
+    renderAll();
+    showToast(`${appt.patient} has been marked as No Show.`);
   }
 }
 function getInitials(name) {

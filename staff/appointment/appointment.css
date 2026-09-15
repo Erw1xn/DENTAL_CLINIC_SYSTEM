@@ -1056,6 +1056,11 @@ select:focus-visible {
   color: var(--red-500);
   border-color: #f2caca;
 }
+.appt-status-badge.cancelled {
+  background: #fff0f0;
+  color: #b84a4a;
+  border-color: #f0caca;
+}
 .modal-overlay {
   position: fixed;
   inset: 0;

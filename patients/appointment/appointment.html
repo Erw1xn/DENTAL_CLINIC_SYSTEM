@@ -1050,9 +1050,52 @@
             <i class="fa-solid fa-trash"></i>
             Delete
           </button>
+          <button type="button" class="btn-delete" id="cancelAppointmentBtn">
+            <i class="fa-solid fa-ban"></i>
+            Cancel Appointment
+          </button>
           <button type="button" class="btn-request" id="requestRescheduleBtn">
             <i class="fa-solid fa-calendar-days"></i>
             Request Reschedule
+          </button>
+        </div>
+      </div>
+    </div>
+    <div
+      class="modal-overlay"
+      id="cancelAppointmentConfirmModal"
+      aria-hidden="true"
+    >
+      <div class="modal-container cancel-confirm-modal">
+        <div class="modal-header">
+          <div>
+            <span class="modal-kicker">Cancel Appointment</span>
+            <h3>Cancel this appointment?</h3>
+            <p id="cancelAppointmentConfirmMessage">
+              The time slot will become available again and this appointment
+              will stay in your history.
+            </p>
+          </div>
+          <button
+            type="button"
+            class="modal-close"
+            id="closeCancelAppointmentConfirm"
+            aria-label="Close"
+          >
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+        <div class="modal-actions detail-actions">
+          <button type="button" class="btn-secondary" id="keepAppointmentBtn">
+            Keep Appointment
+          </button>
+          <button
+            type="button"
+            class="btn-delete"
+            id="confirmCancelAppointmentBtn"
+          >
+            <i class="fa-solid fa-ban"></i>
+            Yes, Cancel Appointment
           </button>
         </div>
       </div>

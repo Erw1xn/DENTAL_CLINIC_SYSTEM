@@ -43,6 +43,7 @@ const APPOINTMENT_STATUS = {
   READY_COMPLETE: "ready_complete",
   COMPLETED: "completed",
   NO_SHOW: "no_show",
+  CANCELLED: "cancelled",
 };
 let appointments = [];
 let patients = [];
@@ -450,6 +451,16 @@ function findPatientByName(name) {
     ) || null
   );
 }
+function patientHasAccount(patient) {
+  if (!patient) return false;
+  return Boolean(
+    patient.userId ||
+    patient.user_id ||
+    patient.userIdRef ||
+    patient.accountId ||
+    patient.account_id,
+  );
+}
 function setupPatientDatalist() {
   refreshPatientSelector();
 }
@@ -662,6 +673,8 @@ function normalizeAppointment(appt) {
     scheduled: APPOINTMENT_STATUS.SCHEDULED,
     pending: APPOINTMENT_STATUS.SCHEDULED,
     confirmed: APPOINTMENT_STATUS.SCHEDULED,
+    cancelled: APPOINTMENT_STATUS.CANCELLED,
+    canceled: APPOINTMENT_STATUS.CANCELLED,
     in_consultation: APPOINTMENT_STATUS.IN_CONSULTATION,
     "in-consultation": APPOINTMENT_STATUS.IN_CONSULTATION,
     ready_complete: APPOINTMENT_STATUS.READY_COMPLETE,
@@ -829,7 +842,8 @@ function updatePatientNextAppointment(patient, linkedAppointments = null) {
       (appt) =>
         appt.date >= todayKey &&
         appt.status !== APPOINTMENT_STATUS.COMPLETED &&
-        appt.status !== APPOINTMENT_STATUS.NO_SHOW,
+        appt.status !== APPOINTMENT_STATUS.NO_SHOW &&
+        appt.status !== APPOINTMENT_STATUS.CANCELLED,
     )
     .sort((a, b) => {
       if (a.date !== b.date) {
@@ -1018,11 +1032,47 @@ function findDentistConflict(date, start, duration, dentist, ignoreId = null) {
       }
       if (
         appt.status === APPOINTMENT_STATUS.COMPLETED ||
-        appt.status === APPOINTMENT_STATUS.NO_SHOW
+        appt.status === APPOINTMENT_STATUS.NO_SHOW ||
+        appt.status === APPOINTMENT_STATUS.CANCELLED
       ) {
         return false;
       }
       return appointmentsOverlap(start, duration, appt.start, appt.duration);
+    }) || null
+  );
+}
+function findPatientBookingConflict(patientId, date, start, ignoreId = null) {
+  const normalizedId = String(patientId || "")
+    .trim()
+    .toLowerCase();
+  if (!normalizedId) return null;
+
+  return (
+    appointments.find((appt) => {
+      if (String(appt.id) === String(ignoreId)) {
+        return false;
+      }
+      const appointmentPatientId = String(
+        appt.patientId || appt.patient_id || appt.patientID || "",
+      )
+        .trim()
+        .toLowerCase();
+      if (appointmentPatientId !== normalizedId) {
+        return false;
+      }
+      if (
+        appt.status === APPOINTMENT_STATUS.COMPLETED ||
+        appt.status === APPOINTMENT_STATUS.NO_SHOW ||
+        appt.status === APPOINTMENT_STATUS.CANCELLED
+      ) {
+        return false;
+      }
+      if (isPastDate(appt.date)) {
+        return false;
+      }
+
+      if (!date) return true;
+      return appt.date === date || (!start && Boolean(appt.date));
     }) || null
   );
 }
@@ -1418,12 +1468,18 @@ function openNewModal(date = null, time = null) {
   const selectedKey = date || dateToKey(selectedDate);
   const patientInput = document.getElementById("f_patient");
   const dateInput = document.getElementById("f_date");
+  if (isPastDate(selectedKey)) {
+    selectedDate = new Date();
+  }
   const typeInput = document.getElementById("f_type");
   const durationInput = document.getElementById("f_duration");
   const dentistInput = document.getElementById("f_dentist");
   patientInput.value = "";
   patientInput.dataset.patientId = "";
-  dateInput.value = selectedKey;
+  dateInput.min = dateToKey(new Date());
+  dateInput.value = isPastDate(selectedKey)
+    ? dateToKey(new Date())
+    : selectedKey;
   typeInput.value = "Consultation";
   durationInput.value = SERVICE_DURATIONS.Consultation;
   dentistInput.value = selectedDentistFilter || getDefaultDentistId();
@@ -1498,16 +1554,28 @@ function openViewModal(id) {
   setFormReadOnly(true);
   saveBtn.style.display = "none";
   deleteBtn.style.display = "flex";
+  const hasPatientAccount = patientHasAccount(linkedPatient);
   requestRescheduleBtn.style.display =
-    appt.status === APPOINTMENT_STATUS.SCHEDULED && !isPastDate(appt.date)
+    hasPatientAccount &&
+    appt.status === APPOINTMENT_STATUS.SCHEDULED &&
+    !isPastDate(appt.date)
       ? "inline-flex"
       : "none";
   const pendingPatientRequest =
     getPendingPatientRescheduleRequestForAppointment(appt.id);
+  const hasPendingPatientRequest = Boolean(pendingPatientRequest);
   if (viewRescheduleRequestBtn) {
-    viewRescheduleRequestBtn.style.display = pendingPatientRequest
-      ? "inline-flex"
-      : "none";
+    viewRescheduleRequestBtn.style.display =
+      hasPatientAccount && hasPendingPatientRequest ? "inline-flex" : "none";
+  }
+  if (requestRescheduleBtn) {
+    requestRescheduleBtn.style.display =
+      hasPatientAccount &&
+      appt.status === APPOINTMENT_STATUS.SCHEDULED &&
+      !isPastDate(appt.date) &&
+      !hasPendingPatientRequest
+        ? "inline-flex"
+        : "none";
   }
   viewNotice.classList.add("show");
   conflictNotice.classList.remove("show");
@@ -1728,6 +1796,21 @@ function saveAppt() {
   const dentist = document.getElementById("f_dentist").value;
   if (!patientId || !patient) {
     showToast("Please select an existing patient.");
+    return;
+  }
+  const patientConflict = findPatientBookingConflict(
+    patientId,
+    date,
+    start,
+    editingId || null,
+  );
+  if (patientConflict) {
+    const conflictDate = formatDateLong(patientConflict.date);
+    const conflictTime = fmtTime(patientConflict.start);
+    document.getElementById("scheduleConflictText").textContent =
+      `${getPatientFullName(patient)} already has an active appointment scheduled on ${conflictDate} at ${conflictTime}. Please complete or delete the current appointment before adding another one.`;
+    document.getElementById("scheduleConflictNotice").classList.add("show");
+    showToast("This patient already has an active appointment scheduled.");
     return;
   }
   if (!date) {
@@ -2201,6 +2284,36 @@ function getPendingPatientRescheduleRequestForAppointment(appointmentId) {
   );
 }
 
+function getApprovedRescheduleCountForAppointment(appointmentId) {
+  if (!appointmentId) return 0;
+  return loadRescheduleRequests().filter((request) => {
+    const requestAppointmentId =
+      request?.appointment_id || request?.appointmentId || "";
+    const status = String(request?.status || "")
+      .trim()
+      .toLowerCase();
+    return (
+      String(requestAppointmentId) === String(appointmentId) &&
+      status === "approved"
+    );
+  }).length;
+}
+function getAppointmentRescheduleCount(appointment) {
+  if (!appointment) return 0;
+  const explicitCount = Number(
+    appointment?.approvedRescheduleCount ??
+      appointment?.rescheduleCount ??
+      appointment?.reschedule_count ??
+      0,
+  );
+  if (Number.isFinite(explicitCount) && explicitCount > 0) {
+    return explicitCount;
+  }
+  return getApprovedRescheduleCountForAppointment(appointment?.id || "");
+}
+function hasReachedAppointmentRescheduleLimit(appointment) {
+  return getAppointmentRescheduleCount(appointment) >= 2;
+}
 function renderRescheduleRequests() {
   const list = document.getElementById("rescheduleRequestList");
   const count = document.getElementById("rescheduleRequestCount");
@@ -2238,6 +2351,7 @@ function renderRescheduleRequests() {
     const reason = request.reason || "Reschedule request";
     const message = request.message || "";
     const requestId = getRescheduleRequestId(request);
+    const currentRescheduleCount = getAppointmentRescheduleCount(appointment);
     const card = document.createElement("div");
     card.className = "reschedule-request-card";
     card.innerHTML = `
@@ -2263,6 +2377,7 @@ function renderRescheduleRequests() {
       <div class="reschedule-request-meta">
         <span><strong>Reason:</strong> ${escapeHtml(reason)}</span>
         <span><strong>Dentist:</strong> ${escapeHtml(dentist)}</span>
+        <span><strong>Approved Reschedules:</strong> ${currentRescheduleCount}/2</span>
       </div>
       ${message ? `<div class="reschedule-request-message"><span>Message from Patient</span><p>${escapeHtml(message)}</p></div>` : ""}
       <div class="reschedule-request-actions">
@@ -2301,6 +2416,12 @@ function approveRescheduleRequest(requestId, newDate, newTime) {
     showToast("The appointment could not be found.");
     return;
   }
+  if (hasReachedAppointmentRescheduleLimit(appointment)) {
+    showToast(
+      "This appointment has already reached the maximum of 2 approved reschedules.",
+    );
+    return;
+  }
   if (!newDate || !newTime) {
     showToast("Please select a valid date and time.");
     return;
@@ -2333,6 +2454,7 @@ function approveRescheduleRequest(requestId, newDate, newTime) {
     showToast("The selected time is already occupied.");
     return;
   }
+  const nextCount = getAppointmentRescheduleCount(appointment) + 1;
   appointment.date = newDate;
   appointment.appointment_date = newDate;
   appointment.appointmentDate = newDate;
@@ -2342,11 +2464,23 @@ function approveRescheduleRequest(requestId, newDate, newTime) {
   appointment.appointmentTime = newTime;
   appointment.appointment_id = appointment.id;
   appointment.appointmentId = appointment.id;
+  appointment.approvedRescheduleCount = nextCount;
+  appointment.rescheduleCount = nextCount;
+  appointment.reschedule_count = nextCount;
   appointment.rescheduleRequest = null;
   request.status = "Approved";
+  request.approved_reschedule_count = nextCount;
   request.approved_at = new Date().toISOString();
   request.approved_date = newDate;
   request.approved_time = newTime;
+  request.approvedDate = newDate;
+  request.approvedTime = newTime;
+  request.patientAcknowledged = false;
+  request.patientAcknowledgedAt = null;
+  request.patient_response_at =
+    request.patient_response_at ||
+    request.updatedAt ||
+    new Date().toISOString();
   requests[requestIndex] = request;
   saveRescheduleRequests(requests);
   saveAppointmentsToStorage();
@@ -2709,6 +2843,24 @@ function createAppointmentStatusButton(appt) {
     wrapper.appendChild(badge);
     return wrapper;
   }
+  if (appt.status === APPOINTMENT_STATUS.CANCELLED) {
+    const badge = document.createElement("span");
+    badge.className = "appt-status-badge cancelled";
+    badge.textContent = "Cancelled";
+    wrapper.appendChild(badge);
+    if (!isPastDate(appt.date)) {
+      const openButton = document.createElement("button");
+      openButton.type = "button";
+      openButton.className = "appt-status-btn status-payment";
+      openButton.textContent = "Open Slot";
+      openButton.addEventListener("click", (event) => {
+        event.stopPropagation();
+        openNewModal(appt.date, appt.start);
+      });
+      wrapper.appendChild(openButton);
+    }
+    return wrapper;
+  }
   return wrapper;
 }
 function updateAppointmentSideTitle() {
@@ -2869,6 +3021,17 @@ function filteredAppts() {
     .toLowerCase();
   return appointments
     .filter((appt) => appt.date === dateKey)
+    .filter(
+      (appt) =>
+        appt.status !== APPOINTMENT_STATUS.CANCELLED ||
+        !findDentistConflict(
+          appt.date,
+          appt.start,
+          appt.duration,
+          appt.dentist,
+          appt.id,
+        ),
+    )
     .filter((appt) => {
       const appointmentDentistId = resolveDentistId(
         appt.dentist ||
@@ -3058,6 +3221,7 @@ function renderWaitingQueue() {
   const selectedAppointments = appointments
     .filter((appt) => appt.date === selectedKey)
     .filter((appt) => appointmentMatchesDentist(appt))
+    .filter((appt) => appt.status !== APPOINTMENT_STATUS.CANCELLED)
     .filter((appt) => {
       if (selectedIsPast) return true;
       if (selectedIsToday) {

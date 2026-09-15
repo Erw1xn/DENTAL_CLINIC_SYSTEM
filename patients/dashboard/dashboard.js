@@ -1,13 +1,11 @@
 document.addEventListener("DOMContentLoaded", () => {
   initializePatientDashboard();
 });
-
 const APPOINTMENTS_STORAGE_KEY = "appointments";
 const PATIENTS_STORAGE_KEY = "dentanueva_patients";
 const TRANSACTIONS_STORAGE_KEY = "dentaNuevaFinanceTransactions";
 const RECORDS_STORAGE_KEY = "dentanueva_patient_records";
 const LOGGED_IN_PATIENT_KEY = "loggedInPatient";
-
 const patientDashboardData = {
   patient: null,
   appointments: [],
@@ -15,21 +13,16 @@ const patientDashboardData = {
   transactions: [],
   notifications: [],
 };
-
 function initializePatientDashboard() {
   updateDateTime();
   setInterval(updateDateTime, 1000);
-
   loadPatientDashboardData();
   renderPatientDashboard();
-
   setupAppointmentInteractions();
-
   window.addEventListener("focus", () => {
     loadPatientDashboardData();
     renderPatientDashboard();
   });
-
   window.addEventListener("storage", (event) => {
     if (
       [
@@ -44,19 +37,15 @@ function initializePatientDashboard() {
       renderPatientDashboard();
     }
   });
-
   window.addEventListener("appointmentStatusChanged", refreshPatientDashboard);
-
   window.addEventListener("appointmentsUpdated", refreshPatientDashboard);
   window.addEventListener("patientsUpdated", refreshPatientDashboard);
   window.addEventListener("patientAdded", refreshPatientDashboard);
 }
-
 function refreshPatientDashboard() {
   loadPatientDashboardData();
   renderPatientDashboard();
 }
-
 function loadPatientDashboardData() {
   patientDashboardData.patient = getCurrentPatient();
   patientDashboardData.appointments = getStoredAppointments();
@@ -64,7 +53,6 @@ function loadPatientDashboardData() {
   patientDashboardData.transactions = getStoredTransactions();
   patientDashboardData.notifications = getNotifications();
 }
-
 function getCurrentPatient() {
   let currentUser = null;
   try {
@@ -78,10 +66,8 @@ function getCurrentPatient() {
   } catch (error) {
     currentUser = null;
   }
-
   const patientsData = readJSON(PATIENTS_STORAGE_KEY);
   const patients = extractPatients(patientsData);
-
   const possiblePatientIds = [
     currentUser?.patientId,
     currentUser?.patientID,
@@ -96,7 +82,6 @@ function getCurrentPatient() {
       (value) => value !== null && value !== undefined && String(value).trim(),
     )
     .map((value) => String(value).trim().toLowerCase());
-
   for (const patient of patients) {
     const patientIds = [
       patient?.patientId,
@@ -111,18 +96,15 @@ function getCurrentPatient() {
           value !== null && value !== undefined && String(value).trim(),
       )
       .map((value) => String(value).trim().toLowerCase());
-
     if (possiblePatientIds.some((id) => patientIds.includes(id))) {
       return patient;
     }
   }
-
   const currentUsername =
     currentUser?.username ||
     localStorage.getItem("currentPatientUsername") ||
     localStorage.getItem("username") ||
     localStorage.getItem("loggedInUsername");
-
   if (currentUsername) {
     const matchedPatient = patients.find(
       (patient) =>
@@ -130,18 +112,15 @@ function getCurrentPatient() {
           .trim()
           .toLowerCase() === String(currentUsername).trim().toLowerCase(),
     );
-
     if (matchedPatient) {
       return matchedPatient;
     }
   }
-
   const currentEmail =
     currentUser?.email ||
     localStorage.getItem("currentPatientEmail") ||
     localStorage.getItem("patientEmail") ||
     localStorage.getItem("email");
-
   if (currentEmail) {
     const matchedPatient = patients.find(
       (patient) =>
@@ -149,23 +128,18 @@ function getCurrentPatient() {
           .trim()
           .toLowerCase() === String(currentEmail).trim().toLowerCase(),
     );
-
     if (matchedPatient) {
       return matchedPatient;
     }
   }
-
   const currentPatient =
     readJSON("currentPatient") || readJSON("loggedInPatient");
-
   if (currentPatient && typeof currentPatient === "object") {
     return currentPatient;
   }
-
   if (patients.length === 1) {
     return patients[0];
   }
-
   return {
     id: "",
     firstName: "Patient",
@@ -173,30 +147,23 @@ function getCurrentPatient() {
     fullName: "Patient",
   };
 }
-
 function getPatientName(patient) {
   if (!patient) {
     return "Patient";
   }
-
   const fullName = patient.fullName || patient.full_name || patient.name || "";
-
   if (String(fullName).trim()) {
     return String(fullName).trim();
   }
-
   const firstName = patient.firstName || patient.first_name || "";
   const lastName = patient.lastName || patient.last_name || "";
   const name = `${firstName} ${lastName}`.trim();
-
   return name || "Patient";
 }
-
 function getPatientIdentity(patient) {
   if (!patient || typeof patient !== "object") {
     return "";
   }
-
   return String(
     patient.patientId ??
       patient.patientID ??
@@ -209,19 +176,15 @@ function getPatientIdentity(patient) {
     .trim()
     .toLowerCase();
 }
-
 function getStoredAppointments() {
   const data = readJSON(APPOINTMENTS_STORAGE_KEY);
-
   if (!Array.isArray(data)) {
     return [];
   }
-
   return data
     .map(normalizeAppointment)
     .filter((appointment) => isAppointmentForCurrentPatient(appointment));
 }
-
 function normalizeAppointment(appointment) {
   if (!appointment || typeof appointment !== "object") {
     return {
@@ -235,13 +198,11 @@ function normalizeAppointment(appointment) {
       status: "scheduled",
     };
   }
-
   const details =
     appointment.appointmentDetails ||
     appointment.details ||
     appointment.appointment_details ||
     {};
-
   const patientId =
     appointment.patientId ??
     appointment.patientID ??
@@ -250,7 +211,6 @@ function normalizeAppointment(appointment) {
     details.patientID ??
     details.patient_id ??
     "";
-
   const patientName =
     appointment.patientName ||
     appointment.patient ||
@@ -264,7 +224,6 @@ function normalizeAppointment(appointment) {
     details.name ||
     details.fullName ||
     "";
-
   const dentist =
     appointment.dentistName ||
     appointment.doctorName ||
@@ -285,7 +244,6 @@ function normalizeAppointment(appointment) {
     details.dentistId ||
     details.doctorId ||
     "";
-
   const service =
     appointment.serviceType ||
     appointment.service ||
@@ -302,7 +260,6 @@ function normalizeAppointment(appointment) {
     details.procedureType ||
     details.treatment ||
     "Appointment";
-
   const date =
     appointment.appointmentDate ||
     appointment.appointment_date ||
@@ -315,7 +272,6 @@ function normalizeAppointment(appointment) {
     details.scheduledDate ||
     details.scheduled_date ||
     "";
-
   const time =
     appointment.appointmentTime ||
     appointment.appointment_time ||
@@ -334,7 +290,6 @@ function normalizeAppointment(appointment) {
     details.scheduledTime ||
     details.scheduled_time ||
     "";
-
   return {
     ...appointment,
     id:
@@ -357,14 +312,12 @@ function normalizeAppointment(appointment) {
     ),
   };
 }
-
 function normalizeAppointmentStatus(status) {
   const value = String(status || "")
     .trim()
     .toLowerCase()
-    .replace(/[_-]+/g, " ")
+    .replace(/[\_\-]+/g, " ")
     .replace(/\s+/g, " ");
-
   if (
     value === "" ||
     value === "scheduled" ||
@@ -375,15 +328,12 @@ function normalizeAppointmentStatus(status) {
   ) {
     return "scheduled";
   }
-
   if (value === "checkedin" || value === "checked in" || value === "check in") {
     return "checkedin";
   }
-
   if (value === "in consultation" || value === "inconsultation") {
     return "in consultation";
   }
-
   if (
     value === "complete" ||
     value === "ready complete" ||
@@ -391,33 +341,25 @@ function normalizeAppointmentStatus(status) {
   ) {
     return "complete";
   }
-
   if (value === "completed" || value === "done") {
     return "completed";
   }
-
   if (value === "cancelled" || value === "canceled") {
     return "cancelled";
   }
-
   if (value === "no show" || value === "noshow") {
     return "no-show";
   }
-
   return "scheduled";
 }
-
 function resolveDentistName(value) {
   if (!value) {
     return "Unassigned";
   }
-
   const original = String(value).trim();
-
   if (!original) {
     return "Unassigned";
   }
-
   const normalized = original
     .toLowerCase()
     .replace(/^dr\.\s*/i, "")
@@ -425,7 +367,6 @@ function resolveDentistName(value) {
     .replace(/^doctor\s+/i, "")
     .replace(/\s+/g, "")
     .replace(/[-_]/g, "");
-
   const dentistMap = {
     santos: "Dr. Santos",
     msantos: "Dr. Santos",
@@ -443,11 +384,9 @@ function resolveDentistName(value) {
     jramos: "Dr. Ramos",
     drramos: "Dr. Ramos",
   };
-
   if (dentistMap[normalized]) {
     return dentistMap[normalized];
   }
-
   if (
     /^dr\./i.test(original) ||
     /^dr\s/i.test(original) ||
@@ -455,10 +394,8 @@ function resolveDentistName(value) {
   ) {
     return original;
   }
-
   return capitalizeDentistName(original);
 }
-
 function capitalizeDentistName(value) {
   return String(value)
     .trim()
@@ -467,32 +404,25 @@ function capitalizeDentistName(value) {
       if (!part) {
         return "";
       }
-
       return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
     })
     .join(" ");
 }
-
 function isAppointmentForCurrentPatient(appointment) {
   const patient = patientDashboardData.patient;
-
   if (!patient) {
     return false;
   }
-
   const currentPatientId = getPatientIdentity(patient);
   const appointmentPatientId = String(appointment.patientId || "")
     .trim()
     .toLowerCase();
-
   if (currentPatientId && appointmentPatientId) {
     if (currentPatientId === appointmentPatientId) {
       return true;
     }
-
     const patientsData = readJSON(PATIENTS_STORAGE_KEY);
     const patients = extractPatients(patientsData);
-
     const matchedPatient = patients.find((item) => {
       const ids = [
         item?.patientId,
@@ -507,25 +437,19 @@ function isAppointmentForCurrentPatient(appointment) {
             value !== null && value !== undefined && String(value).trim(),
         )
         .map((value) => String(value).trim().toLowerCase());
-
       return ids.includes(appointmentPatientId);
     });
-
     if (matchedPatient) {
       const matchedId = getPatientIdentity(matchedPatient);
-
       if (matchedId === currentPatientId) {
         return true;
       }
     }
   }
-
   const currentPatientName = getPatientName(patient).trim().toLowerCase();
-
   const appointmentPatientName = String(appointment.patientName || "")
     .trim()
     .toLowerCase();
-
   if (
     currentPatientName &&
     currentPatientName !== "patient" &&
@@ -534,61 +458,50 @@ function isAppointmentForCurrentPatient(appointment) {
   ) {
     return true;
   }
-
   return false;
 }
-
 function renderPatientDashboard() {
   updateWelcome();
   updateSummaryCards();
+  renderAppointmentSummary();
   renderTodayAppointments();
+  updateDashboardTooltips();
 }
-
 function updateWelcome() {
   const title = document.getElementById("welcomeTitle");
-
   if (!title) {
     return;
   }
-
   const name = getPatientName(patientDashboardData.patient);
   const firstName = name.split(/\s+/)[0] || "Patient";
-
   title.textContent = `Good day, ${firstName}!`;
 }
-
 function updateSummaryCards() {
   const upcoming = getUpcomingAppointments();
   const nextAppointment = upcoming[0] || null;
   const paymentTotals = calculatePaymentTotals();
   const medicalRecordComplete = isMedicalRecordComplete();
-
   setText(
     "statNextAppointment",
     nextAppointment ? formatAppointmentDate(nextAppointment.date) : "None",
   );
-
   setText(
     "statNextAppointmentInfo",
     nextAppointment
       ? `${formatDisplayTime(nextAppointment.time)} • ${nextAppointment.service}`
       : "No upcoming appointment",
   );
-
   setText("statBalance", formatCurrency(paymentTotals.balance));
-
   setText(
     "statBalanceInfo",
     paymentTotals.balance > 0
       ? "Outstanding payment"
       : "No outstanding balance",
   );
-
   setText(
     "statMedicalRecord",
     medicalRecordComplete ? "Completed" : "Incomplete",
   );
-
   setText(
     "statMedicalRecordInfo",
     medicalRecordComplete
@@ -596,20 +509,166 @@ function updateSummaryCards() {
       : "Medical form needs to be completed",
   );
 }
-
+function updateDashboardTooltips() {
+  const nextAppointmentCard = document.getElementById("nextAppointmentCard");
+  const currentBalanceCard = document.getElementById("currentBalanceCard");
+  const medicalRecordCard = document.getElementById("medicalRecordCard");
+  const nextAppointment = getUpcomingAppointments()[0] || null;
+  const paymentTotals = calculatePaymentTotals();
+  const medicalRecordComplete = isMedicalRecordComplete();
+  if (nextAppointmentCard) {
+    nextAppointmentCard.title = nextAppointment
+      ? `Next Appointment: ${formatAppointmentDate(nextAppointment.date)} • ${formatDisplayTime(nextAppointment.time)} • ${nextAppointment.service}`
+      : "Next Appointment: None • No upcoming appointment";
+  }
+  if (currentBalanceCard) {
+    currentBalanceCard.title = `Current Balance: ${formatCurrency(paymentTotals.balance)} • ${paymentTotals.balance > 0 ? "Outstanding payment" : "No outstanding balance"}`;
+  }
+  if (medicalRecordCard) {
+    medicalRecordCard.title = `Medical Record: ${medicalRecordComplete ? "Completed" : "Incomplete"} • ${medicalRecordComplete ? "Medical form is completed" : "Medical form needs to be completed"}`;
+  }
+  const appointmentsList = document.getElementById("appointmentsList");
+  if (appointmentsList) {
+    const today = getTodayDate();
+    const appointments = patientDashboardData.appointments.filter(
+      (appointment) => {
+        const appointmentDate = normalizeAppointmentDate(appointment.date);
+        return (
+          appointmentDate === today &&
+          appointment.status !== "cancelled" &&
+          appointment.status !== "no-show"
+        );
+      },
+    );
+    appointmentsList.title =
+      appointments.length === 0
+        ? "No appointments scheduled for today"
+        : "Today's Appointments • Today's scheduled patients";
+  }
+  const summaryTotalCard = document.getElementById("summaryTotalCard");
+  const summaryCompletedCard = document.getElementById("summaryCompletedCard");
+  const summaryScheduledCard = document.getElementById("summaryScheduledCard");
+  const summaryRescheduledCard = document.getElementById(
+    "summaryRescheduledCard",
+  );
+  const summaryCancelledCard = document.getElementById("summaryCancelledCard");
+  const summaryNoShowCard = document.getElementById("summaryNoShowCard");
+  const summaryTooltips = [
+    [
+      summaryTotalCard,
+      "Total Appointments",
+      document.getElementById("summaryTotalAppointments"),
+    ],
+    [
+      summaryCompletedCard,
+      "Completed",
+      document.getElementById("summaryCompletedAppointments"),
+    ],
+    [
+      summaryScheduledCard,
+      "Scheduled",
+      document.getElementById("summaryScheduledAppointments"),
+    ],
+    [
+      summaryRescheduledCard,
+      "Rescheduled",
+      document.getElementById("summaryRescheduledAppointments"),
+    ],
+    [
+      summaryCancelledCard,
+      "Cancelled",
+      document.getElementById("summaryCancelledAppointments"),
+    ],
+    [
+      summaryNoShowCard,
+      "No Show",
+      document.getElementById("summaryNoShowAppointments"),
+    ],
+  ];
+  summaryTooltips.forEach(([card, label, valueElement]) => {
+    if (card && valueElement) {
+      card.title = `${label}: ${valueElement.textContent}`;
+    }
+  });
+}
+function renderAppointmentSummary() {
+  const appointments = patientDashboardData.appointments;
+  const summary = {
+    total: appointments.length,
+    completed: 0,
+    scheduled: 0,
+    rescheduled: 0,
+    cancelled: 0,
+    noShow: 0,
+  };
+  appointments.forEach((appointment) => {
+    const status = normalizeAppointmentStatus(appointment.status);
+    if (status === "completed") {
+      summary.completed += 1;
+    } else if (status === "scheduled") {
+      summary.scheduled += 1;
+    } else if (status === "cancelled") {
+      summary.cancelled += 1;
+    } else if (status === "no-show") {
+      summary.noShow += 1;
+    }
+    if (isAppointmentRescheduled(appointment)) {
+      summary.rescheduled += 1;
+    }
+  });
+  setText("summaryTotalAppointments", summary.total);
+  setText("summaryCompletedAppointments", summary.completed);
+  setText("summaryScheduledAppointments", summary.scheduled);
+  setText("summaryRescheduledAppointments", summary.rescheduled);
+  setText("summaryCancelledAppointments", summary.cancelled);
+  setText("summaryNoShowAppointments", summary.noShow);
+}
+function isAppointmentRescheduled(appointment) {
+  if (!appointment || typeof appointment !== "object") {
+    return false;
+  }
+  const details =
+    appointment.appointmentDetails ||
+    appointment.details ||
+    appointment.appointment_details ||
+    {};
+  const values = [
+    appointment.rescheduled,
+    appointment.isRescheduled,
+    appointment.is_rescheduled,
+    appointment.reschedule,
+    appointment.rescheduleStatus,
+    appointment.reschedule_status,
+    details.rescheduled,
+    details.isRescheduled,
+    details.is_rescheduled,
+    details.reschedule,
+    details.rescheduleStatus,
+    details.reschedule_status,
+  ];
+  return values.some((value) => {
+    if (value === true) {
+      return true;
+    }
+    const normalized = String(value ?? "")
+      .trim()
+      .toLowerCase();
+    return (
+      normalized === "true" ||
+      normalized === "yes" ||
+      normalized === "rescheduled"
+    );
+  });
+}
 function renderTodayAppointments() {
   const container = document.getElementById("appointmentsList");
-
   if (!container) {
     return;
   }
-
   const today = getTodayDate();
-
   const appointments = patientDashboardData.appointments
     .filter((appointment) => {
       const appointmentDate = normalizeAppointmentDate(appointment.date);
-
       return (
         appointmentDate === today &&
         appointment.status !== "cancelled" &&
@@ -618,21 +677,17 @@ function renderTodayAppointments() {
     })
     .sort(compareAppointments)
     .slice(0, 5);
-
   if (appointments.length === 0) {
     container.innerHTML = createEmptyState(
       "fa-calendar-xmark",
       "No appointments scheduled for today",
     );
-
     return;
   }
-
   container.innerHTML = appointments
     .map((appointment) => createAppointmentHTML(appointment))
     .join("");
 }
-
 function createAppointmentHTML(appointment) {
   const initials = getInitials(appointment.patientName);
   const statusClass = getAppointmentBadgeClass(appointment.status);
@@ -641,83 +696,49 @@ function createAppointmentHTML(appointment) {
   const displayTime = formatDisplayTime(appointment.time);
   const displayService = appointment.service || "Appointment";
   const displayDentist = appointment.dentist || "Unassigned";
-
   return `
-    <div
-      class="appt-item"
-      data-appointment-id="${escapeHTML(appointment.id)}"
-      role="button"
-      tabindex="0"
-    >
-      <div class="appt-avatar">${escapeHTML(initials)}</div>
-      <div class="appt-info">
-        <div class="appt-name">
-          ${escapeHTML(appointment.patientName)}
-        </div>
-        <div class="appt-meta">
-          <strong>${escapeHTML(displayDate)}</strong>
-          <span> • </span>
-          <strong>${escapeHTML(displayTime)}</strong>
-        </div>
-        <div class="appt-service">
-          ${escapeHTML(displayService)}
-          <span> • </span>
-          ${escapeHTML(displayDentist)}
-        </div>
-      </div>
-      <span class="badge ${statusClass}">
-        ${escapeHTML(statusText)}
-      </span>
-    </div>
-  `;
+<div class="appt-item" data-appointment-id="${escapeHTML(appointment.id)}" role="button" tabindex="0">
+<div class="appt-avatar">${escapeHTML(initials)}</div>
+<div class="appt-info">
+<div class="appt-name">${escapeHTML(appointment.patientName)}</div>
+<div class="appt-meta"><strong>${escapeHTML(displayDate)}</strong><span> • </span><strong>${escapeHTML(displayTime)}</strong></div>
+<div class="appt-service">${escapeHTML(displayService)}<span> • </span>${escapeHTML(displayDentist)}</div>
+</div>
+<span class="badge ${statusClass}">${escapeHTML(statusText)}</span>
+</div>
+`;
 }
-
 function setupAppointmentInteractions() {
   document.addEventListener("click", (event) => {
     const item = event.target.closest(".appt-item");
-
     if (!item) {
       return;
     }
-
     openAppointment(item.dataset.appointmentId);
   });
-
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Enter" && event.key !== " ") {
       return;
     }
-
     const item = event.target.closest(".appt-item");
-
     if (!item) {
       return;
     }
-
     event.preventDefault();
-
     openAppointment(item.dataset.appointmentId);
   });
 }
-
 function openAppointment(appointmentId) {
   const appointment = patientDashboardData.appointments.find(
     (item) => String(item.id) === String(appointmentId),
   );
-
   if (!appointment) {
     return;
   }
-
   const appointmentPage = "../appointment/appointment.html";
-
-  const url = `${appointmentPage}?appointmentId=${encodeURIComponent(
-    appointmentId,
-  )}`;
-
+  const url = `${appointmentPage}?appointmentId=${encodeURIComponent(appointmentId)}`;
   window.location.href = url;
 }
-
 function getAppointmentStatusLabel(status) {
   switch (normalizeAppointmentStatus(status)) {
     case "scheduled":
@@ -738,7 +759,6 @@ function getAppointmentStatusLabel(status) {
       return "Scheduled";
   }
 }
-
 function getAppointmentBadgeClass(status) {
   switch (normalizeAppointmentStatus(status)) {
     case "scheduled":
@@ -759,14 +779,11 @@ function getAppointmentBadgeClass(status) {
       return "badge-pending";
   }
 }
-
 function getUpcomingAppointments() {
   const today = getTodayDate();
-
   return patientDashboardData.appointments
     .filter((appointment) => {
       const date = normalizeAppointmentDate(appointment.date);
-
       return (
         date >= today &&
         appointment.status !== "cancelled" &&
@@ -776,12 +793,10 @@ function getUpcomingAppointments() {
     })
     .sort(compareAppointments);
 }
-
 function calculatePaymentTotals() {
   let total = 0;
   let paid = 0;
   let discount = 0;
-
   patientDashboardData.transactions.forEach((transaction) => {
     const transactionTotal = Number(
       transaction.total ??
@@ -791,14 +806,12 @@ function calculatePaymentTotals() {
         transaction.amount ??
         0,
     );
-
     const transactionDiscount = Number(
       transaction.discount ??
         transaction.discountAmount ??
         transaction.discount_amount ??
         0,
     );
-
     const transactionPaid = Number(
       transaction.paid ??
         transaction.amountPaid ??
@@ -806,24 +819,19 @@ function calculatePaymentTotals() {
         transaction.payment ??
         0,
     );
-
     if (Number.isFinite(transactionTotal) && transactionTotal > 0) {
       total += transactionTotal;
     }
-
     if (Number.isFinite(transactionDiscount) && transactionDiscount > 0) {
       discount += transactionDiscount;
     }
-
     if (Number.isFinite(transactionPaid) && transactionPaid > 0) {
       paid += transactionPaid;
     }
-
     if (transactionTotal === 0 && transactionPaid > 0) {
       total += transactionPaid;
     }
   });
-
   return {
     total,
     discount,
@@ -831,30 +839,24 @@ function calculatePaymentTotals() {
     balance: Math.max(total - discount - paid, 0),
   };
 }
-
 function isMedicalRecordComplete() {
   const patient = patientDashboardData.patient;
-
   if (!patient || typeof patient !== "object") {
     return false;
   }
-
   const medicalForm =
     patient.medicalForm ||
     patient.medical_form ||
     patient.medicalRecord ||
     patient.medical_record ||
     null;
-
   if (medicalForm && typeof medicalForm === "object") {
     if (medicalForm.completed === true) {
       return true;
     }
-
     const completedValue = String(medicalForm.completed ?? "")
       .trim()
       .toLowerCase();
-
     if (
       completedValue === "true" ||
       completedValue === "completed" ||
@@ -864,7 +866,6 @@ function isMedicalRecordComplete() {
       return true;
     }
   }
-
   const directStatus =
     patient.medicalRecordStatus ||
     patient.medical_record_status ||
@@ -873,10 +874,8 @@ function isMedicalRecordComplete() {
     patient.recordStatus ||
     patient.record_status ||
     "";
-
   if (directStatus) {
     const status = String(directStatus).trim().toLowerCase();
-
     if (
       status === "completed" ||
       status === "complete" ||
@@ -886,7 +885,6 @@ function isMedicalRecordComplete() {
     ) {
       return true;
     }
-
     if (
       status === "incomplete" ||
       status === "pending" ||
@@ -896,7 +894,6 @@ function isMedicalRecordComplete() {
       return false;
     }
   }
-
   const directBoolean =
     patient.medicalRecordCompleted ??
     patient.medical_record_completed ??
@@ -904,21 +901,16 @@ function isMedicalRecordComplete() {
     patient.medical_form_completed ??
     patient.formCompleted ??
     patient.form_completed;
-
   if (typeof directBoolean === "boolean") {
     return directBoolean;
   }
-
   return false;
 }
-
 function getStoredRecords() {
   const data = readJSON(RECORDS_STORAGE_KEY);
-
   if (Array.isArray(data)) {
     return data.filter(isRecordForCurrentPatient);
   }
-
   if (data && typeof data === "object") {
     const collections = [
       data.records,
@@ -927,38 +919,30 @@ function getStoredRecords() {
       data.items,
       data.data,
     ];
-
     for (const collection of collections) {
       if (Array.isArray(collection)) {
         return collection.filter(isRecordForCurrentPatient);
       }
     }
   }
-
   return [];
 }
-
 function isRecordForCurrentPatient(record) {
   if (!record || typeof record !== "object") {
     return false;
   }
-
   const currentId = getPatientIdentity(patientDashboardData.patient);
-
   const recordId = String(
     record.patientId ?? record.patientID ?? record.patient_id ?? "",
   )
     .trim()
     .toLowerCase();
-
   if (currentId && recordId) {
     return currentId === recordId;
   }
-
   const currentName = getPatientName(patientDashboardData.patient)
     .trim()
     .toLowerCase();
-
   const recordName = String(
     record.patientName ||
       record.patient ||
@@ -969,31 +953,23 @@ function isRecordForCurrentPatient(record) {
   )
     .trim()
     .toLowerCase();
-
   if (currentName && currentName !== "patient" && recordName) {
     return currentName === recordName;
   }
-
   return true;
 }
-
 function getStoredTransactions() {
   const data = readJSON(TRANSACTIONS_STORAGE_KEY);
-
   if (!Array.isArray(data)) {
     return [];
   }
-
   return data.filter(isTransactionForCurrentPatient);
 }
-
 function isTransactionForCurrentPatient(transaction) {
   if (!transaction || typeof transaction !== "object") {
     return false;
   }
-
   const currentId = getPatientIdentity(patientDashboardData.patient);
-
   const transactionPatientId = String(
     transaction.patientId ??
       transaction.patientID ??
@@ -1002,15 +978,12 @@ function isTransactionForCurrentPatient(transaction) {
   )
     .trim()
     .toLowerCase();
-
   if (currentId && transactionPatientId) {
     return currentId === transactionPatientId;
   }
-
   const currentName = getPatientName(patientDashboardData.patient)
     .trim()
     .toLowerCase();
-
   const transactionPatientName = String(
     transaction.patientName ||
       transaction.patient ||
@@ -1021,44 +994,32 @@ function isTransactionForCurrentPatient(transaction) {
   )
     .trim()
     .toLowerCase();
-
   if (currentName && currentName !== "patient" && transactionPatientName) {
     return currentName === transactionPatientName;
   }
-
   return true;
 }
-
 function getNotifications() {
   const notifications = [];
   const upcoming = getUpcomingAppointments();
-
   if (upcoming.length > 0) {
     const next = upcoming[0];
-
     notifications.push({
       icon: "fa-calendar-check",
       title: "Upcoming appointment",
-      text: `${next.service} with ${next.dentist} on ${formatAppointmentDate(
-        next.date,
-      )} at ${formatDisplayTime(next.time)}.`,
+      text: `${next.service} with ${next.dentist} on ${formatAppointmentDate(next.date)} at ${formatDisplayTime(next.time)}.`,
       time: "Appointment reminder",
     });
   }
-
   const totals = calculatePaymentTotals();
-
   if (totals.balance > 0) {
     notifications.push({
       icon: "fa-wallet",
       title: "Payment balance",
-      text: `You have an outstanding balance of ${formatCurrency(
-        totals.balance,
-      )}.`,
+      text: `You have an outstanding balance of ${formatCurrency(totals.balance)}.`,
       time: "Payment reminder",
     });
   }
-
   if (patientDashboardData.records.length > 0) {
     notifications.push({
       icon: "fa-file-medical",
@@ -1067,15 +1028,12 @@ function getNotifications() {
       time: "Patient records",
     });
   }
-
   return notifications;
 }
-
 function updateDateTime() {
   const now = new Date();
   const dateElement = document.getElementById("currentDate");
   const timeElement = document.getElementById("currentTime");
-
   if (dateElement) {
     dateElement.textContent = now.toLocaleDateString("en-US", {
       weekday: "long",
@@ -1084,7 +1042,6 @@ function updateDateTime() {
       year: "numeric",
     });
   }
-
   if (timeElement) {
     timeElement.textContent = now.toLocaleTimeString("en-US", {
       hour: "2-digit",
@@ -1093,20 +1050,16 @@ function updateDateTime() {
     });
   }
 }
-
 function extractPatients(data) {
   if (!data) {
     return [];
   }
-
   if (Array.isArray(data)) {
     return data;
   }
-
   if (typeof data !== "object") {
     return [];
   }
-
   const properties = [
     "patients",
     "patientRecords",
@@ -1118,294 +1071,211 @@ function extractPatients(data) {
     "items",
     "list",
   ];
-
   for (const property of properties) {
     if (Array.isArray(data[property])) {
       return data[property];
     }
   }
-
   return Object.values(data).filter(
     (value) => value && typeof value === "object" && !Array.isArray(value),
   );
 }
-
 function readJSON(key) {
   try {
     const stored = localStorage.getItem(key);
-
     if (!stored) {
       return null;
     }
-
     return JSON.parse(stored);
   } catch (error) {
     return null;
   }
 }
-
 function normalizeAppointmentDate(value) {
   if (!value) {
     return "";
   }
-
   if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
     return value;
   }
-
   const text = String(value).trim();
   const directMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
-
   if (directMatch) {
     return `${directMatch[1]}-${directMatch[2]}-${directMatch[3]}`;
   }
-
   const date = new Date(value);
-
   if (Number.isNaN(date.getTime())) {
     return "";
   }
-
   return formatDateForComparison(date);
 }
-
 function normalizeAppointmentTime(value) {
   if (!value) {
     return "";
   }
-
   return String(value).trim();
 }
-
 function formatAppointmentDate(dateString) {
   if (!dateString) {
     return "No date";
   }
-
   const normalized = normalizeAppointmentDate(dateString);
   const today = getTodayDate();
-
   const tomorrowDate = new Date();
   tomorrowDate.setDate(tomorrowDate.getDate() + 1);
-
   const tomorrow = formatDateForComparison(tomorrowDate);
-
   if (normalized === today) {
     return "Today";
   }
-
   if (normalized === tomorrow) {
     return "Tomorrow";
   }
-
   const date = new Date(`${normalized}T00:00:00`);
-
   if (Number.isNaN(date.getTime())) {
     return dateString;
   }
-
   return date.toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
   });
 }
-
 function formatDisplayTime(value) {
   if (!value) {
     return "--:--";
   }
-
   const text = String(value).trim();
-
   const twelveHourMatch = text.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-
   if (twelveHourMatch) {
     let hour = parseInt(twelveHourMatch[1], 10);
-
     const minute = twelveHourMatch[2];
     const period = twelveHourMatch[3].toUpperCase();
-
     if (hour === 0) {
       hour = 12;
     }
-
     return `${String(hour).padStart(2, "0")}:${minute} ${period}`;
   }
-
   const twentyFourHourMatch = text.match(/^(\d{1,2}):(\d{2})$/);
-
   if (twentyFourHourMatch) {
     let hour = parseInt(twentyFourHourMatch[1], 10);
-
     const minute = twentyFourHourMatch[2];
     const period = hour >= 12 ? "PM" : "AM";
-
     if (hour === 0) {
       hour = 12;
     } else if (hour > 12) {
       hour -= 12;
     }
-
     return `${String(hour).padStart(2, "0")}:${minute} ${period}`;
   }
-
   const timeWithSecondsMatch = text.match(
     /^(\d{1,2}):(\d{2}):(\d{2})\s*(AM|PM)?$/i,
   );
-
   if (timeWithSecondsMatch) {
     let hour = parseInt(timeWithSecondsMatch[1], 10);
-
     const minute = timeWithSecondsMatch[2];
     const period = timeWithSecondsMatch[4];
-
     if (period) {
       const normalizedPeriod = period.toUpperCase();
-
       if (hour === 0) {
         hour = 12;
       }
-
       return `${String(hour).padStart(2, "0")}:${minute} ${normalizedPeriod}`;
     }
-
     const calculatedPeriod = hour >= 12 ? "PM" : "AM";
-
     if (hour === 0) {
       hour = 12;
     } else if (hour > 12) {
       hour -= 12;
     }
-
     return `${String(hour).padStart(2, "0")}:${minute} ${calculatedPeriod}`;
   }
-
   return text;
 }
-
 function compareAppointments(a, b) {
   return getAppointmentTimestamp(a) - getAppointmentTimestamp(b);
 }
-
 function getAppointmentTimestamp(appointment) {
   const date = normalizeAppointmentDate(appointment.date);
-
   const time = convertTimeTo24Hour(appointment.time);
-
   if (!date) {
     return Number.MAX_SAFE_INTEGER;
   }
-
   const timestamp = new Date(`${date}T${time}:00`).getTime();
-
   return Number.isNaN(timestamp) ? Number.MAX_SAFE_INTEGER : timestamp;
 }
-
 function convertTimeTo24Hour(time) {
   if (!time) {
     return "00:00";
   }
-
   const text = String(time).trim();
-
   const twelveHourMatch = text.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-
   if (twelveHourMatch) {
     let hour = parseInt(twelveHourMatch[1], 10);
-
     const minute = twelveHourMatch[2];
     const period = twelveHourMatch[3].toUpperCase();
-
     if (period === "PM" && hour !== 12) {
       hour += 12;
     }
-
     if (period === "AM" && hour === 12) {
       hour = 0;
     }
-
     return `${String(hour).padStart(2, "0")}:${minute}`;
   }
-
   const twentyFourHourMatch = text.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
-
   if (twentyFourHourMatch) {
-    return `${String(parseInt(twentyFourHourMatch[1], 10)).padStart(
-      2,
-      "0",
-    )}:${twentyFourHourMatch[2]}`;
+    return `${String(parseInt(twentyFourHourMatch[1], 10)).padStart(2, "0")}:${twentyFourHourMatch[2]}`;
   }
-
   const extractedTimeMatch = text.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
-
   if (extractedTimeMatch) {
     let hour = parseInt(extractedTimeMatch[1], 10);
-
     const minute = extractedTimeMatch[2];
     const period = extractedTimeMatch[3];
-
     if (period) {
       const normalizedPeriod = period.toUpperCase();
-
       if (normalizedPeriod === "PM" && hour !== 12) {
         hour += 12;
       }
-
       if (normalizedPeriod === "AM" && hour === 12) {
         hour = 0;
       }
     }
-
     return `${String(hour).padStart(2, "0")}:${minute}`;
   }
-
   return "00:00";
 }
-
 function getInitials(name) {
   if (!name) {
     return "?";
   }
-
   const parts = String(name).trim().split(/\s+/).filter(Boolean);
-
   if (parts.length === 1) {
     return parts[0].substring(0, 2).toUpperCase();
   }
-
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
-
 function createEmptyState(icon, message) {
   return `
-    <div class="empty-state">
-      <i class="fa-solid ${escapeHTML(icon)}"></i>
-      <p>${escapeHTML(message)}</p>
-    </div>
-  `;
+<div class="empty-state" title="${escapeHTML(message)}">
+<i class="fa-solid ${escapeHTML(icon)}"></i>
+<p>${escapeHTML(message)}</p>
+</div>
+`;
 }
-
 function getTodayDate() {
   return formatDateForComparison(new Date());
 }
-
 function formatDateForComparison(date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
-
   return `${year}-${month}-${day}`;
 }
-
 function setText(id, value) {
   const element = document.getElementById(id);
-
   if (element) {
     element.textContent = value;
   }
 }
-
 function formatCurrency(amount) {
   return Number(amount || 0).toLocaleString("en-PH", {
     style: "currency",
@@ -1413,12 +1283,10 @@ function formatCurrency(amount) {
     minimumFractionDigits: 2,
   });
 }
-
 function escapeHTML(value) {
   if (value === null || value === undefined) {
     return "";
   }
-
   return String(value)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -1426,12 +1294,12 @@ function escapeHTML(value) {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
 }
-
 window.DentaNuevaPatientDashboard = {
   data: patientDashboardData,
   refresh: refreshPatientDashboard,
   getUpcomingAppointments,
   renderTodayAppointments,
+  renderAppointmentSummary,
   calculatePaymentTotals,
   isMedicalRecordComplete,
 };

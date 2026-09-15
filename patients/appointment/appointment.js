@@ -110,6 +110,18 @@ function setupEvents() {
     .getElementById("deleteAppointmentBtn")
     ?.addEventListener("click", deleteAppointment);
   document
+    .getElementById("cancelAppointmentBtn")
+    ?.addEventListener("click", cancelAppointment);
+  document
+    .getElementById("closeCancelAppointmentConfirm")
+    ?.addEventListener("click", closeCancelAppointmentConfirmation);
+  document
+    .getElementById("keepAppointmentBtn")
+    ?.addEventListener("click", closeCancelAppointmentConfirmation);
+  document
+    .getElementById("confirmCancelAppointmentBtn")
+    ?.addEventListener("click", confirmCancelAppointment);
+  document
     .getElementById("requestRescheduleBtn")
     ?.addEventListener("click", openRescheduleRequestModal);
   document
@@ -186,6 +198,8 @@ function setupEvents() {
       if (event.target !== overlay) return;
       if (overlay.id === "bookingModal") closeBookingModal();
       if (overlay.id === "appointmentModal") closeAppointmentDetail();
+      if (overlay.id === "cancelAppointmentConfirmModal")
+        closeCancelAppointmentConfirmation();
       if (overlay.id === "rescheduleRequestModal")
         closeRescheduleRequestModal();
       if (overlay.id === "staffRescheduleModal") closeStaffRescheduleModal();
@@ -352,7 +366,29 @@ function getDentistId(appointment) {
     appointment?.dentist_id ||
     appointment?.dentistId ||
     appointment?.dentist ||
+    appointment?.doctor_id ||
+    appointment?.doctorId ||
+    appointment?.doctor ||
+    appointment?.assignedDentistId ||
+    appointment?.assignedDoctorId ||
     ""
+  );
+}
+function normalizeDentistId(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/^doctor\s+/i, "")
+    .replace(/^dr\.?\s*/i, "")
+    .replace(/[._-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+function sameDentist(left, right) {
+  const normalizedLeft = normalizeDentistId(left);
+  const normalizedRight = normalizeDentistId(right);
+  return Boolean(
+    normalizedLeft && normalizedRight && normalizedLeft === normalizedRight,
   );
 }
 function getDentistName(appointment) {
@@ -571,35 +607,11 @@ function loadAppointments() {
 }
 function saveAppointments() {
   try {
-    const stored = localStorage.getItem(APPOINTMENTS_STORAGE_KEY);
-    let storedAppointments = [];
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed)) {
-        storedAppointments = parsed;
-      }
-    }
-    const mergedAppointments = [...storedAppointments];
-    appointments.forEach((appointment) => {
-      const appointmentId = getAppointmentId(appointment);
-      const existingIndex = mergedAppointments.findIndex(
-        (existing) => getAppointmentId(existing) === appointmentId,
-      );
-      if (existingIndex === -1) {
-        mergedAppointments.push(appointment);
-      } else {
-        mergedAppointments[existingIndex] = appointment;
-      }
-    });
-    appointments = mergedAppointments;
-    localStorage.setItem(
-      APPOINTMENTS_STORAGE_KEY,
-      JSON.stringify(mergedAppointments),
-    );
-    localStorage.setItem(
-      LEGACY_STORAGE_KEY,
-      JSON.stringify(mergedAppointments),
-    );
+    const payload = Array.isArray(appointments) ? appointments : [];
+    const serialized = JSON.stringify(payload);
+    appointments = payload;
+    localStorage.setItem(APPOINTMENTS_STORAGE_KEY, serialized);
+    localStorage.setItem(LEGACY_STORAGE_KEY, serialized);
   } catch (error) {
     console.error("Unable to save appointments:", error);
   }
@@ -836,6 +848,9 @@ function renderUpcomingAppointment() {
   if (!container) return;
   const dateKey = dateToKey(selectedDate);
   const dateAppointments = getDateAppointments(dateKey).sort((a, b) => {
+    const activeA = isActiveAppointment(a) ? 0 : 1;
+    const activeB = isActiveAppointment(b) ? 0 : 1;
+    if (activeA !== activeB) return activeA - activeB;
     const timeA = String(getAppointmentTime(a));
     const timeB = String(getAppointmentTime(b));
     return timeA.localeCompare(timeB);
@@ -946,7 +961,12 @@ function openBookingModal(date = null, dentist = null) {
     dateInput.min = dateToKey(new Date());
     dateInput.value = selectedKey;
   }
-  selectedDate = keyToDate(selectedKey);
+  if (dateInput && isPastDate(selectedKey)) {
+    dateInput.value = dateToKey(new Date());
+    selectedDate = new Date();
+  } else {
+    selectedDate = keyToDate(selectedKey);
+  }
   calendarDate = new Date(selectedDate);
   calendarDate.setDate(1);
   selectedTime = "";
@@ -1216,7 +1236,6 @@ function generateBookingSlotStatuses(date, dentist, duration) {
   const existingAppointments = appointments.filter(
     (appointment) =>
       dateToKey(keyToDate(getAppointmentDate(appointment))) === date &&
-      String(getDentistId(appointment)) === String(dentist) &&
       isActiveAppointment(appointment),
   );
   for (
@@ -1393,7 +1412,6 @@ function generateAvailableSlots(date, dentist, duration) {
   const existingAppointments = appointments.filter(
     (appointment) =>
       dateToKey(keyToDate(getAppointmentDate(appointment))) === date &&
-      String(getDentistId(appointment)) === String(dentist) &&
       isActiveAppointment(appointment),
   );
   for (
@@ -1446,6 +1464,58 @@ function generateAvailableSlots(date, dentist, duration) {
   }
   return result;
 }
+function getPatientBookingBlockMessage(
+  patientId,
+  date,
+  ignoreAppointmentId = null,
+) {
+  const normalizedPatientId = String(patientId || "").trim();
+  if (!normalizedPatientId) return "";
+
+  const existingAppointment = appointments.find((appointment) => {
+    if (String(getAppointmentId(appointment)) === String(ignoreAppointmentId)) {
+      return false;
+    }
+
+    const appointmentPatientId = String(
+      appointment?.patientId ||
+        appointment?.patient_id ||
+        appointment?.patientID ||
+        "",
+    )
+      .trim()
+      .toLowerCase();
+
+    if (appointmentPatientId !== normalizedPatientId.toLowerCase()) {
+      return false;
+    }
+
+    const status = normalizeStatus(getAppointmentStatus(appointment));
+    if (
+      status === "completed" ||
+      status === "cancelled" ||
+      status === "canceled" ||
+      status === "noshow"
+    ) {
+      return false;
+    }
+
+    const appointmentDate = getAppointmentDate(appointment);
+    if (!appointmentDate || isPastDate(appointmentDate)) {
+      return false;
+    }
+
+    if (!date) return true;
+
+    return appointmentDate === date;
+  });
+
+  if (!existingAppointment) return "";
+
+  const dateLabel = formatDate(existingAppointment.date);
+  const timeLabel = formatTime(getAppointmentTime(existingAppointment));
+  return `You already have an active appointment scheduled on ${dateLabel} at ${timeLabel}. Please complete or delete that appointment before booking another one.`;
+}
 function updateBookingButton() {
   const button = document.getElementById(
     bookingStep === 1 ? "continueBooking" : "confirmBooking",
@@ -1455,6 +1525,9 @@ function updateBookingButton() {
   const date = document.getElementById("dateSelect")?.value || "";
   const dentist = document.getElementById("dentistSelect")?.value || "";
   const duration = Number(document.getElementById("durationInput")?.value || 0);
+  const patientBlockMessage = getCurrentPatientId()
+    ? getPatientBookingBlockMessage(getCurrentPatientId(), date)
+    : "";
   const conflict = selectedTime
     ? hasScheduleConflict(date, dentist, selectedTime, duration)
     : false;
@@ -1466,8 +1539,9 @@ function updateBookingButton() {
     !duration ||
     duration < 5 ||
     !selectedTime ||
-    !!conflict;
-  updateConflictNotice(conflict);
+    !!conflict ||
+    !!patientBlockMessage;
+  updateConflictNotice(conflict, patientBlockMessage);
 }
 function hasScheduleConflict(date, dentist, time, duration) {
   if (!date || !dentist || !time || !duration) return false;
@@ -1487,7 +1561,6 @@ function hasScheduleConflict(date, dentist, time, duration) {
     if (!isActiveAppointment(appointment)) return false;
     if (dateToKey(keyToDate(getAppointmentDate(appointment))) !== date)
       return false;
-    if (String(getDentistId(appointment)) !== String(dentist)) return false;
     const appointmentTime = getAppointmentTime(appointment);
     if (!appointmentTime) return false;
     const [appointmentHour, appointmentMinute] = appointmentTime
@@ -1514,10 +1587,16 @@ function hasScheduleConflict(date, dentist, time, duration) {
     return start < appointmentEnd && end > appointmentStart;
   });
 }
-function updateConflictNotice(conflict) {
+function updateConflictNotice(conflict, customMessage = "") {
   const notice = document.getElementById("scheduleConflictNotice");
   if (!notice) return;
-  notice.classList.toggle("show", conflict);
+  const text = document.getElementById("scheduleConflictText");
+  if (customMessage && text) {
+    text.textContent = customMessage;
+  } else if (text && conflict) {
+    text.textContent = "This time slot is unavailable.";
+  }
+  notice.classList.toggle("show", Boolean(conflict || customMessage));
 }
 function validateAppointmentDetails() {
   const service = document.getElementById("serviceInput")?.value.trim() || "";
@@ -1537,6 +1616,14 @@ function validateAppointmentDetails() {
     !selectedTime
   ) {
     showToast("Please complete all appointment details.");
+    return false;
+  }
+  const patientBlockMessage = getCurrentPatientId()
+    ? getPatientBookingBlockMessage(getCurrentPatientId(), date)
+    : "";
+  if (patientBlockMessage) {
+    showToast(patientBlockMessage);
+    updateConflictNotice(true, patientBlockMessage);
     return false;
   }
   if (hasScheduleConflict(date, dentist, selectedTime, duration)) {
@@ -1829,11 +1916,17 @@ function confirmBooking() {
     );
     return;
   }
-  const now = new Date().toISOString();
-  const updatedMedicalForm = { ...medicalForm, updatedAt: now };
   const service = document.getElementById("serviceInput")?.value.trim() || "";
   const date = document.getElementById("dateSelect")?.value || "";
   const dentist = document.getElementById("dentistSelect")?.value || "";
+  const patientBlockMessage = getPatientBookingBlockMessage(patientId, date);
+  if (patientBlockMessage) {
+    showToast(patientBlockMessage);
+    updateConflictNotice(true, patientBlockMessage);
+    return;
+  }
+  const now = new Date().toISOString();
+  const updatedMedicalForm = { ...medicalForm, updatedAt: now };
   const selectedService = SERVICES.find(
     (item) => item.name.toLowerCase() === service.toLowerCase(),
   );
@@ -2021,19 +2114,140 @@ function openAppointmentDetail(appointmentId) {
 </div>
 `;
   const requestButton = document.getElementById("requestRescheduleBtn");
+  const cancelButton = document.getElementById("cancelAppointmentBtn");
+  const deleteButton = document.getElementById("deleteAppointmentBtn");
+  const normalizedStatus = normalizeStatus(status);
+  const isCancelled =
+    normalizedStatus === "cancelled" || normalizedStatus === "canceled";
+  if (cancelButton) {
+    cancelButton.style.display = isCancelled ? "none" : "inline-flex";
+  }
+  if (deleteButton) {
+    deleteButton.style.display = isCancelled ? "inline-flex" : "none";
+    deleteButton.title = isCancelled
+      ? "Delete this cancelled appointment for testing."
+      : "Delete appointment";
+  }
   if (requestButton) {
-    const normalized = normalizeStatus(status);
-    requestButton.style.display =
-      normalized === "completed" ||
-      normalized === "cancelled" ||
-      normalized === "canceled" ||
-      normalized === "noshow"
-        ? "none"
-        : "inline-flex";
+    const limitReached = hasReachedAppointmentRescheduleLimit(appointment);
+    const isDisabled =
+      normalizedStatus === "completed" ||
+      isCancelled ||
+      normalizedStatus === "noshow" ||
+      limitReached;
+    requestButton.style.display = isDisabled ? "inline-flex" : "inline-flex";
+    requestButton.disabled = limitReached;
+    requestButton.textContent = limitReached
+      ? "Reschedule Limit Reached"
+      : "Request Reschedule";
+    requestButton.title = limitReached
+      ? "This appointment has reached the maximum of 2 approved reschedules."
+      : "Request a different schedule for this appointment.";
+    if (
+      normalizedStatus === "completed" ||
+      isCancelled ||
+      normalizedStatus === "noshow"
+    ) {
+      requestButton.style.display = "none";
+    }
   }
   modal.classList.add("show");
   modal.setAttribute("aria-hidden", "false");
   document.body.style.overflow = "hidden";
+}
+function cancelAppointment() {
+  if (!detailAppointmentId) {
+    showToast("Appointment could not be identified.");
+    return;
+  }
+  const appointment = findAppointmentById(detailAppointmentId);
+  if (!appointment) {
+    showToast("Appointment could not be found.");
+    return;
+  }
+  const appointmentLabel = `${getAppointmentService(appointment)} on ${formatDate(getAppointmentDate(appointment))} at ${formatTime(getAppointmentTime(appointment))}`;
+  const message = document.getElementById("cancelAppointmentConfirmMessage");
+  if (message) {
+    message.textContent = `${appointmentLabel}. The time slot will become available again and this appointment will stay in your history.`;
+  }
+  const modal = document.getElementById("cancelAppointmentConfirmModal");
+  if (!modal) return;
+  modal.classList.add("show");
+  modal.setAttribute("aria-hidden", "false");
+  document.body.style.overflow = "hidden";
+}
+function closeCancelAppointmentConfirmation() {
+  const modal = document.getElementById("cancelAppointmentConfirmModal");
+  if (!modal) return;
+  modal.classList.remove("show");
+  modal.setAttribute("aria-hidden", "true");
+  document.body.style.overflow = "";
+}
+function confirmCancelAppointment() {
+  const appointment = findAppointmentById(detailAppointmentId);
+  if (!appointment) {
+    closeCancelAppointmentConfirmation();
+    showToast("Appointment could not be found.");
+    return;
+  }
+  const appointmentId = getAppointmentId(appointment);
+  const cancelledAt = new Date().toISOString();
+  appointments = appointments.map((item) => {
+    if (getAppointmentId(item) !== appointmentId) {
+      return item;
+    }
+
+    return {
+      ...item,
+      status: "cancelled",
+      cancelledAt,
+      cancelled_at: cancelledAt,
+      reason: "patient_cancelled",
+      cancelReason: "patient_cancelled",
+    };
+  });
+  saveAppointments();
+  if (currentPatient) {
+    currentPatient.appointments = Array.isArray(currentPatient.appointments)
+      ? currentPatient.appointments.map((item) => {
+          if (getAppointmentId(item) !== appointmentId) {
+            return item;
+          }
+
+          return {
+            ...item,
+            status: "cancelled",
+            cancelledAt,
+            cancelled_at: cancelledAt,
+            reason: "patient_cancelled",
+            cancelReason: "patient_cancelled",
+          };
+        })
+      : [];
+    patients = patients.map((patient) => {
+      const patientId = getCanonicalPatientId(patient);
+      return patientId &&
+        patientId.toLowerCase() === getCurrentPatientId().toLowerCase()
+        ? currentPatient
+        : patient;
+    });
+    localStorage.setItem(PATIENTS_STORAGE_KEY, JSON.stringify(patients));
+  }
+  const requests = loadRescheduleRequests();
+  const remainingRequests = requests.filter(
+    (request) =>
+      String(request?.appointment_id || request?.appointmentId || "") !==
+      appointmentId,
+  );
+  localStorage.setItem(
+    RESCHEDULE_REQUESTS_STORAGE_KEY,
+    JSON.stringify(remainingRequests),
+  );
+  detailAppointmentId = null;
+  closeCancelAppointmentConfirmation();
+  closeAppointmentDetail();
+  renderAll();
+  showToast("Appointment cancelled successfully.");
 }
 function deleteAppointment() {
   if (!detailAppointmentId) {
@@ -2045,17 +2259,18 @@ function deleteAppointment() {
     showToast("Appointment could not be found.");
     return;
   }
+  const appointmentId = getAppointmentId(appointment);
   const appointmentLabel = `${getAppointmentService(appointment)} on ${formatDate(getAppointmentDate(appointment))} at ${formatTime(getAppointmentTime(appointment))}`;
   const confirmed = window.confirm(
-    `Delete this appointment?\n\n${appointmentLabel}\n\nThis action cannot be undone.`,
+    `Delete this appointment permanently?\n\n${appointmentLabel}\n\nThis removes it from the appointment history for testing.`,
   );
   if (!confirmed) return;
-  const appointmentId = getAppointmentId(appointment);
+
   appointments = appointments.filter(
     (item) => getAppointmentId(item) !== appointmentId,
   );
-  localStorage.setItem(APPOINTMENTS_STORAGE_KEY, JSON.stringify(appointments));
-  localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify(appointments));
+  saveAppointments();
+
   if (currentPatient) {
     currentPatient.appointments = Array.isArray(currentPatient.appointments)
       ? currentPatient.appointments.filter(
@@ -2071,8 +2286,8 @@ function deleteAppointment() {
     });
     localStorage.setItem(PATIENTS_STORAGE_KEY, JSON.stringify(patients));
   }
-  const requests = loadRescheduleRequests();
-  const remainingRequests = requests.filter(
+
+  const remainingRequests = loadRescheduleRequests().filter(
     (request) =>
       String(request?.appointment_id || request?.appointmentId || "") !==
       appointmentId,
@@ -2099,6 +2314,12 @@ function openRescheduleRequestModal() {
   const appointment = findAppointmentById(detailAppointmentId);
   if (!appointment) {
     showToast("Appointment could not be found.");
+    return;
+  }
+  if (hasReachedAppointmentRescheduleLimit(appointment)) {
+    showToast(
+      "This appointment has reached the maximum of 2 approved reschedules.",
+    );
     return;
   }
   requestAppointmentId = detailAppointmentId;
@@ -2188,6 +2409,12 @@ function sendRescheduleRequest() {
   const appointment = findAppointmentById(requestAppointmentId);
   if (!appointment) {
     showToast("Appointment could not be found.");
+    return;
+  }
+  if (hasReachedAppointmentRescheduleLimit(appointment)) {
+    showToast(
+      "This appointment has reached the maximum of 2 approved reschedules.",
+    );
     return;
   }
   const reason = document.getElementById("requestReason")?.value || "other";
@@ -2405,8 +2632,12 @@ function confirmStaffRescheduleResponse() {
     preferredDate: newDate,
     preferredTime: staffRequestTime,
     initiatedBy: requests[index].initiatedBy || "staff",
+    initiated_by:
+      requests[index].initiated_by || requests[index].initiatedBy || "staff",
     patientResponseAt: updatedAt,
     patient_response_at: updatedAt,
+    patientAcknowledged: false,
+    patientAcknowledgedAt: null,
     updatedAt,
     updated_at: updatedAt,
     status: "Pending",
@@ -2689,14 +2920,33 @@ function confirmRescheduleDetails() {
     renderRescheduleAlert();
     return;
   }
+  const approvedDate = request?.approved_date || request?.approvedDate || "";
+  const approvedTime = request?.approved_time || request?.approvedTime || "";
+  const appointment = findAppointmentById(
+    request?.appointment_id || request?.appointmentId,
+  );
+  if (appointment && approvedDate && approvedTime) {
+    appointment.date = approvedDate;
+    appointment.appointment_date = approvedDate;
+    appointment.appointmentDate = approvedDate;
+    appointment.start = approvedTime;
+    appointment.time = approvedTime;
+    appointment.appointment_time = approvedTime;
+    appointment.appointmentTime = approvedTime;
+    appointment.status = "Scheduled";
+    saveAppointments();
+    syncAppointmentToPatient(appointment);
+  }
   requests[index] = {
     ...request,
     patientAcknowledged: true,
     patientAcknowledgedAt: new Date().toISOString(),
+    status: "Approved",
   };
   saveRescheduleRequests(requests);
   rescheduleDetailsRequestId = null;
   closeRescheduleDetailsModal();
+  renderAll();
   renderRescheduleAlert();
   showToast("Reschedule notification marked as read.");
 }
@@ -2725,6 +2975,20 @@ function syncApprovedReschedulesToAppointments() {
     if (!approvedDate || !approvedTime || !appointmentId) return;
     const appointment = findAppointmentById(appointmentId);
     if (!appointment) return;
+    const approvedCount = requests.filter((item) => {
+      const itemStatus = String(item?.status || "")
+        .trim()
+        .toLowerCase();
+      const itemAppointmentId =
+        item?.appointment_id || item?.appointmentId || "";
+      return (
+        itemStatus === "approved" &&
+        String(itemAppointmentId) === String(appointmentId)
+      );
+    }).length;
+    appointment.approvedRescheduleCount = approvedCount;
+    appointment.rescheduleCount = approvedCount;
+    appointment.reschedule_count = approvedCount;
     if (
       appointment.date !== approvedDate ||
       appointment.appointment_date !== approvedDate ||
@@ -2754,6 +3018,38 @@ function findAppointmentById(id) {
     ) || null
   );
 }
+function getApprovedRescheduleCountForAppointment(appointmentId) {
+  if (!appointmentId) return 0;
+  return loadRescheduleRequests().filter((request) => {
+    const requestAppointmentId =
+      request?.appointment_id || request?.appointmentId || "";
+    const status = String(request?.status || "")
+      .trim()
+      .toLowerCase();
+    return (
+      String(requestAppointmentId) === String(appointmentId) &&
+      status === "approved"
+    );
+  }).length;
+}
+function getAppointmentRescheduleCount(appointment) {
+  if (!appointment) return 0;
+  const explicitCount = Number(
+    appointment?.approvedRescheduleCount ??
+      appointment?.rescheduleCount ??
+      appointment?.reschedule_count ??
+      0,
+  );
+  if (Number.isFinite(explicitCount) && explicitCount > 0) {
+    return explicitCount;
+  }
+  return getApprovedRescheduleCountForAppointment(
+    getAppointmentId(appointment),
+  );
+}
+function hasReachedAppointmentRescheduleLimit(appointment) {
+  return getAppointmentRescheduleCount(appointment) >= 2;
+}
 function getAppointmentId(appointment) {
   return (
     appointment?.id ||
@@ -2777,8 +3073,8 @@ function getStatusClass(status) {
   if (normalized === "cancelled" || normalized === "canceled")
     return "status-cancelled";
   if (normalized === "noshow") return "status-no-show";
-  if (normalized === "inconsultation") return "status-consultation";
-  if (normalized === "readycomplete") return "status-complete";
+  if (normalized === "inconsultation" || normalized === "readycomplete")
+    return "status-consultation";
   return "status-scheduled";
 }
 function escapeHtml(value) {
