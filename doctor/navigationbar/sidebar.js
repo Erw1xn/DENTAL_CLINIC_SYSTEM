@@ -1,123 +1,97 @@
 document.addEventListener("DOMContentLoaded", () => {
   loadSidebar();
 });
-async function loadSidebar(activePageKey) {
+async function loadSidebar() {
   const container = document.getElementById("sidebar-container");
   if (!container) {
     return;
   }
   try {
-    const response = await fetch("/doctor/navigationbar/sidebar.html");
-    if (!response.ok) {
-      throw new Error("Network response was not ok");
+    const sidebarResponse = await fetch("../navigationbar/sidebar.html", {
+      method: "GET",
+      credentials: "same-origin",
+      cache: "no-store",
+    });
+    if (!sidebarResponse.ok) {
+      throw new Error("Failed to load sidebar HTML.");
     }
-    const html = await response.text();
-    const tempDiv = document.createElement("div");
-    tempDiv.innerHTML = html;
-    const logoutModal = tempDiv.querySelector("#logoutModalBackdrop");
-    if (logoutModal) {
-      logoutModal.remove();
-    }
-    container.innerHTML = tempDiv.innerHTML;
-    if (!document.getElementById("logoutModalBackdrop") && logoutModal) {
+    const sidebarHTML = await sidebarResponse.text();
+    container.innerHTML = sidebarHTML;
+    const logoutModal = document.getElementById("logoutModalBackdrop");
+    if (logoutModal && logoutModal.parentElement !== document.body) {
       document.body.appendChild(logoutModal);
     }
-    loadActiveDoctorProfile();
-    let pageKey = activePageKey;
-    if (!pageKey) {
-      const currentPath = window.location.pathname;
-      if (currentPath.includes("dashboard")) {
-        pageKey = "dashboard";
-      } else if (currentPath.includes("appointment")) {
-        pageKey = "appointment";
-      } else if (currentPath.includes("patient")) {
-        pageKey = "patients";
-      } else if (currentPath.includes("finance")) {
-        pageKey = "finance";
+    const doctorResponse = await fetch("../navigationbar/sidebar.php", {
+      method: "GET",
+      credentials: "same-origin",
+      cache: "no-store",
+    });
+    if (doctorResponse.status === 401 || doctorResponse.status === 403) {
+      window.location.href = "../../login/login.html";
+      return;
+    }
+    if (!doctorResponse.ok) {
+      throw new Error("Failed to load doctor information.");
+    }
+    const data = await doctorResponse.json();
+    if (!data.success || !data.user) {
+      window.location.href = "../../login/login.html";
+      return;
+    }
+    const doctor = data.user;
+    const nameEl = document.getElementById("activeDoctorName");
+    const imageEl = document.getElementById("activeDoctorImage");
+    const initialsEl = document.getElementById("activeDoctorInitials");
+    const name =
+      doctor.name ||
+      `${doctor.firstname || ""} ${doctor.lastname || ""}`.trim() ||
+      "Doctor";
+    const initials = getDoctorInitials(name);
+    if (nameEl) {
+      nameEl.textContent = name;
+      nameEl.dataset.userId = doctor.user_id || "";
+      nameEl.dataset.firstname = doctor.firstname || "";
+      nameEl.dataset.lastname = doctor.lastname || "";
+      nameEl.dataset.role = doctor.role || "doctor";
+      nameEl.dataset.doctorId = doctor.doctor_id || "";
+      nameEl.dataset.specialization = doctor.specialization || "";
+      nameEl.dataset.email = doctor.email || "";
+      nameEl.dataset.contact = doctor.contact || "";
+      nameEl.dataset.status = doctor.status || "Active";
+      nameEl.dataset.profileImage = doctor.profile_image || "";
+    }
+    if (doctor.profile_image) {
+      if (imageEl) {
+        imageEl.src = doctor.profile_image;
+        imageEl.style.display = "block";
+      }
+      if (initialsEl) {
+        initialsEl.textContent = initials;
+        initialsEl.style.display = "none";
+      }
+    } else {
+      if (imageEl) {
+        imageEl.removeAttribute("src");
+        imageEl.style.display = "none";
+      }
+      if (initialsEl) {
+        initialsEl.textContent = initials;
+        initialsEl.style.display = "flex";
       }
     }
-    if (pageKey) {
-      const activeLink = container.querySelector(`[data-page="${pageKey}"]`);
-      if (activeLink) {
-        activeLink.classList.add("active");
-      }
-    }
+    setActivePage();
     applySavedSidebarState();
     initSidebarLogic();
   } catch (error) {
-    console.error("Failed to load sidebar navigation:", error);
+    console.error("Failed to load doctor sidebar:", error);
   }
-}
-function parseUserData(value) {
-  try {
-    const parsed = JSON.parse(value);
-    if (parsed && typeof parsed === "object") {
-      if (parsed.user && typeof parsed.user === "object") {
-        return parsed.user;
-      }
-      if (parsed.data && typeof parsed.data === "object") {
-        if (parsed.data.user && typeof parsed.data.user === "object") {
-          return parsed.data.user;
-        }
-        return parsed.data;
-      }
-      return parsed;
-    }
-  } catch (error) {
-    return null;
-  }
-  return null;
-}
-function getCurrentUser() {
-  const storageKeys = [
-    "currentUser",
-    "loggedInUser",
-    "user",
-    "authUser",
-    "activeUser",
-    "sessionUser",
-    "userData",
-    "current_user",
-    "loggedInUserData",
-    "loginUser",
-  ];
-  for (const key of storageKeys) {
-    const localValue = localStorage.getItem(key);
-    if (localValue) {
-      const user = parseUserData(localValue);
-      if (user && isDoctorUser(user)) {
-        return user;
-      }
-    }
-    const sessionValue = sessionStorage.getItem(key);
-    if (sessionValue) {
-      const user = parseUserData(sessionValue);
-      if (user && isDoctorUser(user)) {
-        return user;
-      }
-    }
-  }
-  return null;
-}
-function isDoctorUser(user) {
-  if (!user || typeof user !== "object") {
-    return false;
-  }
-  const role = String(user.role || user.userRole || user.accountType || "")
-    .trim()
-    .toLowerCase();
-  const doctorId = user.doctorId || user.doctor_id || user.doctorID;
-  return role === "doctor" || Boolean(doctorId);
 }
 function getDoctorInitials(name) {
   if (!name) {
     return "DR";
   }
-  const cleanName = String(name).trim();
-  if (!cleanName) {
-    return "DR";
-  }
-  const cleanedParts = cleanName
+  const cleanedParts = String(name)
+    .trim()
     .replace(/^Dr\.\s*/i, "")
     .replace(/^Dr\s+/i, "")
     .split(/\s+/)
@@ -129,81 +103,42 @@ function getDoctorInitials(name) {
     cleanedParts[0].charAt(0) + cleanedParts[cleanedParts.length - 1].charAt(0)
   ).toUpperCase();
 }
-function loadActiveDoctorProfile() {
-  const nameEl = document.getElementById("activeDoctorName");
-  const imageEl = document.getElementById("activeDoctorImage");
-  const initialsEl = document.getElementById("activeDoctorInitials");
-  if (!nameEl) {
+function setActivePage() {
+  const currentPath = window.location.pathname;
+  let pageKey = "";
+  if (currentPath.includes("dashboard")) {
+    pageKey = "dashboard";
+  } else if (currentPath.includes("appointment")) {
+    pageKey = "appointment";
+  } else if (currentPath.includes("patient")) {
+    pageKey = "patients";
+  } else if (currentPath.includes("finance")) {
+    pageKey = "finance";
+  }
+  if (!pageKey) {
     return;
   }
-  const activeDoctor = getCurrentUser();
-  if (!activeDoctor) {
-    nameEl.textContent = "Doctor";
-    if (imageEl) {
-      imageEl.removeAttribute("src");
-      imageEl.style.display = "none";
-    }
-    if (initialsEl) {
-      initialsEl.textContent = "DR";
-      initialsEl.style.display = "flex";
-    }
-    return;
-  }
-  const firstname = activeDoctor.firstname || activeDoctor.firstName || "";
-  const lastname = activeDoctor.lastname || activeDoctor.lastName || "";
-  const name =
-    activeDoctor.name ||
-    activeDoctor.full_name ||
-    activeDoctor.fullName ||
-    activeDoctor.fullname ||
-    `${firstname} ${lastname}`.trim() ||
-    "Doctor";
-  const image =
-    activeDoctor.image ||
-    activeDoctor.profileImage ||
-    activeDoctor.profile_image ||
-    activeDoctor.photo ||
-    activeDoctor.photoURL ||
-    activeDoctor.avatar ||
-    "";
-  const initials = getDoctorInitials(name);
-  nameEl.textContent = name;
-  if (image && imageEl) {
-    imageEl.src = image;
-    imageEl.style.display = "block";
-    if (initialsEl) {
-      initialsEl.textContent = initials;
-      initialsEl.style.display = "none";
-    }
-  } else {
-    if (imageEl) {
-      imageEl.removeAttribute("src");
-      imageEl.style.display = "none";
-    }
-    if (initialsEl) {
-      initialsEl.textContent = initials;
-      initialsEl.style.display = "flex";
-    }
+  const activeLink = document.querySelector(`[data-page="${pageKey}"]`);
+  if (activeLink) {
+    activeLink.classList.add("active");
   }
 }
 function applySavedSidebarState() {
   const sidebar = document.getElementById("sidebar");
   const toggleIcon = document.getElementById("toggleIcon");
   const savedState = localStorage.getItem("sidebarState");
-  if (!sidebar) {
+  if (!sidebar || window.innerWidth <= 768) {
     return;
   }
-  if (window.innerWidth > 768) {
-    if (savedState === "collapsed") {
-      sidebar.classList.add("collapsed");
-      if (toggleIcon) {
-        toggleIcon.className = "fa-solid fa-chevron-right";
-      }
-    } else {
-      sidebar.classList.remove("collapsed");
-      if (toggleIcon) {
-        toggleIcon.className = "fa-solid fa-chevron-left";
-      }
+  if (savedState === "collapsed") {
+    sidebar.classList.add("collapsed");
+    if (toggleIcon) {
+      toggleIcon.className = "fa-solid fa-chevron-right";
+    }
+  } else {
+    sidebar.classList.remove("collapsed");
+    if (toggleIcon) {
+      toggleIcon.className = "fa-solid fa-chevron-left";
     }
   }
 }
@@ -266,7 +201,7 @@ function initSidebarLogic() {
     });
   }
 }
-document.addEventListener("click", (event) => {
+document.addEventListener("click", async (event) => {
   const logoutBtn = event.target.closest(".btn-logout");
   const cancelBtn = event.target.closest("#logoutCancelBtn");
   const confirmBtn = event.target.closest("#logoutConfirmBtn");
@@ -275,21 +210,68 @@ document.addEventListener("click", (event) => {
     event.preventDefault();
     if (backdrop) {
       backdrop.classList.add("active");
+      document.body.classList.add("logout-modal-open");
     }
   }
   if (cancelBtn) {
     event.preventDefault();
     if (backdrop) {
       backdrop.classList.remove("active");
+      document.body.classList.remove("logout-modal-open");
     }
+  }
+  if (backdrop && event.target === backdrop) {
+    backdrop.classList.remove("active");
+    document.body.classList.remove("logout-modal-open");
   }
   if (confirmBtn) {
     event.preventDefault();
-    localStorage.removeItem("isLoggedIn");
-    sessionStorage.removeItem("currentUser");
-    localStorage.removeItem("currentUser");
-    window.location.href = "../../homepage/homepage.html";
+    try {
+      const response = await fetch("../navigationbar/sidebar.php", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: "action=logout",
+        credentials: "same-origin",
+      });
+      const data = await response.json();
+      if (data.success) {
+        localStorage.removeItem("isLoggedIn");
+        sessionStorage.removeItem("currentUser");
+        localStorage.removeItem("currentUser");
+        window.location.href = "../../homepage/homepage.html";
+      }
+    } catch (error) {
+      console.error("Logout request error:", error);
+    }
   }
 });
-window.getLoggedInDoctor = getCurrentUser;
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  const backdrop = document.getElementById("logoutModalBackdrop");
+  if (backdrop?.classList.contains("active")) {
+    backdrop.classList.remove("active");
+    document.body.classList.remove("logout-modal-open");
+  }
+});
+window.getLoggedInDoctor = () => {
+  const nameEl = document.getElementById("activeDoctorName");
+  if (!nameEl) {
+    return null;
+  }
+  return {
+    user_id: nameEl.dataset.userId || "",
+    firstname: nameEl.dataset.firstname || "",
+    lastname: nameEl.dataset.lastname || "",
+    name: nameEl.textContent.trim(),
+    role: nameEl.dataset.role || "doctor",
+    doctor_id: nameEl.dataset.doctorId || "",
+    specialization: nameEl.dataset.specialization || "",
+    email: nameEl.dataset.email || "",
+    contact: nameEl.dataset.contact || "",
+    status: nameEl.dataset.status || "Active",
+    profile_image: nameEl.dataset.profileImage || "",
+  };
+};
 window.getDoctorInitials = getDoctorInitials;

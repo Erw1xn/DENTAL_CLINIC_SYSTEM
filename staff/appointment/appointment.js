@@ -2999,6 +2999,27 @@ function makeDayBtn(date, muted) {
   if (appointments.some((appt) => appt.date === key)) {
     button.classList.add("has-appt");
   }
+  const hasPendingRescheduleRequest = loadRescheduleRequests().some(
+    (request) => {
+      if (getRescheduleStatus(request) !== "pending") {
+        return false;
+      }
+      const appointment = appointments.find(
+        (appt) =>
+          String(appt.id) === String(getRescheduleAppointmentId(request)),
+      );
+      if (!appointment) {
+        return false;
+      }
+      if (appointment.status === APPOINTMENT_STATUS.CANCELLED) {
+        return false;
+      }
+      return appointment.date === key;
+    },
+  );
+  if (hasPendingRescheduleRequest) {
+    button.classList.add("has-reschedule-request");
+  }
   button.textContent = date.getDate();
   button.addEventListener("click", () => {
     selectedDate = new Date(date);
@@ -3104,58 +3125,31 @@ function renderTimeline() {
     dateLabel.textContent = formatDateLong(selectedKey);
   }
   const dayAppointments = filteredAppts();
-  for (
-    let minutes = FIRST_BOOKABLE_HOUR * 60;
-    minutes < END_HOUR * 60;
-    minutes += SLOT_MIN
-  ) {
+  if (!dayAppointments.length) {
+    const emptyState = document.createElement("div");
+    emptyState.className = "schedule-empty-state";
+    emptyState.innerHTML = `
+      <i class="fa-regular fa-calendar"></i>
+      <strong>${selectedIsPast ? "No appointment records" : "No patient appointments"}</strong>
+      <span>${selectedIsPast ? "There are no appointment records for this date." : "No appointments scheduled for this date."}</span>
+    `;
+    timeline.appendChild(emptyState);
+    return;
+  }
+
+  dayAppointments.forEach((appt) => {
     const row = document.createElement("div");
     row.className = "tl-row";
-    const time = minutesToTime(minutes);
     const timeElement = document.createElement("div");
     timeElement.className = "tl-time";
-    timeElement.textContent = fmtTime(time);
+    timeElement.textContent = fmtTime(appt.start);
     const slot = document.createElement("div");
     slot.className = "tl-slot";
-    const activeAppointments = dayAppointments.filter((appt) => {
-      const start = timeToMinutes(appt.start);
-      const end = getAppointmentEnd(appt);
-      return minutes >= start && minutes < end;
-    });
-    if (activeAppointments.length) {
-      activeAppointments.forEach((appt) => {
-        const appointmentStart = timeToMinutes(appt.start);
-        if (appointmentStart === minutes) {
-          slot.appendChild(createAppointmentCard(appt));
-        } else {
-          const occupied = document.createElement("div");
-          occupied.className = "occupied-slot";
-          occupied.innerHTML = `Occupied · ${fmtTime(appt.start)}–${fmtTime(getAppointmentEndTime(appt))}`;
-          occupied.addEventListener("click", () => openViewModal(appt.id));
-          slot.appendChild(occupied);
-        }
-      });
-    } else {
-      const empty = document.createElement("div");
-      empty.className = "empty-slot";
-      const slotIsPastToday =
-        selectedIsToday && timeToMinutes(time) <= getCurrentTimeMinutes();
-      if (selectedIsPast) {
-        empty.textContent = "No appointment recorded";
-        empty.style.cursor = "default";
-      } else if (slotIsPastToday) {
-        empty.textContent = "Closed";
-        empty.style.cursor = "default";
-      } else {
-        empty.innerHTML = '<span class="plus">+</span> Open';
-        empty.addEventListener("click", () => openNewModal(selectedKey, time));
-      }
-      slot.appendChild(empty);
-    }
+    slot.appendChild(createAppointmentCard(appt));
     row.appendChild(timeElement);
     row.appendChild(slot);
     timeline.appendChild(row);
-  }
+  });
 }
 function getPendingRescheduleRequestForAppointment(appointmentId) {
   return (
@@ -3246,7 +3240,8 @@ function renderWaitingQueue() {
         value.includes(search),
       );
     })
-    .sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+    .sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start))
+    .slice(0, 3);
   if (!selectedAppointments.length) {
     const empty = document.createElement("div");
     empty.className = "empty-queue";

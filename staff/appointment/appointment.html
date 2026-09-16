@@ -88,37 +88,6 @@
                 </div>
               </div>
 
-              <div class="schedule-overview" id="scheduleOverview">
-                <div class="schedule-overview-title">
-                  <i class="fa-solid fa-chart-simple"></i>
-                  <span>Schedule Overview</span>
-                </div>
-
-                <div class="schedule-stat scheduled-stat">
-                  <span class="schedule-stat-value" id="summaryScheduled">
-                    0
-                  </span>
-
-                  <span class="schedule-stat-label">Scheduled</span>
-                </div>
-
-                <div class="schedule-stat waiting-stat">
-                  <span class="schedule-stat-value" id="summaryWaiting">
-                    0
-                  </span>
-
-                  <span class="schedule-stat-label">Waiting</span>
-                </div>
-
-                <div class="schedule-stat completed-stat">
-                  <span class="schedule-stat-value" id="summaryCompleted">
-                    0
-                  </span>
-
-                  <span class="schedule-stat-label">Completed</span>
-                </div>
-              </div>
-
               <div
                 class="time-slots-container"
                 id="timeline"
@@ -190,32 +159,7 @@
                   <button
                     type="button"
                     class="side-switch-btn"
-                    id="showRequestsBtn"
-                    onclick="showAppointmentSideSection('requests')"
-                  >
-                    <span>Requests</span>
-                  </button>
-                </div>
-                <div class="side-section-header" id="rescheduleRequestsHeader">
-                  <div class="side-section-title">
-                    <div class="side-section-text">
-                      <div class="side-section-title-line">
-                        <h3>Reschedule Requests</h3>
-                        <span
-                          class="reschedule-request-count"
-                          id="rescheduleRequestCount"
-                          >0</span
-                        >
-                      </div>
-                      <span class="side-section-description"
-                        >Patient requests waiting for staff review</span
-                      >
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    class="side-switch-btn"
-                    id="showWaitingFromRequestsBtn"
+                    id="showWaitingBtn"
                     onclick="showAppointmentSideSection('waiting')"
                   >
                     <span>Today's Appointments</span>
@@ -228,12 +172,6 @@
               </div>
               <div class="side-content-body" id="dentistsAvailabilityPage">
                 <div class="dentists-list" id="dentistsDutyList"></div>
-              </div>
-              <div class="side-content-body" id="rescheduleRequestsPage">
-                <div
-                  class="reschedule-request-list"
-                  id="rescheduleRequestList"
-                ></div>
               </div>
             </section>
           </div>
@@ -711,39 +649,25 @@
       function showAppointmentSideSection(section) {
         const waitingHeader = document.getElementById("waitingQueueHeader");
         const dentistsHeader = document.getElementById("dentistsHeader");
-        const requestsHeader = document.getElementById(
-          "rescheduleRequestsHeader",
-        );
         const waitingPage = document.getElementById("waitingQueuePage");
         const dentistsPage = document.getElementById(
           "dentistsAvailabilityPage",
         );
-        const requestsPage = document.getElementById("rescheduleRequestsPage");
         if (
           !waitingHeader ||
           !dentistsHeader ||
-          !requestsHeader ||
           !waitingPage ||
-          !dentistsPage ||
-          !requestsPage
+          !dentistsPage
         ) {
           return;
         }
         waitingHeader.classList.remove("active");
         dentistsHeader.classList.remove("active");
-        requestsHeader.classList.remove("active");
         waitingPage.classList.remove("active");
         dentistsPage.classList.remove("active");
-        requestsPage.classList.remove("active");
         if (section === "dentists") {
           dentistsHeader.classList.add("active");
           dentistsPage.classList.add("active");
-          return;
-        }
-        if (section === "requests") {
-          requestsHeader.classList.add("active");
-          requestsPage.classList.add("active");
-          renderRescheduleRequests();
           return;
         }
         waitingHeader.classList.add("active");

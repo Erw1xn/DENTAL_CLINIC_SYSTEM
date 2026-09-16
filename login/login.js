@@ -7,22 +7,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const eyeIcon = document.getElementById("eyeIcon");
   const errorBox = document.getElementById("loginErrorMsg");
   const errorText = document.getElementById("errorText");
-  const USERS_KEY = "dentanueva_users";
-  const CURRENT_USER_KEY = "currentUser";
   const REMEMBERED_EMAIL_KEY = "rememberedEmail";
-  function getUsers() {
-    try {
-      const storedUsers = localStorage.getItem(USERS_KEY);
-      if (!storedUsers) {
-        return [];
-      }
-      const users = JSON.parse(storedUsers);
-      return Array.isArray(users) ? users : [];
-    } catch (error) {
-      console.error("Error reading users from LocalStorage:", error);
-      return [];
-    }
-  }
   function showError(message) {
     if (!errorBox || !errorText) {
       return;
@@ -39,18 +24,14 @@ document.addEventListener("DOMContentLoaded", function () {
     const normalizedRole = String(role || "")
       .trim()
       .toLowerCase();
-    if (normalizedRole === "patient") {
+    if (normalizedRole === "user") {
       return "../patients/dashboard/dashboard.html";
     }
-    if (normalizedRole === "doctor" || normalizedRole === "dentist") {
-      return "../doctor/dashboard/dashboard.html";
-    }
-    if (
-      normalizedRole === "staff" ||
-      normalizedRole === "assistant" ||
-      normalizedRole === "admin"
-    ) {
+    if (normalizedRole === "staff") {
       return "../staff/dashboard/dashboard.html";
+    }
+    if (normalizedRole === "doctor") {
+      return "../doctor/dashboard/dashboard.html";
     }
     return null;
   }
@@ -76,7 +57,7 @@ document.addEventListener("DOMContentLoaded", function () {
     passwordInput.addEventListener("input", hideError);
   }
   if (loginForm) {
-    loginForm.addEventListener("submit", function (event) {
+    loginForm.addEventListener("submit", async function (event) {
       event.preventDefault();
       hideError();
       const email = emailInput ? emailInput.value.trim().toLowerCase() : "";
@@ -85,100 +66,68 @@ document.addEventListener("DOMContentLoaded", function () {
         showError("Please enter your email and password.");
         return;
       }
-      const users = getUsers();
-      if (users.length === 0) {
-        showError("No accounts found. Please create an account first.");
-        return;
+      const formData = new FormData(loginForm);
+      formData.set("email", email);
+      formData.set("password", password);
+      formData.set("remember", rememberMe && rememberMe.checked ? "1" : "0");
+      const submitButton = loginForm.querySelector(".btn-submit");
+      const originalButtonText = submitButton ? submitButton.textContent : "";
+      if (submitButton) {
+        submitButton.disabled = true;
+        submitButton.textContent = "Logging In...";
       }
-      const validUser = users.find(function (user) {
-        const userEmail = String(user.email || "")
+      try {
+        const response = await fetch("login.php", {
+          method: "POST",
+          body: formData,
+          credentials: "same-origin",
+          cache: "no-store",
+        });
+        const data = await response.json();
+        if (!data.success) {
+          showError(
+            data.message || "Email or password is incorrect. Please try again.",
+          );
+          return;
+        }
+        const validUser = data.user || {};
+        const userRole = String(validUser.role || "")
           .trim()
           .toLowerCase();
-        const userPassword = String(user.password || "");
-        return userEmail === email && userPassword === password;
-      });
-      if (!validUser) {
-        const emailExists = users.some(function (user) {
-          return (
-            String(user.email || "")
-              .trim()
-              .toLowerCase() === email
-          );
-        });
-        if (!emailExists) {
-          showError("Account not found. Please try again.");
-        } else {
-          showError("Email or Password is incorrect. Please try again.");
+        const redirectPage = data.redirect || getRedirectPage(userRole);
+        if (!redirectPage) {
+          showError("Your account role is not recognized.");
+          console.error("Unrecognized account role:", userRole);
+          return;
         }
-        return;
+        if (rememberMe && rememberMe.checked) {
+          localStorage.setItem(REMEMBERED_EMAIL_KEY, email);
+        } else {
+          localStorage.removeItem(REMEMBERED_EMAIL_KEY);
+        }
+        const storedUser = {
+          ...validUser,
+          name:
+            validUser.name ||
+            `${validUser.firstname || ""} ${validUser.lastname || ""}`.trim(),
+          role: userRole,
+          profileImage: validUser.profile_image || "",
+          staffId: validUser.staff_id || "",
+          patientId: validUser.patient_id || "",
+        };
+        localStorage.setItem("currentUser", JSON.stringify(storedUser));
+        sessionStorage.setItem("currentUser", JSON.stringify(storedUser));
+        const targetUrl = new URL(redirectPage, window.location.href).href;
+        window.top.location.href = targetUrl;
+      } catch (error) {
+        console.error("Login request error:", error);
+        showError("Unable to connect to the server. Please try again.");
+      } finally {
+        if (submitButton) {
+          submitButton.disabled = false;
+          submitButton.textContent = originalButtonText;
+        }
       }
-      const firstname = validUser.firstname || validUser.firstName || "";
-      const lastname = validUser.lastname || validUser.lastName || "";
-      const fullName =
-        validUser.fullName ||
-        validUser.full_name ||
-        validUser.name ||
-        `${firstname} ${lastname}`.trim();
-      const userRole = String(validUser.role || "").trim();
-      const currentUser = {
-        ...validUser,
-        id: validUser.id || null,
-        userId: validUser.userId || validUser.user_id || null,
-        firstname: firstname,
-        lastname: lastname,
-        firstName: firstname,
-        lastName: lastname,
-        name: fullName || "User",
-        fullName: fullName || "User",
-        email: validUser.email || email,
-        role: userRole,
-        department: validUser.department || "",
-        staffId: validUser.staffId || validUser.staff_id || null,
-        patientId:
-          validUser.patientId ||
-          validUser.patientID ||
-          validUser.patient_id ||
-          null,
-        dentistId:
-          validUser.dentistId ||
-          validUser.dentistID ||
-          validUser.dentist_id ||
-          null,
-        accessLevel:
-          validUser.accessLevel || validUser.access_level || userRole,
-        status: validUser.status || "Active",
-        profileImage:
-          validUser.profileImage ||
-          validUser.profile_image ||
-          validUser.image ||
-          "",
-        contact:
-          validUser.contact ||
-          validUser.contactNumber ||
-          validUser.contact_number ||
-          "",
-        createdAt: validUser.createdAt || "",
-      };
-      const redirectPage = getRedirectPage(currentUser.role);
-      if (!redirectPage) {
-        showError("Your account role is not recognized.");
-        console.error("Unrecognized account role:", currentUser.role);
-        return;
-      }
-      if (rememberMe && rememberMe.checked) {
-        localStorage.setItem(REMEMBERED_EMAIL_KEY, email);
-      } else {
-        localStorage.removeItem(REMEMBERED_EMAIL_KEY);
-      }
-      localStorage.setItem("isLoggedIn", "true");
-      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(currentUser));
-      sessionStorage.setItem(CURRENT_USER_KEY, JSON.stringify(currentUser));
-      console.log("DentaNueva Login Successful");
-      console.log("Logged in user:", currentUser);
-      console.log("Role:", currentUser.role);
-      console.log("Redirecting to:", redirectPage);
-      const targetUrl = new URL(redirectPage, window.location.href).href;
-      window.top.location.href = targetUrl;
     });
   }
 });

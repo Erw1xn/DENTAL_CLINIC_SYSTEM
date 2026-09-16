@@ -45,7 +45,22 @@
           </div>
         </header>
         <div class="appointments-layout">
-          <div class="left-col-stack">
+          <section class="panel schedule-panel">
+            <div class="schedule-main-header">
+              <div class="schedule-heading">
+                <span class="panel-eyebrow">DAILY SCHEDULE</span>
+                <div class="schedule-title-row">
+                  <h3 id="scheduleTitle">Today's Appointments</h3>
+                  <span
+                    id="scheduleDateLabel"
+                    class="schedule-date-label"
+                  ></span>
+                </div>
+              </div>
+            </div>
+            <div class="time-slots-container" id="timeline"></div>
+          </section>
+          <div class="right-col-stack">
             <section class="panel calendar-panel">
               <div class="calendar-header">
                 <div class="calendar-heading">
@@ -70,55 +85,6 @@
                 </div>
               </div>
               <div class="calendar-grid-days" id="calGrid"></div>
-            </section>
-            <section class="panel summary-panel">
-              <div class="summary-header">
-                <div>
-                  <span class="panel-eyebrow">OVERVIEW</span>
-                  <h3>Patient Appointments</h3>
-                </div>
-                <div class="summary-icon">
-                  <i class="fa-regular fa-calendar-check"></i>
-                </div>
-              </div>
-              <div class="summary-content">
-                <div class="summary-number" id="appointmentCount">0</div>
-                <div class="summary-label">Appointments for selected date</div>
-              </div>
-            </section>
-          </div>
-          <section class="panel schedule-panel">
-            <div class="schedule-main-header">
-              <div class="schedule-heading">
-                <span class="panel-eyebrow">DAILY SCHEDULE</span>
-                <div class="schedule-title-row">
-                  <h3 id="scheduleTitle">Today's Appointments</h3>
-                  <span
-                    id="scheduleDateLabel"
-                    class="schedule-date-label"
-                  ></span>
-                </div>
-              </div>
-              <div class="appointment-count-label">
-                <span class="count-dot"></span>
-                <span id="headerAppointmentCount">0</span>
-                <span>appointment(s)</span>
-              </div>
-            </div>
-            <div class="time-slots-container" id="timeline"></div>
-          </section>
-          <div class="right-col-stack">
-            <section class="panel waiting-panel">
-              <div class="waiting-header">
-                <div>
-                  <span class="panel-eyebrow">SELECTED DATE</span>
-                  <h3>Patient Appointments</h3>
-                </div>
-                <div class="waiting-icon">
-                  <i class="fa-solid fa-users"></i>
-                </div>
-              </div>
-              <div class="waiting-queue-list" id="waitingQueueList"></div>
             </section>
           </div>
         </div>

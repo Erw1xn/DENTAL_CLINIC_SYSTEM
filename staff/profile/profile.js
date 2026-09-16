@@ -3,12 +3,14 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 let profileSuccessTimeout = null;
+let currentStaffData = null;
 
 async function loadProfileModal() {
   const existingModal = document.getElementById("profileModalBackdrop");
 
   if (existingModal) {
     initProfileLogic();
+    await loadStaffProfile();
     return;
   }
 
@@ -32,12 +34,44 @@ async function loadProfileModal() {
 
     document.body.appendChild(modal);
     initProfileLogic();
+    await loadStaffProfile();
   } catch (error) {
     console.error("Failed to load profile modal:", error);
   }
 }
 
+async function loadStaffProfile() {
+  try {
+    const response = await fetch("../profile/profile.php", {
+      credentials: "same-origin",
+      cache: "no-store",
+    });
+    if (response.status === 401 || response.status === 403) {
+      window.location.href = "../../login/login.html";
+      return null;
+    }
+    if (!response.ok) {
+      throw new Error("Unable to load staff profile.");
+    }
+    const data = await response.json();
+    if (!data.success || !data.user) {
+      window.location.href = "../../login/login.html";
+      return null;
+    }
+    currentStaffData = data.user;
+    localStorage.setItem("currentUser", JSON.stringify(currentStaffData));
+    updateSidebarProfile(currentStaffData);
+    return currentStaffData;
+  } catch (error) {
+    console.error("Failed to load staff profile:", error);
+    return null;
+  }
+}
+
 function getCurrentUser() {
+  if (currentStaffData) {
+    return currentStaffData;
+  }
   try {
     const currentUser = localStorage.getItem("currentUser");
 
@@ -106,7 +140,7 @@ function getStaffData() {
   };
 }
 
-function saveStaffData(data) {
+async function saveStaffData(data) {
   const currentUser = getCurrentUser();
 
   if (!currentUser) {
@@ -119,27 +153,25 @@ function saveStaffData(data) {
   };
 
   try {
-    localStorage.setItem("currentUser", JSON.stringify(updatedUser));
-
-    const users = JSON.parse(localStorage.getItem("dentanueva_users")) || [];
-
-    const updatedUsers = users.map((user) => {
-      if (
-        user.email &&
-        currentUser.email &&
-        user.email.toLowerCase() === currentUser.email.toLowerCase()
-      ) {
-        return {
-          ...user,
-          contact: data.contact,
-        };
-      }
-
-      return user;
+    const formData = new FormData();
+    formData.append("action", "update_profile");
+    formData.append("contact", data.contact || "");
+    const response = await fetch("../profile/profile.php", {
+      method: "POST",
+      body: formData,
+      credentials: "same-origin",
+      cache: "no-store",
     });
-
-    localStorage.setItem("dentanueva_users", JSON.stringify(updatedUsers));
-
+    if (response.status === 401 || response.status === 403) {
+      window.location.href = "../../login/login.html";
+      return false;
+    }
+    const result = await response.json();
+    if (!response.ok || !result.success || !result.user) {
+      return false;
+    }
+    currentStaffData = result.user;
+    localStorage.setItem("currentUser", JSON.stringify(currentStaffData));
     return true;
   } catch (error) {
     console.error("Failed to save profile:", error);
@@ -261,7 +293,7 @@ function updateSidebarProfile(staff) {
   }
 }
 
-function openProfileModal() {
+async function openProfileModal() {
   const backdrop = document.getElementById("profileModalBackdrop");
 
   if (!backdrop) {
@@ -270,6 +302,10 @@ function openProfileModal() {
   }
 
   const card = backdrop.querySelector(".profile-modal-card");
+  const staffData = await loadStaffProfile();
+  if (!staffData) {
+    return;
+  }
   const staff = getStaffData();
 
   populateProfileModal(staff);
@@ -423,7 +459,7 @@ function validateProfileFields() {
   return true;
 }
 
-function saveProfileChanges() {
+async function saveProfileChanges() {
   const backdrop = document.getElementById("profileModalBackdrop");
 
   if (!backdrop) {
@@ -450,12 +486,13 @@ function saveProfileChanges() {
     contact,
   };
 
-  if (!saveStaffData(updatedStaff)) {
+  if (!(await saveStaffData(updatedStaff))) {
     return;
   }
 
-  populateProfileModal(updatedStaff);
-  updateSidebarProfile(updatedStaff);
+  const refreshedStaff = getStaffData();
+  populateProfileModal(refreshedStaff);
+  updateSidebarProfile(refreshedStaff);
 
   card.classList.remove("editing");
 

@@ -33,7 +33,8 @@ async function loadSidebar(activePageKey) {
       document.body.appendChild(logoutModal);
     }
 
-    loadActivePatientProfile();
+    setSidebarLinks();
+    await loadActivePatientProfile();
 
     let pageKey = activePageKey;
 
@@ -66,16 +67,18 @@ async function loadSidebar(activePageKey) {
   }
 }
 
-function getCurrentUser() {
-  try {
-    const storedUser = sessionStorage.getItem("currentUser");
-    if (storedUser) {
-      return JSON.parse(storedUser);
-    }
-    return null;
-  } catch (error) {
-    return null;
-  }
+function getAppBase() {
+  const pathParts = window.location.pathname.split("/").filter(Boolean);
+  return pathParts.length ? `/${pathParts[0]}/` : "/";
+}
+
+function setSidebarLinks() {
+  const appBase = getAppBase();
+  document
+    .querySelectorAll("#sidebar-container [data-path]")
+    .forEach((link) => {
+      link.href = `${appBase}${link.dataset.path}`;
+    });
 }
 
 function getInitials(name) {
@@ -98,7 +101,7 @@ function getInitials(name) {
   return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
 }
 
-function loadActivePatientProfile() {
+async function loadActivePatientProfile() {
   const nameEl = document.getElementById("activePatientName");
   const imageEl = document.getElementById("activePatientImage");
   const initialsEl = document.getElementById("activePatientInitials");
@@ -107,54 +110,53 @@ function loadActivePatientProfile() {
     return;
   }
 
-  const currentUser = getCurrentUser();
-
-  if (!currentUser) {
-    nameEl.textContent = "Patient";
-
-    if (imageEl) {
-      imageEl.style.display = "none";
+  try {
+    const response = await fetch(
+      `${getAppBase()}navigation_bar/sidebar.php?role=patient`,
+      {
+        credentials: "same-origin",
+        cache: "no-store",
+      },
+    );
+    if (response.status === 401 || response.status === 403) {
+      window.location.href = `${getAppBase()}login/login.html`;
+      return;
     }
-
-    if (initialsEl) {
-      initialsEl.textContent = "PT";
-      initialsEl.style.display = "flex";
+    if (!response.ok) {
+      throw new Error("Unable to load patient account.");
     }
-
-    return;
-  }
-
-  const firstname = currentUser.firstname || currentUser.firstName || "";
-
-  const lastname = currentUser.lastname || currentUser.lastName || "";
-
-  const fullName =
-    currentUser.name ||
-    currentUser.full_name ||
-    `${firstname} ${lastname}`.trim();
-
-  const initials = getInitials(fullName);
-
-  nameEl.textContent = fullName || "Patient";
-
-  if (currentUser.profileImage && imageEl) {
-    imageEl.src = currentUser.profileImage;
-    imageEl.style.display = "block";
-
-    if (initialsEl) {
-      initialsEl.textContent = initials;
-      initialsEl.style.display = "none";
+    const data = await response.json();
+    if (!data.success || !data.user) {
+      window.location.href = `${getAppBase()}login/login.html`;
+      return;
     }
-  } else {
-    if (imageEl) {
-      imageEl.removeAttribute("src");
-      imageEl.style.display = "none";
-    }
+    const currentUser = data.user;
+    sessionStorage.setItem("currentUser", JSON.stringify(currentUser));
+    const firstname = currentUser.firstname || "";
+    const lastname = currentUser.lastname || "";
+    const fullName =
+      currentUser.name || `${firstname} ${lastname}`.trim() || "Patient";
+    const initials = getInitials(fullName);
+    nameEl.textContent = fullName;
+    const profileImage =
+      currentUser.profile_image || currentUser.profileImage || "";
+    if (profileImage && imageEl) {
+      imageEl.src = profileImage;
+      imageEl.style.display = "block";
+      if (initialsEl) initialsEl.style.display = "none";
+    } else {
+      if (imageEl) {
+        imageEl.removeAttribute("src");
+        imageEl.style.display = "none";
+      }
 
-    if (initialsEl) {
-      initialsEl.textContent = initials;
-      initialsEl.style.display = "flex";
+      if (initialsEl) {
+        initialsEl.textContent = initials;
+        initialsEl.style.display = "flex";
+      }
     }
+  } catch (error) {
+    console.error("Failed to load patient account:", error);
   }
 }
 
@@ -244,7 +246,7 @@ function initSidebarLogic() {
   }
 }
 
-document.addEventListener("click", (e) => {
+document.addEventListener("click", async (e) => {
   const logoutBtn = e.target.closest(".btn-logout");
   const cancelBtn = e.target.closest("#logoutCancelBtn");
   const confirmBtn = e.target.closest("#logoutConfirmBtn");
@@ -255,6 +257,7 @@ document.addEventListener("click", (e) => {
 
     if (backdrop) {
       backdrop.classList.add("active");
+      document.body.classList.add("logout-modal-open");
     }
   }
 
@@ -263,7 +266,12 @@ document.addEventListener("click", (e) => {
 
     if (backdrop) {
       backdrop.classList.remove("active");
+      document.body.classList.remove("logout-modal-open");
     }
+  }
+  if (backdrop && e.target === backdrop) {
+    backdrop.classList.remove("active");
+    document.body.classList.remove("logout-modal-open");
   }
 
   if (confirmBtn) {
@@ -272,6 +280,26 @@ document.addEventListener("click", (e) => {
     localStorage.removeItem("isLoggedIn");
     localStorage.removeItem("currentUser");
     sessionStorage.removeItem("currentUser");
-    window.location.href = "../../homepage/homepage.html";
+    try {
+      await fetch(`${getAppBase()}navigation_bar/sidebar.php`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: "action=logout",
+        credentials: "same-origin",
+      });
+    } finally {
+      localStorage.removeItem("isLoggedIn");
+      localStorage.removeItem("currentUser");
+      sessionStorage.removeItem("currentUser");
+      window.location.href = `${getAppBase()}homepage/homepage.html`;
+    }
+  }
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  const backdrop = document.getElementById("logoutModalBackdrop");
+  if (backdrop?.classList.contains("active")) {
+    backdrop.classList.remove("active");
+    document.body.classList.remove("logout-modal-open");
   }
 });

@@ -3,10 +3,12 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 let profileSuccessTimeout = null;
 let profileModalLoadingPromise = null;
+let currentDoctorData = null;
 async function loadProfileModal() {
   const existingModal = document.getElementById("profileModalBackdrop");
   if (existingModal) {
     initProfileLogic();
+    await loadDoctorProfile();
     return existingModal;
   }
   if (profileModalLoadingPromise) {
@@ -14,7 +16,11 @@ async function loadProfileModal() {
   }
   profileModalLoadingPromise = (async () => {
     try {
-      const response = await fetch("../profile/profile.html");
+      const response = await fetch("../profile/profile.html", {
+        method: "GET",
+        credentials: "same-origin",
+        cache: "no-store",
+      });
       if (!response.ok) {
         throw new Error("Unable to load profile modal.");
       }
@@ -27,6 +33,7 @@ async function loadProfileModal() {
       }
       document.body.appendChild(modal);
       initProfileLogic();
+      await loadDoctorProfile();
       return modal;
     } catch (error) {
       console.error("Failed to load profile modal:", error);
@@ -37,158 +44,83 @@ async function loadProfileModal() {
   })();
   return profileModalLoadingPromise;
 }
-function parseUserData(value) {
+async function loadDoctorProfile() {
   try {
-    const parsed = JSON.parse(value);
-    if (parsed && typeof parsed === "object") {
-      if (parsed.user && typeof parsed.user === "object") {
-        return parsed.user;
-      }
-      if (parsed.data && typeof parsed.data === "object") {
-        if (parsed.data.user && typeof parsed.data.user === "object") {
-          return parsed.data.user;
-        }
-        return parsed.data;
-      }
-      return parsed;
+    const response = await fetch("../profile/profile.php", {
+      method: "GET",
+      credentials: "same-origin",
+      cache: "no-store",
+    });
+    if (response.status === 401 || response.status === 403) {
+      window.location.href = "../../login/login.html";
+      return null;
     }
+    if (!response.ok) {
+      throw new Error("Unable to load doctor profile.");
+    }
+    const data = await response.json();
+    if (!data.success || !data.user) {
+      window.location.href = "../../login/login.html";
+      return null;
+    }
+    currentDoctorData = data.user;
+    currentDoctorData.role = "doctor";
+    currentDoctorData.doctor_id = currentDoctorData.doctor_id || "";
+    currentDoctorData.specialization =
+      currentDoctorData.specialization || "General Dentistry";
+    currentDoctorData.access_level = currentDoctorData.access_level || "doctor";
+    currentDoctorData.status = currentDoctorData.status || "Active";
+    updateSidebarProfile(currentDoctorData);
+    return currentDoctorData;
   } catch (error) {
+    console.error("Failed to load doctor profile:", error);
     return null;
   }
-  return null;
 }
 function getCurrentUser() {
-  const storageKeys = [
-    "currentUser",
-    "loggedInUser",
-    "user",
-    "authUser",
-    "activeUser",
-    "sessionUser",
-    "userData",
-    "current_user",
-    "loggedInUserData",
-    "loginUser",
-  ];
-  for (const key of storageKeys) {
-    const localValue = localStorage.getItem(key);
-    if (localValue) {
-      const user = parseUserData(localValue);
-      if (user && isDoctorUser(user)) {
-        return user;
-      }
-    }
-    const sessionValue = sessionStorage.getItem(key);
-    if (sessionValue) {
-      const user = parseUserData(sessionValue);
-      if (user && isDoctorUser(user)) {
-        return user;
-      }
-    }
+  if (currentDoctorData && currentDoctorData.role === "doctor") {
+    return currentDoctorData;
   }
-  return null;
+  const nameEl = document.getElementById("activeDoctorName");
+  if (!nameEl) {
+    return null;
+  }
+  const user = {
+    user_id: nameEl.dataset.userId || "",
+    firstname: nameEl.dataset.firstname || "",
+    lastname: nameEl.dataset.lastname || "",
+    name: nameEl.textContent.trim(),
+    role: nameEl.dataset.role || "doctor",
+    doctor_id: nameEl.dataset.doctorId || "",
+    specialization: nameEl.dataset.specialization || "",
+    email: nameEl.dataset.email || "",
+    contact: nameEl.dataset.contact || "",
+    status: nameEl.dataset.status || "Active",
+    profile_image: nameEl.dataset.profileImage || "",
+  };
+  if (user.role !== "doctor") {
+    return null;
+  }
+  return user;
 }
 function isDoctorUser(user) {
   if (!user || typeof user !== "object") {
     return false;
   }
-  const role = String(user.role || user.userRole || user.accountType || "")
-    .trim()
-    .toLowerCase();
-  const doctorId = user.doctorId || user.doctor_id || user.doctorID;
-  return role === "doctor" || Boolean(doctorId);
+  return (
+    String(user.role || "")
+      .trim()
+      .toLowerCase() === "doctor"
+  );
 }
 function getDoctorId(currentUser = getCurrentUser()) {
   if (!currentUser) {
     return "";
   }
-  return String(
-    currentUser.doctorId || currentUser.doctor_id || currentUser.doctorID || "",
-  ).trim();
+  return String(currentUser.doctor_id || "").trim();
 }
 function isValidDoctorId(doctorId) {
   return /^DOC-\d{4}$/.test(String(doctorId || "").trim());
-}
-function getUserIdentity(user) {
-  if (!user) {
-    return "";
-  }
-  const id = user.id || user.userId || user.user_id || "";
-  if (id) {
-    return `id:${String(id).trim().toLowerCase()}`;
-  }
-  const email = user.email || "";
-  if (email) {
-    return `email:${String(email).trim().toLowerCase()}`;
-  }
-  const username = user.username || "";
-  if (username) {
-    return `username:${String(username).trim().toLowerCase()}`;
-  }
-  const firstname = user.firstname || user.firstName || "";
-  const lastname = user.lastname || user.lastName || "";
-  const name =
-    user.name ||
-    user.full_name ||
-    user.fullName ||
-    `${firstname} ${lastname}`.trim();
-  return `name:${String(name).trim().toLowerCase()}`;
-}
-function getDoctorAccounts(users) {
-  if (!Array.isArray(users)) {
-    return [];
-  }
-  return users.filter((user) => isDoctorUser(user));
-}
-function syncDoctorAccountIds(currentUser) {
-  if (!currentUser) {
-    return "";
-  }
-  try {
-    const users = JSON.parse(localStorage.getItem("dentanueva_users")) || [];
-    if (!Array.isArray(users)) {
-      return "";
-    }
-    const doctorAccounts = getDoctorAccounts(users);
-    const currentIdentity = getUserIdentity(currentUser);
-    let currentDoctorIndex = doctorAccounts.findIndex(
-      (user) => getUserIdentity(user) === currentIdentity,
-    );
-    if (currentDoctorIndex === -1) {
-      currentDoctorIndex = doctorAccounts.length;
-      doctorAccounts.push(currentUser);
-    }
-    const doctorIdMap = new Map();
-    doctorAccounts.forEach((doctor, index) => {
-      const identity = getUserIdentity(doctor);
-      if (identity) {
-        doctorIdMap.set(identity, `DOC-${String(index + 1).padStart(4, "0")}`);
-      }
-    });
-    const updatedUsers = users.map((user) => {
-      if (!isDoctorUser(user)) {
-        return user;
-      }
-      const identity = getUserIdentity(user);
-      const doctorId = doctorIdMap.get(identity);
-      if (!doctorId) {
-        return user;
-      }
-      return { ...user, doctorId };
-    });
-    localStorage.setItem("dentanueva_users", JSON.stringify(updatedUsers));
-    const currentDoctorId =
-      doctorIdMap.get(currentIdentity) ||
-      `DOC-${String(currentDoctorIndex + 1).padStart(4, "0")}`;
-    const updatedCurrentUser = { ...currentUser, doctorId: currentDoctorId };
-    localStorage.setItem("currentUser", JSON.stringify(updatedCurrentUser));
-    sessionStorage.setItem("currentUser", JSON.stringify(updatedCurrentUser));
-    return currentDoctorId;
-  } catch (error) {
-    console.error("Failed to synchronize doctor ID:", error);
-    const existingId = getDoctorId(currentUser);
-    return isValidDoctorId(existingId) ? existingId : "";
-  }
 }
 function getDoctorInitials(name) {
   if (!name) {
@@ -223,76 +155,64 @@ function getDoctorData() {
       status: "Active",
     };
   }
-  const firstname = currentUser.firstname || currentUser.firstName || "";
-  const lastname = currentUser.lastname || currentUser.lastName || "";
+  const firstname = currentUser.firstname || "";
+  const lastname = currentUser.lastname || "";
   const name =
-    currentUser.name ||
-    currentUser.full_name ||
-    currentUser.fullName ||
-    currentUser.fullname ||
-    `${firstname} ${lastname}`.trim() ||
-    "Doctor";
-  const doctorId = syncDoctorAccountIds(currentUser);
+    currentUser.name || `${firstname} ${lastname}`.trim() || "Doctor";
+  const doctorId = getDoctorId(currentUser);
   return {
+    user_id: currentUser.user_id || "",
     name,
+    firstname,
+    lastname,
     initials: getDoctorInitials(name),
-    image:
-      currentUser.profileImage ||
-      currentUser.profile_image ||
-      currentUser.image ||
-      currentUser.photo ||
-      currentUser.photoURL ||
-      currentUser.avatar ||
-      "",
-    role: currentUser.role || "Doctor",
-    specialization:
-      currentUser.specialization ||
-      currentUser.specialisation ||
-      currentUser.specialty ||
-      currentUser.speciality ||
-      "General Dentistry",
+    image: currentUser.profile_image || "",
+    role: currentUser.role || "doctor",
+    specialization: currentUser.specialization || "General Dentistry",
     doctorId: doctorId || "No doctor ID available",
-    accessLevel:
-      currentUser.accessLevel || currentUser.access_level || "Doctor",
+    accessLevel: currentUser.access_level || "doctor",
     email: currentUser.email || "",
-    contact:
-      currentUser.contact ||
-      currentUser.contactNumber ||
-      currentUser.contact_number ||
-      "",
+    contact: currentUser.contact || "",
     status: currentUser.status || "Active",
   };
 }
-function saveDoctorData(data) {
+async function saveDoctorData(data) {
   const currentUser = getCurrentUser();
   if (!currentUser) {
     return false;
   }
-  const doctorId = syncDoctorAccountIds(currentUser);
-  const updatedUser = {
-    ...currentUser,
-    doctorId: doctorId || getDoctorId(currentUser),
-    contact: data.contact,
-    specialization: data.specialization,
-  };
   try {
-    localStorage.setItem("currentUser", JSON.stringify(updatedUser));
-    sessionStorage.setItem("currentUser", JSON.stringify(updatedUser));
-    const users = JSON.parse(localStorage.getItem("dentanueva_users")) || [];
-    const currentIdentity = getUserIdentity(currentUser);
-    const updatedUsers = users.map((user) => {
-      const sameIdentity = getUserIdentity(user) === currentIdentity;
-      if (sameIdentity) {
-        return {
-          ...user,
-          contact: data.contact,
-          specialization: data.specialization,
-          doctorId: updatedUser.doctorId,
-        };
-      }
-      return user;
+    const formData = new FormData();
+    formData.append("action", "update_profile");
+    formData.append("contact", data.contact || "");
+    formData.append("specialization", data.specialization || "");
+    const response = await fetch("../profile/profile.php", {
+      method: "POST",
+      body: formData,
+      credentials: "same-origin",
+      cache: "no-store",
     });
-    localStorage.setItem("dentanueva_users", JSON.stringify(updatedUsers));
+    if (response.status === 401 || response.status === 403) {
+      window.location.href = "../../login/login.html";
+      return false;
+    }
+    if (!response.ok) {
+      throw new Error("Unable to save doctor profile.");
+    }
+    const result = await response.json();
+    if (!result.success || !result.user) {
+      return false;
+    }
+    currentDoctorData = result.user;
+    currentDoctorData.role = "doctor";
+    currentDoctorData.doctor_id =
+      currentDoctorData.doctor_id || currentUser.doctor_id || "";
+    currentDoctorData.specialization =
+      currentDoctorData.specialization ||
+      data.specialization ||
+      "General Dentistry";
+    currentDoctorData.access_level = currentDoctorData.access_level || "doctor";
+    currentDoctorData.status = currentDoctorData.status || "Active";
     return true;
   } catch (error) {
     console.error("Failed to save doctor profile:", error);
@@ -320,7 +240,7 @@ function populateProfileModal(doctor) {
     nameEl.textContent = doctor.name;
   }
   if (roleEl) {
-    roleEl.textContent = doctor.role;
+    roleEl.textContent = "Doctor";
   }
   if (statusEl) {
     statusEl.textContent = doctor.status;
@@ -335,7 +255,7 @@ function populateProfileModal(doctor) {
     specializationInput.value = doctor.specialization || "";
   }
   if (accessLevelEl) {
-    accessLevelEl.textContent = doctor.accessLevel;
+    accessLevelEl.textContent = "Doctor";
   }
   if (emailEl) {
     emailEl.textContent = doctor.email || "No email available";
@@ -367,13 +287,23 @@ function updateSidebarProfile(doctor) {
   const imageEl = document.getElementById("activeDoctorImage");
   const initialsEl = document.getElementById("activeDoctorInitials");
   if (nameEl) {
-    nameEl.textContent = doctor.name;
+    nameEl.textContent = doctor.name || "Doctor";
+    nameEl.dataset.userId = doctor.user_id || "";
+    nameEl.dataset.firstname = doctor.firstname || "";
+    nameEl.dataset.lastname = doctor.lastname || "";
+    nameEl.dataset.role = doctor.role || "doctor";
+    nameEl.dataset.doctorId = doctor.doctor_id || "";
+    nameEl.dataset.specialization = doctor.specialization || "";
+    nameEl.dataset.email = doctor.email || "";
+    nameEl.dataset.contact = doctor.contact || "";
+    nameEl.dataset.status = doctor.status || "Active";
+    nameEl.dataset.profileImage = doctor.profile_image || "";
   }
   if (!imageEl || !initialsEl) {
     return;
   }
-  if (doctor.image) {
-    imageEl.src = doctor.image;
+  if (doctor.profile_image) {
+    imageEl.src = doctor.profile_image;
     imageEl.style.display = "block";
     initialsEl.textContent = getDoctorInitials(doctor.name);
     initialsEl.style.display = "none";
@@ -394,10 +324,14 @@ async function openProfileModal() {
     return;
   }
   initProfileLogic();
+  const doctorData = await loadDoctorProfile();
+  if (!doctorData) {
+    return;
+  }
   const card = backdrop.querySelector(".profile-modal-card");
   const doctor = getDoctorData();
   populateProfileModal(doctor);
-  updateSidebarProfile(doctor);
+  updateSidebarProfile(doctorData);
   if (card) {
     card.classList.remove("editing");
   }
@@ -518,7 +452,7 @@ function validateProfileFields() {
   }
   return true;
 }
-function saveProfileChanges() {
+async function saveProfileChanges() {
   const backdrop = document.getElementById("profileModalBackdrop");
   if (!backdrop) {
     return;
@@ -543,14 +477,21 @@ function saveProfileChanges() {
     contact,
     specialization,
   };
-  if (!saveDoctorData(updatedDoctor)) {
-    return;
-  }
-  populateProfileModal(updatedDoctor);
-  updateSidebarProfile(updatedDoctor);
-  card.classList.remove("editing");
   if (saveBtn) {
     saveBtn.disabled = true;
+  }
+  const saved = await saveDoctorData(updatedDoctor);
+  if (!saved) {
+    if (saveBtn) {
+      saveBtn.disabled = false;
+    }
+    return;
+  }
+  const refreshedDoctor = getDoctorData();
+  populateProfileModal(refreshedDoctor);
+  updateSidebarProfile(currentDoctorData);
+  card.classList.remove("editing");
+  if (saveBtn) {
     setTimeout(() => {
       saveBtn.disabled = false;
     }, 300);
@@ -598,9 +539,6 @@ function initProfileLogic() {
   const specializationInput = document.getElementById(
     "profileModalSpecializationInput",
   );
-  const doctor = getDoctorData();
-  populateProfileModal(doctor);
-  updateSidebarProfile(doctor);
   closeBtn?.addEventListener("click", closeProfileModal);
   editBtn?.addEventListener("click", startProfileEditing);
   cancelBtn?.addEventListener("click", cancelProfileEditing);
@@ -659,3 +597,5 @@ window.openProfileModal = openProfileModal;
 window.closeProfileModal = closeProfileModal;
 window.getDoctorData = getDoctorData;
 window.getDoctorId = getDoctorId;
+window.getLoggedInDoctor = getCurrentUser;
+window.getDoctorInitials = getDoctorInitials;

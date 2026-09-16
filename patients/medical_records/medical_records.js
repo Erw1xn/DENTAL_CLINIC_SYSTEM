@@ -1,7 +1,7 @@
 "use strict";
 
-const PATIENT_STORAGE_KEY = "dentanueva_patients";
 const CURRENT_USER_KEY = "currentUser";
+const PATIENT_RECORD_API = "../../api/patient_records.php";
 
 let currentUser = null;
 let currentPatient = null;
@@ -11,18 +11,83 @@ const TOTAL_STEPS = 5;
 
 const $ = (id) => document.getElementById(id);
 
-document.addEventListener("DOMContentLoaded", () => {
-  initializeMedicalRecords();
+document.addEventListener("DOMContentLoaded", async () => {
+  await initializeMedicalRecords();
 });
 
-function initializeMedicalRecords() {
+async function initializeMedicalRecords() {
   currentUser = getCurrentUser();
   loadOrCreatePatientRecord();
+  await hydratePatientRecordFromDatabase();
   bindEvents();
   bindClinicalImageViewer();
   populatePatientProfile();
   updatePageState();
   openPatientRecordTab(null);
+}
+
+async function hydratePatientRecordFromDatabase() {
+  if (!currentUser) {
+    return;
+  }
+  try {
+    const response = await fetch(PATIENT_RECORD_API, {
+      credentials: "same-origin",
+      cache: "no-store",
+    });
+    if (!response.ok) {
+      return;
+    }
+    const result = await response.json();
+    if (!result.success || !result.data) {
+      return;
+    }
+    currentPatient = normalizePatient(result.data);
+    const patients = getPatients();
+    const patientId = String(currentPatient.patientId || currentPatient.id);
+    const index = patients.findIndex(
+      (patient) => String(patient.patientId || patient.id) === patientId,
+    );
+    if (index === -1) {
+      patients.push(currentPatient);
+    } else {
+      patients[index] = { ...patients[index], ...currentPatient };
+    }
+    savePatients(patients);
+    currentUser.patientId = currentPatient.patientId;
+    sessionStorage.setItem(CURRENT_USER_KEY, JSON.stringify(currentUser));
+  } catch (error) {
+    console.warn(
+      "Database patient record unavailable; using local record.",
+      error,
+    );
+  }
+}
+
+async function savePatientRecordToDatabase() {
+  if (!currentPatient) {
+    return false;
+  }
+  try {
+    const response = await fetch(PATIENT_RECORD_API, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        patientId: currentPatient.patientId || currentPatient.id,
+        patient: currentPatient,
+        medicalForm: currentPatient.medicalForm,
+      }),
+    });
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || "Patient record was not saved.");
+    }
+    return true;
+  } catch (error) {
+    console.error("Unable to sync patient record to database.", error);
+    return false;
+  }
 }
 
 function bindClinicalImageViewer() {
@@ -111,24 +176,13 @@ function getCurrentUser() {
 }
 
 function getPatients() {
-  try {
-    const stored = localStorage.getItem(PATIENT_STORAGE_KEY);
-
-    if (!stored) {
-      return [];
-    }
-
-    const parsed = JSON.parse(stored);
-
-    return Array.isArray(parsed) ? parsed : [];
-  } catch (error) {
-    console.error("Unable to read patient records:", error);
-    return [];
-  }
+  return currentPatient ? [currentPatient] : [];
 }
 
 function savePatients(patients) {
-  localStorage.setItem(PATIENT_STORAGE_KEY, JSON.stringify(patients));
+  if (Array.isArray(patients) && patients[0]) {
+    currentPatient = patients[0];
+  }
 }
 
 function loadOrCreatePatientRecord() {
@@ -235,6 +289,7 @@ function loadOrCreatePatientRecord() {
   };
   patients.push(newPatient);
   savePatients(patients);
+  void savePatientRecordToDatabase();
   currentPatient = newPatient;
   currentUser.patientId = patientId;
   sessionStorage.setItem(CURRENT_USER_KEY, JSON.stringify(currentUser));
@@ -599,6 +654,7 @@ function saveProfileEdit(event) {
   currentPatient = normalizePatient(patients[index]);
   patients[index] = currentPatient;
   savePatients(patients);
+  void savePatientRecordToDatabase();
 
   if (currentUser) {
     currentUser.patientId = currentPatient.patientId || currentPatient.id;
@@ -2054,7 +2110,7 @@ function validateCurrentStep() {
   return true;
 }
 
-function saveMedicalRecord(event) {
+async function saveMedicalRecord(event) {
   event.preventDefault();
 
   if (!currentPatient) {
@@ -2174,6 +2230,13 @@ function saveMedicalRecord(event) {
   }
 
   savePatients(patients);
+  const saved = await savePatientRecordToDatabase();
+  if (!saved) {
+    alert(
+      "The medical record could not be saved to the database. Please try again.",
+    );
+    return;
+  }
 
   if (currentUser) {
     currentUser.patientId = currentPatient.patientId || currentPatient.id;
@@ -2187,7 +2250,7 @@ function saveMedicalRecord(event) {
     currentUser.address = currentPatient.address;
     currentUser.emergencyName = currentPatient.emergencyName;
     currentUser.emergencyContact = currentPatient.emergencyContact;
-    localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(currentUser));
+    sessionStorage.setItem(CURRENT_USER_KEY, JSON.stringify(currentUser));
   }
 
   closeMedicalModal();
@@ -2435,22 +2498,6 @@ function escapeHTML(value) {
 function escapeSelectorValue(value) {
   return String(value || "").replace(/"/g, '\\"');
 }
-
-window.addEventListener("storage", (event) => {
-  if (event.key === PATIENT_STORAGE_KEY) {
-    loadOrCreatePatientRecord();
-    populatePatientProfile();
-    updatePageState();
-  }
-
-  if (event.key === CURRENT_USER_KEY) {
-    currentUser = getCurrentUser();
-
-    loadOrCreatePatientRecord();
-    populatePatientProfile();
-    updatePageState();
-  }
-});
 
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") {

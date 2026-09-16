@@ -698,6 +698,7 @@ button:focus-visible {
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 6px;
   min-height: 155px;
   padding: 15px 18px;
   text-align: center;
@@ -706,6 +707,10 @@ button:focus-visible {
   font-size: 10.5px;
   line-height: 1.5;
   font-weight: 500;
+}
+.no-appointments i {
+  color: var(--green-700);
+  font-size: 12px;
 }
 .clinic-summary-card .card-header {
   border-bottom: 1px solid var(--ink-100);

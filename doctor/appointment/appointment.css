@@ -185,7 +185,7 @@ select:focus-visible {
 .appointments-layout {
   width: 100%;
   display: grid;
-  grid-template-columns: 235px minmax(500px, 1fr) 330px;
+  grid-template-columns: minmax(500px, 1fr) 330px;
   gap: 16px;
   align-items: start;
   padding: 16px 18px 24px;
@@ -327,8 +327,14 @@ select:focus-visible {
   background: var(--green-700);
   border-radius: 50%;
 }
+.day.has-reschedule-request::after {
+  background: #e6a21a;
+}
 .day.selected.has-appt::after {
   background: #fff;
+}
+.day.selected.has-reschedule-request::after {
+  background: #ffe3a0;
 }
 .summary-panel {
   min-height: 178px;
@@ -394,12 +400,11 @@ select:focus-visible {
   align-self: start;
 }
 .schedule-main-header {
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
   min-height: 78px;
-  padding: 15px 18px;
+  padding: 15px 20px;
   background: #fff;
   border-bottom: 1px solid var(--ink-100);
   flex-shrink: 0;
@@ -408,51 +413,29 @@ select:focus-visible {
   min-width: 0;
 }
 .schedule-title-row {
-  display: flex;
-  align-items: baseline;
-  gap: 9px;
+  display: block;
   min-width: 0;
   margin-top: 3px;
 }
 .schedule-main-header h3 {
   min-width: 0;
   margin: 0;
-  overflow: hidden;
   color: var(--ink-900);
   font-family: var(--font-display);
   font-size: 15px;
   font-weight: 700;
   line-height: 1.3;
   white-space: nowrap;
-  text-overflow: ellipsis;
 }
 .schedule-date-label {
+  position: absolute;
+  top: 29px;
+  right: 20px;
   color: var(--green-700);
   font-size: 9.5px;
   font-weight: 600;
   line-height: 1.3;
   white-space: nowrap;
-}
-.appointment-count-label {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  flex-shrink: 0;
-  color: #9aa49e;
-  font-size: 9px;
-  font-weight: 500;
-  white-space: nowrap;
-}
-.appointment-count-label span:nth-last-child(2) {
-  color: var(--green-700);
-  font-weight: 700;
-}
-.count-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--green-700);
-  box-shadow: 0 0 0 3px var(--green-100);
 }
 .time-slots-container {
   flex: 1;
@@ -461,7 +444,7 @@ select:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 0;
-  padding: 10px 14px 14px 18px;
+  padding: 12px 18px 16px 20px;
   overflow-y: auto;
   overflow-x: hidden;
   scroll-behavior: smooth;
@@ -482,7 +465,7 @@ select:focus-visible {
 .tl-row {
   display: grid;
   grid-template-columns: 70px minmax(0, 1fr);
-  min-height: 58px;
+  min-height: 72px;
   border-bottom: 1px solid #f0f3f1;
   flex-shrink: 0;
 }
@@ -501,7 +484,30 @@ select:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 5px;
-  padding: 4px 0;
+  padding: 4px 0 10px;
+}
+.schedule-empty-state {
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: #98a49d;
+  text-align: center;
+}
+.schedule-empty-state i {
+  margin-bottom: 4px;
+  color: var(--green-700);
+  font-size: 22px;
+}
+.schedule-empty-state strong {
+  color: var(--ink-900);
+  font-size: 11px;
+  font-weight: 700;
+}
+.schedule-empty-state span {
+  font-size: 9px;
 }
 .empty-slot {
   min-height: 36px;
@@ -1385,15 +1391,29 @@ select:focus-visible {
     margin-right: 22px;
   }
   .appointments-layout {
-    grid-template-columns: 250px minmax(560px, 1fr) 330px;
+    grid-template-columns: minmax(560px, 1fr) 330px;
     gap: 18px;
     padding-left: 22px;
     padding-right: 22px;
   }
+  .schedule-main-header {
+    padding-left: 22px;
+    padding-right: 22px;
+  }
+  .schedule-date-label {
+    right: 22px;
+  }
+  .appointment-count-label {
+    right: 22px;
+  }
+  .time-slots-container {
+    padding-left: 22px;
+    padding-right: 20px;
+  }
 }
 @media (max-width: 1200px) {
   .appointments-layout {
-    grid-template-columns: 220px minmax(420px, 1fr) 300px;
+    grid-template-columns: minmax(420px, 1fr) 300px;
     gap: 13px;
     padding-left: 16px;
     padding-right: 16px;
@@ -1410,6 +1430,12 @@ select:focus-visible {
     padding-left: 15px;
     padding-right: 15px;
   }
+  .schedule-date-label {
+    right: 15px;
+  }
+  .appointment-count-label {
+    right: 15px;
+  }
   .time-slots-container {
     padding-left: 15px;
   }
@@ -1423,7 +1449,7 @@ select:focus-visible {
   .right-col-stack {
     width: 100%;
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
     gap: 14px;
   }
   .schedule-panel {
@@ -1432,22 +1458,14 @@ select:focus-visible {
     height: 620px;
     min-height: 620px;
   }
-  .left-col-stack {
-    grid-column: 1;
-    grid-row: 2;
-  }
   .right-col-stack {
     grid-column: 1;
-    grid-row: 3;
+    grid-row: 2;
   }
   .calendar-panel,
   .summary-panel,
   .waiting-panel {
     min-height: 0;
-  }
-  .waiting-panel {
-    height: 280px;
-    min-height: 280px;
   }
 }
 @media (max-width: 760px) {
@@ -1484,16 +1502,22 @@ select:focus-visible {
     min-height: 570px;
   }
   .schedule-main-header {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 10px;
+    align-items: center;
+    min-height: 78px;
     padding: 14px;
   }
   .schedule-heading {
     width: 100%;
   }
+  .schedule-date-label {
+    top: 27px;
+    right: 14px;
+    font-size: 8.5px;
+  }
   .appointment-count-label {
-    align-self: flex-start;
+    top: 44px;
+    right: 14px;
+    font-size: 8px;
   }
   .time-slots-container {
     padding: 10px 11px 12px;
@@ -1524,25 +1548,29 @@ select:focus-visible {
     padding: 10px;
   }
   .calendar-panel,
-  .summary-panel,
-  .waiting-header {
+  .summary-panel {
     padding: 14px;
-  }
-  .waiting-queue-list {
-    padding: 12px 14px 14px;
   }
   .schedule-panel {
     height: 540px;
     min-height: 540px;
   }
   .schedule-main-header {
+    min-height: 76px;
     padding: 13px 14px;
   }
   .schedule-main-header h3 {
     font-size: 13px;
   }
   .schedule-date-label {
-    font-size: 8.5px;
+    top: 26px;
+    right: 14px;
+    font-size: 8px;
+  }
+  .appointment-count-label {
+    top: 43px;
+    right: 14px;
+    font-size: 7.8px;
   }
   .form-row-inline {
     grid-template-columns: 1fr;
@@ -1575,6 +1603,19 @@ select:focus-visible {
   .schedule-panel {
     height: 520px;
     min-height: 520px;
+  }
+  .schedule-main-header {
+    min-height: 74px;
+  }
+  .schedule-date-label {
+    top: 25px;
+    right: 12px;
+    font-size: 7.8px;
+  }
+  .appointment-count-label {
+    top: 42px;
+    right: 12px;
+    font-size: 7.5px;
   }
   .tl-row {
     grid-template-columns: 54px minmax(0, 1fr);

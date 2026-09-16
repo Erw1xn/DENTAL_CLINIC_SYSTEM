@@ -1,6 +1,5 @@
 "use strict";
-const PATIENT_STORAGE_KEY = "dentanueva_patients";
-const TOTAL_PATIENTS_STORAGE_KEY = "dentanueva_total_patients";
+const PATIENT_RECORD_API = "../../api/patient_records.php";
 let patients = [];
 let currentPatientId = null;
 let currentMedicalPatientId = null;
@@ -28,6 +27,7 @@ document.addEventListener("DOMContentLoaded", () => {
   patientActionMenu = $("patientActionMenu");
 
   loadPatients();
+  void hydratePatientsFromDatabase();
   bindPatientEvents();
   bindMedicalFormEvents();
   bindActionMenuEvents();
@@ -39,6 +39,78 @@ document.addEventListener("DOMContentLoaded", () => {
   setupModalLayout();
   bindStaffClinicalImageViewer();
 });
+
+async function hydratePatientsFromDatabase() {
+  try {
+    const response = await fetch(PATIENT_RECORD_API, {
+      credentials: "same-origin",
+      cache: "no-store",
+    });
+    if (!response.ok) return;
+    const result = await response.json();
+    if (!result.success || !Array.isArray(result.data)) return;
+    const localById = new Map(
+      patients.map((patient) => [
+        String(patient.patientId || patient.id),
+        patient,
+      ]),
+    );
+    patients = result.data.map((remotePatient) => {
+      const localPatient = localById.get(
+        String(remotePatient.patientId || remotePatient.id),
+      );
+      return normalizePatient({
+        ...localPatient,
+        ...remotePatient,
+        appointments: remotePatient.appointments?.length
+          ? remotePatient.appointments
+          : localPatient?.appointments || [],
+        treatments: remotePatient.treatments?.length
+          ? remotePatient.treatments
+          : localPatient?.treatments || [],
+        clinicalImages: remotePatient.clinicalImages?.length
+          ? remotePatient.clinicalImages
+          : localPatient?.clinicalImages || [],
+        dentalChart: Object.keys(remotePatient.dentalChart?.teeth || {}).length
+          ? remotePatient.dentalChart
+          : localPatient?.dentalChart || remotePatient.dentalChart,
+      });
+    });
+    renderPatients();
+  } catch (error) {
+    console.warn(
+      "Database patient list unavailable; using local records.",
+      error,
+    );
+  }
+}
+
+async function syncPatientProfileToDatabase(patient) {
+  if (!patient) return;
+  try {
+    const response = await fetch(PATIENT_RECORD_API, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        patientId: patient.patientId || patient.id,
+        patient,
+        medicalForm: patient.medicalForm || null,
+      }),
+    });
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || "Patient record was not saved.");
+    }
+    if (result.data) {
+      Object.assign(patient, result.data);
+    }
+    return true;
+  } catch (error) {
+    console.error("Unable to sync patient profile to database.", error);
+    return false;
+  }
+}
 
 function bindStaffClinicalImageViewer() {
   const imagePanel = $("patientPageImages");
@@ -269,20 +341,9 @@ function startAppointmentRealtimeRefresh() {
     clearInterval(appointmentRefreshInterval);
   }
   appointmentRefreshInterval = setInterval(() => {
-    loadPatients();
     renderPatients();
   }, 1000);
 }
-
-window.addEventListener("storage", (event) => {
-  if (
-    event.key === PATIENT_STORAGE_KEY ||
-    event.key === TOTAL_PATIENTS_STORAGE_KEY
-  ) {
-    loadPatients();
-    renderPatients();
-  }
-});
 
 function removeMedicalFormFromActionMenu() {
   return;
@@ -380,24 +441,7 @@ function setupPatientFormValidation() {
 }
 
 function loadPatients() {
-  try {
-    const stored = localStorage.getItem(PATIENT_STORAGE_KEY);
-    if (!stored) {
-      patients = [];
-      localStorage.setItem(TOTAL_PATIENTS_STORAGE_KEY, "0");
-      return;
-    }
-    const parsed = JSON.parse(stored);
-    patients = Array.isArray(parsed) ? parsed : [];
-    patients = patients.map((patient) => normalizePatient(patient));
-    patients = mergePatientRecords(patients);
-    localStorage.setItem(PATIENT_STORAGE_KEY, JSON.stringify(patients));
-    localStorage.setItem(TOTAL_PATIENTS_STORAGE_KEY, String(patients.length));
-  } catch (error) {
-    console.error("Unable to load DentaNueva patients:", error);
-    patients = [];
-    localStorage.setItem(TOTAL_PATIENTS_STORAGE_KEY, "0");
-  }
+  patients = [];
 }
 
 function normalizePatient(patient) {
@@ -508,22 +552,14 @@ function mergePatientRecords(records) {
 }
 
 function savePatients() {
-  try {
-    localStorage.setItem(PATIENT_STORAGE_KEY, JSON.stringify(patients));
-    localStorage.setItem(TOTAL_PATIENTS_STORAGE_KEY, String(patients.length));
-    updateTotalPatientCount();
-  } catch (error) {
-    console.error("Unable to save DentaNueva patients:", error);
-  }
+  patients.forEach((patient) => {
+    void syncPatientProfileToDatabase(patient);
+  });
+  updateTotalPatientCount();
 }
 
 function updateTotalPatientCount() {
   const totalPatients = patients.length;
-  try {
-    localStorage.setItem(TOTAL_PATIENTS_STORAGE_KEY, String(totalPatients));
-  } catch (error) {
-    console.error("Unable to synchronize total patient count:", error);
-  }
   document.querySelectorAll("[data-total-patients]").forEach((element) => {
     element.textContent = `${totalPatients} ${
       totalPatients === 1 ? "patient" : "patients"
@@ -543,14 +579,7 @@ function updateTotalPatientCount() {
 }
 
 function generatePatientId() {
-  let maxNumber = 0;
-  patients.forEach((patient) => {
-    const match = String(patient.patientId || "").match(/(\d+)$/);
-    if (match) {
-      maxNumber = Math.max(maxNumber, Number(match[1]));
-    }
-  });
-  return `PN-${String(maxNumber + 1).padStart(4, "0")}`;
+  return `PN-${Date.now().toString().slice(-10)}`;
 }
 
 function calculateAge(dateOfBirth) {
@@ -944,6 +973,7 @@ function savePatientFromForm(event) {
     }
   }
   savePatients();
+  void syncPatientProfileToDatabase(patient);
   closePatientModal();
   renderPatients();
 
@@ -1581,22 +1611,7 @@ function openPatientDetailsLegacy(patient) {
 
   const patientId = patient.patientId || patient.patient_id || patient.id || "";
 
-  const storedPatients = JSON.parse(
-    localStorage.getItem(PATIENT_STORAGE_KEY) || "[]",
-  );
-
-  const sharedPatient =
-    storedPatients.find((item) => {
-      const ids = [item.patientId, item.patient_id, item.id].map((value) =>
-        String(value || "")
-          .trim()
-          .toLowerCase(),
-      );
-
-      return ids.includes(String(patientId).trim().toLowerCase());
-    }) || patient;
-
-  patient = normalizePatient(sharedPatient);
+  patient = normalizePatient(findPatient(patientId) || patient);
 
   const name = getFullName(patient);
   const age = calculateAge(patient.dateOfBirth);
@@ -4330,8 +4345,12 @@ function collectMedicalFormData(includeConsent = true) {
   };
 }
 
-function saveMedicalForm(event) {
+async function saveMedicalForm(event) {
   event.preventDefault();
+  const submitButton = $("medformSubmitBtn");
+  if (submitButton?.disabled) {
+    return;
+  }
   if (currentMedicalStep !== 5) {
     return;
   }
@@ -4343,6 +4362,11 @@ function saveMedicalForm(event) {
   if (!patient) {
     return;
   }
+  const originalButtonText = submitButton?.textContent || "Save Medical Form";
+  if (submitButton) {
+    submitButton.disabled = true;
+    submitButton.textContent = "Saving...";
+  }
   const medicalData = collectMedicalFormData(true);
   const now = new Date().toISOString();
   patient.medicalForm = {
@@ -4352,8 +4376,18 @@ function saveMedicalForm(event) {
     updatedAt: now,
   };
   patient.updatedAt = now;
-  savePatients();
-  closePatientModal();
+  const saved = await syncPatientProfileToDatabase(patient);
+  if (!saved) {
+    if (submitButton) {
+      submitButton.disabled = false;
+      submitButton.textContent = originalButtonText;
+    }
+    alert(
+      "The medical form could not be saved to the database. Please try again.",
+    );
+    return;
+  }
+  closeMedicalForm();
   renderPatients();
 }
 

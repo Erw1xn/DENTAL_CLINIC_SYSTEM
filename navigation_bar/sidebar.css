@@ -480,6 +480,9 @@
   opacity: 1;
   visibility: visible;
 }
+body.logout-modal-open {
+  overflow: hidden;
+}
 
 .logout-modal-card {
   width: 90% !important;

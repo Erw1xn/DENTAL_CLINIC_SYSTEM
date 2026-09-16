@@ -128,7 +128,7 @@ function normalizeDoctorName(value) {
     .replace(/^doctor\s+/i, "")
     .replace(/^dr\.\s*/i, "")
     .replace(/^dr\s+/i, "")
-    .replace(/[._-]/g, " ")
+    .replace(/[.\_-]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -694,19 +694,48 @@ function makeDayBtn(date, muted) {
   if (isToday(date)) {
     button.classList.add("today");
   }
+  const doctorDentistId = String(currentDoctorDentistId || "")
+    .trim()
+    .toLowerCase();
   const hasAppointment = appointments.some((appt) => {
     const appointmentDoctorId = String(
       appt.dentist || appt.dentistId || appt.dentist_id || "",
     )
       .trim()
       .toLowerCase();
-    const doctorDentistId = String(currentDoctorDentistId || "")
-      .trim()
-      .toLowerCase();
     return appt.date === key && appointmentDoctorId === doctorDentistId;
   });
   if (hasAppointment) {
     button.classList.add("has-appt");
+  }
+  const hasPendingRescheduleRequest = loadRescheduleRequests().some(
+    (request) => {
+      const requestStatus = String(request?.status || "")
+        .trim()
+        .toLowerCase()
+        .replace(/[\s-]+/g, "_");
+      if (requestStatus !== "pending") {
+        return false;
+      }
+      const appointmentId = String(
+        request?.appointment_id || request?.appointmentId || "",
+      ).trim();
+      return appointments.some((appt) => {
+        const appointmentDoctorId = String(
+          appt.dentist || appt.dentistId || appt.dentist_id || "",
+        )
+          .trim()
+          .toLowerCase();
+        return (
+          String(appt.id) === appointmentId &&
+          appt.date === key &&
+          appointmentDoctorId === doctorDentistId
+        );
+      });
+    },
+  );
+  if (hasPendingRescheduleRequest) {
+    button.classList.add("has-reschedule-request");
   }
   button.textContent = date.getDate();
   button.addEventListener("click", () => {
@@ -753,61 +782,30 @@ function renderTimeline() {
   if (headerCount) {
     headerCount.textContent = dayAppointments.length;
   }
-  for (
-    let minutes = START_HOUR * 60;
-    minutes < END_HOUR * 60;
-    minutes += SLOT_MIN
-  ) {
+  if (!dayAppointments.length) {
+    const emptyState = document.createElement("div");
+    emptyState.className = "schedule-empty-state";
+    emptyState.innerHTML = `
+      <i class="fa-regular fa-calendar"></i>
+      <strong>${selectedIsPast ? "No appointment records" : "No patient appointments"}</strong>
+      <span>${selectedIsPast ? "There are no appointment records for this date." : "No appointments scheduled for this date."}</span>
+    `;
+    timeline.appendChild(emptyState);
+    return;
+  }
+  dayAppointments.forEach((appt) => {
     const row = document.createElement("div");
     row.className = "tl-row";
-    const time = minutesToTime(minutes);
     const timeElement = document.createElement("div");
     timeElement.className = "tl-time";
-    timeElement.textContent = fmtTime(time);
+    timeElement.textContent = fmtTime(appt.start);
     const slot = document.createElement("div");
     slot.className = "tl-slot";
-    const activeAppointments = dayAppointments.filter((appt) => {
-      const start = timeToMinutes(appt.start);
-      const end = getAppointmentEnd(appt);
-      return minutes >= start && minutes < end;
-    });
-    if (activeAppointments.length) {
-      activeAppointments.forEach((appt) => {
-        const appointmentStart = timeToMinutes(appt.start);
-        if (appointmentStart === minutes) {
-          slot.appendChild(createAppointmentCard(appt));
-        } else {
-          const occupied = document.createElement("div");
-          occupied.className = "no-appointment";
-          occupied.innerHTML = `
-              <i class="fa-solid fa-clock"></i>
-              Appointment continues
-              · ${fmtTime(appt.start)}
-              – ${fmtTime(getAppointmentEndTime(appt))}
-            `;
-          slot.appendChild(occupied);
-        }
-      });
-    } else {
-      const empty = document.createElement("div");
-      empty.className = "empty-slot";
-      if (selectedIsPast) {
-        empty.innerHTML = `
-          <i class="fa-solid fa-clock-rotate-left"></i>
-          No appointment recorded
-        `;
-      } else {
-        empty.innerHTML = `
-          <i class="fa-regular fa-calendar"></i>
-          No patient appointment
-        `;
-      }
-      slot.appendChild(empty);
-    }
+    slot.appendChild(createAppointmentCard(appt));
     row.appendChild(timeElement);
     row.appendChild(slot);
     timeline.appendChild(row);
-  }
+  });
 }
 function loadRescheduleRequests() {
   try {
@@ -846,23 +844,16 @@ function createAppointmentCard(appt) {
   info.style.flex = "1";
   info.style.minWidth = "0";
   info.innerHTML = `
-    <div class="patient-avatar">
-      ${initials}
-    </div>
+    <div class="patient-avatar">${initials}</div>
     <div class="appt-info">
-      <div class="pname">
-        ${escapeHtml(appt.patient)}
-      </div>
-      <div class="ptype">
-        ${escapeHtml(appt.type)}
-      </div>
+      <div class="pname">${escapeHtml(appt.patient)}</div>
+      <div class="ptype">${escapeHtml(appt.type)}</div>
       ${pendingRescheduleRequest ? `<div class="appointment-reschedule-request"><span><i class="fa-solid fa-calendar-days"></i> Reschedule Requested</span></div>` : ""}
     </div>
   `;
   const time = document.createElement("div");
   time.className = "appt-time-range";
-  time.textContent = `${fmtTime(appt.start)}
-     – ${fmtTime(endTime)}`;
+  time.textContent = `${fmtTime(appt.start)} – ${fmtTime(endTime)}`;
   const statusArea = createAppointmentStatusButton(appt);
   card.appendChild(info);
   card.appendChild(time);
@@ -901,24 +892,14 @@ function renderWaitingQueue() {
     );
     item.innerHTML = `
         <div class="queue-main">
-          <div class="queue-avatar">
-            ${initials}
-          </div>
+          <div class="queue-avatar">${initials}</div>
           <div class="queue-text">
-            <span class="queue-name">
-              ${escapeHtml(appt.patient)}
-            </span>
-            <span class="queue-time">
-              ${fmtTime(appt.start)}
-              –
-              ${fmtTime(end)}
-            </span>
+            <span class="queue-name">${escapeHtml(appt.patient)}</span>
+            <span class="queue-time">${fmtTime(appt.start)} – ${fmtTime(end)}</span>
             ${pendingRescheduleRequest ? `<span class="queue-reschedule-request"><i class="fa-solid fa-calendar-days"></i> Reschedule Requested</span>` : ""}
           </div>
         </div>
-        <div class="queue-type${pendingRescheduleRequest ? " pending" : ""}">
-          ${escapeHtml(appt.type)}${pendingRescheduleRequest ? " · Pending" : ""}
-        </div>
+        <div class="queue-type${pendingRescheduleRequest ? " pending" : ""}">${escapeHtml(appt.type)}${pendingRescheduleRequest ? " · Pending" : ""}</div>
       `;
     item.addEventListener("click", () => {
       openViewModal(appt.id);
@@ -954,9 +935,7 @@ function openViewModal(id) {
   );
   document.getElementById("modalTitle").textContent = "Appointment Details";
   document.getElementById("modalSubtitle").textContent =
-    `${formatDateLong(appt.date)}
-     · ${fmtTime(appt.start)}
-     – ${fmtTime(getAppointmentEndTime(appt))}`;
+    `${formatDateLong(appt.date)} · ${fmtTime(appt.start)} – ${fmtTime(getAppointmentEndTime(appt))}`;
   document.getElementById("f_patient").value = appt.patient;
   sessionStorage.setItem(
     "doctorSelectedPatientId",
@@ -1012,7 +991,6 @@ function createAppointmentStatusButton(appt) {
       wrapper.appendChild(badge);
       return wrapper;
     }
-
     const button = document.createElement("button");
     button.type = "button";
     button.className = "appt-status-btn status-checkin";
@@ -1022,7 +1000,6 @@ function createAppointmentStatusButton(appt) {
       checkInAppointment(appt.id);
     });
     wrapper.appendChild(button);
-
     const noShowButton = document.createElement("button");
     noShowButton.type = "button";
     noShowButton.className = "appt-status-btn status-noshow";

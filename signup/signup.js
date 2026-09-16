@@ -55,18 +55,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     return allMet;
   }
-  function generateStaffId(users) {
-    const staffNumbers = users
-      .map((user) => {
-        const match = String(user.staffId || user.staff_id || "").match(
-          /^STF-(\d+)$/,
-        );
-        return match ? Number(match[1]) : 0;
-      })
-      .filter((number) => number > 0);
-    const nextNumber = staffNumbers.length ? Math.max(...staffNumbers) + 1 : 1;
-    return `STF-${String(nextNumber).padStart(4, "0")}`;
-  }
   if (passwordField) {
     passwordField.addEventListener("input", () => {
       checkPasswordRequirements(passwordField.value);
@@ -81,7 +69,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
   if (signupForm) {
-    signupForm.addEventListener("submit", (e) => {
+    signupForm.addEventListener("submit", async (e) => {
       e.preventDefault();
       const firstname = document.getElementById("firstname").value.trim();
       const lastname = document.getElementById("lastname").value.trim();
@@ -102,40 +90,52 @@ document.addEventListener("DOMContentLoaded", () => {
         confirmPasswordField.reportValidity();
         return;
       }
-      let users = [];
+      const formData = new FormData(signupForm);
+      formData.set("firstname", firstname);
+      formData.set("lastname", lastname);
+      formData.set("email", email);
+      formData.set("password", password);
+      formData.set("confirm_password", confirmPassword);
+      const submitButton = signupForm.querySelector(".btn-submit");
+      const originalButtonText = submitButton ? submitButton.textContent : "";
+      if (submitButton) {
+        submitButton.disabled = true;
+        submitButton.textContent = "Creating Account...";
+      }
       try {
-        users = JSON.parse(localStorage.getItem("dentanueva_users")) || [];
+        const response = await fetch("signup.php", {
+          method: "POST",
+          body: formData,
+          credentials: "same-origin",
+        });
+        const data = await response.json();
+        if (!data.success) {
+          if (data.message && data.message.toLowerCase().includes("email")) {
+            emailField.setCustomValidity(data.message);
+            emailField.reportValidity();
+          } else {
+            showSignupError(
+              data.message || "Unable to create the account. Please try again.",
+            );
+          }
+          return;
+        }
+        window.location.href = "../login/login.html";
       } catch (error) {
-        users = [];
+        console.error("Signup request error:", error);
+        showSignupError("Unable to connect to the server. Please try again.");
+      } finally {
+        if (submitButton) {
+          submitButton.disabled = false;
+          submitButton.textContent = originalButtonText;
+        }
       }
-      const existingUser = users.find(
-        (user) => user.email && user.email.toLowerCase() === email,
-      );
-      if (existingUser) {
-        emailField.setCustomValidity(
-          "An account with this email already exists! Please log in.",
-        );
-        emailField.reportValidity();
-        return;
-      }
-      const name = `${firstname} ${lastname}`.trim();
-      const newUser = {
-        firstname: firstname,
-        lastname: lastname,
-        name: name,
-        email: email,
-        password: password,
-        role: "Staff",
-        department: "Clinic Operations",
-        staffId: generateStaffId(users),
-        accessLevel: "Staff",
-        status: "Active",
-        profileImage: "",
-        contact: "",
-      };
-      users.push(newUser);
-      localStorage.setItem("dentanueva_users", JSON.stringify(users));
-      window.location.href = "../login/login.html";
     });
+  }
+  function showSignupError(message) {
+    if (emailField) {
+      emailField.setCustomValidity(message);
+      emailField.reportValidity();
+    }
   }
 });
