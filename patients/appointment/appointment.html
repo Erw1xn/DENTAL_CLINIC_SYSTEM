@@ -30,14 +30,74 @@
                 history.
               </p>
             </div>
-            <button
-              type="button"
-              class="btn-primary header-book-btn"
-              id="openBookingBtn"
-            >
-              <i class="fa-solid fa-calendar-plus"></i>
-              Book Appointment
-            </button>
+            <div class="page-header-actions">
+              <details class="appointment-info">
+                <summary
+                  aria-label="View appointment guidelines"
+                  title="Appointment guidelines"
+                >
+                  <i class="fa-solid fa-circle-info"></i>
+                </summary>
+                <div class="appointment-info-popover">
+                  <strong>Before Booking</strong>
+                  <p>
+                    <i class="fa-solid fa-circle-check"></i> Attend your
+                    appointment to have it marked Completed.
+                  </p>
+                  <p>
+                    <i class="fa-solid fa-calendar-xmark"></i> Cancel or
+                    reschedule in advance. These do not automatically restrict
+                    booking.
+                  </p>
+                  <p>
+                    <i class="fa-solid fa-triangle-exclamation"></i> Two No
+                    Shows give a warning.
+                  </p>
+                  <p>
+                    <i class="fa-solid fa-lock"></i> A third No Show restricts
+                    new booking for 2 days.
+                  </p>
+                  <small
+                    >Only new booking is restricted. Your portal access and
+                    appointment history remain available.</small
+                  >
+                </div>
+              </details>
+              <button
+                type="button"
+                class="btn-primary header-book-btn"
+                id="openBookingBtn"
+              >
+                <i class="fa-solid fa-calendar-plus"></i>
+                Book Appointment
+              </button>
+            </div>
+          </section>
+          <section
+            class="booking-restriction-alert"
+            id="bookingRestrictionAlert"
+            hidden
+          >
+            <div class="booking-restriction-icon">
+              <i class="fa-solid fa-lock"></i>
+            </div>
+            <div>
+              <strong>Appointment booking temporarily restricted</strong>
+              <p id="bookingRestrictionMessage"></p>
+            </div>
+          </section>
+          <section
+            class="booking-warning-alert"
+            id="bookingWarningAlert"
+            hidden
+          >
+            <div class="booking-warning-icon">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <div>
+              <strong>Attendance warning</strong>
+              <p id="bookingWarningMessage"></p>
+            </div>
           </section>
           <section class="reschedule-alert" id="rescheduleAlert" hidden>
             <div class="reschedule-alert-icon">
@@ -1280,6 +1340,7 @@
       </div>
     </div>
     <div class="toast" id="toast"></div>
+    <script src="../../shared/appointment_behavior.js"></script>
     <script src="../navigation_bar/sidebar.js"></script>
     <script src="appointment.js"></script>
   </body>

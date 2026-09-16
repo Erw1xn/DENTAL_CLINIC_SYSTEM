@@ -36,9 +36,7 @@
                 <button
                   type="button"
                   class="qa-btn-pill primary-action"
-                  onclick="
-                    window.location.href = '../appointment/appointment.html'
-                  "
+                  id="dashboardNewAppointmentBtn"
                 >
                   <i class="fa-solid fa-calendar-plus"></i>
                   <span>New Appointment</span>
@@ -123,6 +121,38 @@
                   Your appointment activity at DentaNueva
                 </p>
               </div>
+              <details class="appointment-info">
+                <summary
+                  aria-label="View appointment guidelines"
+                  title="Appointment guidelines"
+                >
+                  <i class="fa-solid fa-circle-info"></i>
+                </summary>
+                <div class="appointment-info-popover">
+                  <strong>Appointment Guidelines</strong>
+                  <p>
+                    <i class="fa-solid fa-circle-check"></i> Attend your
+                    appointment to have it marked Completed.
+                  </p>
+                  <p>
+                    <i class="fa-solid fa-calendar-xmark"></i> Cancel or
+                    reschedule in advance. These do not automatically restrict
+                    booking.
+                  </p>
+                  <p>
+                    <i class="fa-solid fa-triangle-exclamation"></i> Two No
+                    Shows give a warning.
+                  </p>
+                  <p>
+                    <i class="fa-solid fa-lock"></i> A third No Show restricts
+                    new booking for 2 days.
+                  </p>
+                  <small
+                    >During a restriction, your records, payments, history, and
+                    portal access remain available.</small
+                  >
+                </div>
+              </details>
             </div>
             <div class="panel-body appointment-summary-body">
               <div class="appointment-summary-grid">
@@ -199,11 +229,35 @@
                   <strong id="summaryNoShowAppointments">0</strong>
                 </div>
               </div>
+              <div
+                class="appointment-behavior-status"
+                id="appointmentBehaviorStatus"
+              >
+                <div class="appointment-behavior-heading">
+                  <span class="summary-stat-icon">
+                    <i class="fa-solid fa-chart-line"></i>
+                  </span>
+                  <div>
+                    <strong id="appointmentBehaviorLabel"
+                      >Attendance Pattern</strong
+                    >
+                    <p id="appointmentBehaviorMessage">
+                      No appointment activity recorded yet.
+                    </p>
+                  </div>
+                </div>
+                <div
+                  class="appointment-restriction-details"
+                  id="appointmentRestrictionDetails"
+                  hidden
+                ></div>
+              </div>
             </div>
           </section>
         </section>
       </main>
     </div>
+    <script src="../../shared/appointment_behavior.js"></script>
     <script src="../navigation_bar/sidebar.js"></script>
     <script src="dashboard.js"></script>
   </body>

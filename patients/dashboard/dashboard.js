@@ -16,6 +16,7 @@ const patientDashboardData = {
 function initializePatientDashboard() {
   updateDateTime();
   setInterval(updateDateTime, 1000);
+  setInterval(updateBookingAccess, 60000);
   loadPatientDashboardData();
   renderPatientDashboard();
   setupAppointmentInteractions();
@@ -464,6 +465,7 @@ function renderPatientDashboard() {
   updateWelcome();
   updateSummaryCards();
   renderAppointmentSummary();
+  updateBookingAccess();
   renderTodayAppointments();
   updateDashboardTooltips();
 }
@@ -622,6 +624,76 @@ function renderAppointmentSummary() {
   setText("summaryRescheduledAppointments", summary.rescheduled);
   setText("summaryCancelledAppointments", summary.cancelled);
   setText("summaryNoShowAppointments", summary.noShow);
+  renderAppointmentBehavior(summary);
+}
+function getAppointmentBehavior(summary) {
+  const behavior = window.DentaNuevaAppointmentBehavior;
+  if (!behavior) return null;
+  return behavior.getRestriction(
+    patientDashboardData.appointments,
+    getPatientIdentity(patientDashboardData.patient),
+  );
+}
+function renderAppointmentBehavior(summary) {
+  const label = document.getElementById("appointmentBehaviorLabel");
+  const message = document.getElementById("appointmentBehaviorMessage");
+  const details = document.getElementById("appointmentRestrictionDetails");
+  const status = document.getElementById("appointmentBehaviorStatus");
+  if (!label || !message || !details || !status) return;
+  const behavior = getAppointmentBehavior(summary);
+  if (!behavior) return;
+  status.classList.toggle("restricted", behavior.isRestricted);
+  status.classList.toggle("warning", behavior.isWarning);
+  details.hidden = !behavior.isRestricted;
+  if (behavior.isRestricted) {
+    label.textContent = "Temporarily Restricted";
+    message.textContent =
+      "New appointment booking is unavailable due to repeated no-shows.";
+    details.textContent = `Booking available again after ${behavior.formatRestrictionEnd ? behavior.formatRestrictionEnd(behavior.restrictedUntil) : behavior.restrictedUntil.toLocaleDateString("en-US")}.`;
+    return;
+  }
+  if (behavior.isWarning) {
+    label.textContent = "Attendance Warning";
+    message.textContent =
+      "You have 2 missed appointments. One more No Show will temporarily restrict new appointment booking for 2 days.";
+    return;
+  }
+  if (behavior.noShowCount === 0 && summary.completed > 0) {
+    label.textContent = "Consistent Attendance";
+    message.textContent =
+      "No missed appointments are recorded in your history.";
+  } else if (behavior.noShowCount === 1) {
+    label.textContent = "Attendance Warning";
+    message.textContent =
+      "One missed appointment is recorded. You can still book normally.";
+  } else if (behavior.noShowCount > 1) {
+    label.textContent = "Attendance Pattern";
+    message.textContent = `${behavior.noShowCount} missed appointments are recorded in your history.`;
+  } else {
+    label.textContent = "Attendance Pattern";
+    message.textContent = "No appointment activity recorded yet.";
+  }
+}
+function updateBookingAccess() {
+  const button = document.getElementById("dashboardNewAppointmentBtn");
+  const behavior = getAppointmentBehavior({
+    completed: patientDashboardData.appointments.filter(
+      (appointment) => appointment.status === "completed",
+    ).length,
+  });
+  if (!button || !behavior) return;
+  button.disabled = behavior.isRestricted;
+  button.title = behavior.isRestricted
+    ? "Appointment booking is temporarily restricted"
+    : "Book a new appointment";
+  if (!button.dataset.behaviorClickBound) {
+    button.dataset.behaviorClickBound = "true";
+    button.addEventListener("click", () => {
+      if (!button.disabled) {
+        window.location.href = "../appointment/appointment.html";
+      }
+    });
+  }
 }
 function isAppointmentRescheduled(appointment) {
   if (!appointment || typeof appointment !== "object") {

@@ -3226,13 +3226,15 @@ function getLocalDateKeyFromValue(value) {
 }
 
 function getTreatmentAppointmentDate(appointment) {
-  return String(
+  return getLocalDateKeyFromValue(
     appointment?.date ||
       appointment?.appointmentDate ||
       appointment?.appointment_date ||
       appointment?.scheduleDate ||
+      appointment?.scheduledDate ||
+      appointment?.scheduled_date ||
       "",
-  ).slice(0, 10);
+  );
 }
 
 function getTreatmentProcedureFromAppointment(appointment) {
@@ -3269,12 +3271,35 @@ function getDentalChartEntriesForAppointment(patient, appointment) {
       Array.isArray(record?.history) && record.history.length
         ? record.history
         : record?.procedure
-          ? [record]
+          ? [
+              {
+                ...record,
+                date:
+                  record.date ||
+                  record.treatmentDate ||
+                  record.performedAt ||
+                  record.createdAt ||
+                  record.updatedAt ||
+                  "",
+              },
+            ]
           : [];
     return entries
       .filter(
         (entry) =>
-          getLocalDateKeyFromValue(entry.updatedAt) === appointmentDate,
+          getLocalDateKeyFromValue(
+            entry.date ||
+              entry.treatmentDate ||
+              entry.performedAt ||
+              entry.createdAt ||
+              entry.updatedAt ||
+              record.date ||
+              record.treatmentDate ||
+              record.performedAt ||
+              record.createdAt ||
+              record.updatedAt ||
+              "",
+          ) === appointmentDate,
       )
       .map((entry) => ({
         toothNumber,

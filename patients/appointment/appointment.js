@@ -249,6 +249,7 @@ function renderAll() {
   renderCalendar();
   renderUpcomingAppointment();
   renderRescheduleAlert();
+  renderBookingRestrictionAlert();
 }
 function renderPatientContext() {
   return;
@@ -351,6 +352,10 @@ function getAppointmentTime(appointment) {
     ""
   );
 }
+function isBookingConflictAppointment(appointment) {
+  const status = normalizeStatus(getAppointmentStatus(appointment));
+  return status !== "cancelled" && status !== "canceled" && status !== "noshow";
+}
 function getAppointmentService(appointment) {
   return (
     appointment?.service ||
@@ -387,8 +392,28 @@ function normalizeDentistId(value) {
 function sameDentist(left, right) {
   const normalizedLeft = normalizeDentistId(left);
   const normalizedRight = normalizeDentistId(right);
+  const resolveKnownDentist = (value) => {
+    const normalizedValue = normalizeDentistId(value);
+    const matchedDoctor = doctors.find((doctor) =>
+      [
+        doctor.id,
+        doctor.dentistId,
+        doctor.dentist_id,
+        doctor.doctorId,
+        doctor.doctor_id,
+        doctor.name,
+        doctor.fullName,
+        doctor.full_name,
+        doctor.email,
+      ].some((identity) => normalizeDentistId(identity) === normalizedValue),
+    );
+    return matchedDoctor?.id || normalizedValue;
+  };
   return Boolean(
-    normalizedLeft && normalizedRight && normalizedLeft === normalizedRight,
+    normalizedLeft &&
+    normalizedRight &&
+    resolveKnownDentist(normalizedLeft) ===
+      resolveKnownDentist(normalizedRight),
   );
 }
 function getDentistName(appointment) {
@@ -933,9 +958,16 @@ function updateServiceDurationInfo() {
 }
 function openBookingModal(date = null, dentist = null) {
   currentUser = getCurrentUser();
+  loadAppointments();
   loadDoctors();
   renderDentistSelector();
   resolveCurrentPatient();
+  const restriction = getPatientBookingRestriction();
+  if (restriction.isRestricted) {
+    renderBookingRestrictionAlert();
+    showToast(getBookingRestrictionMessage(restriction));
+    return;
+  }
   const modal = document.getElementById("bookingModal");
   if (!modal) return;
   const serviceInput = document.getElementById("serviceInput");
@@ -1236,7 +1268,8 @@ function generateBookingSlotStatuses(date, dentist, duration) {
   const existingAppointments = appointments.filter(
     (appointment) =>
       dateToKey(keyToDate(getAppointmentDate(appointment))) === date &&
-      isActiveAppointment(appointment),
+      sameDentist(getDentistId(appointment), dentist) &&
+      isBookingConflictAppointment(appointment),
   );
   for (
     let minutes = CLINIC_SCHEDULE.startHour * 60;
@@ -1336,6 +1369,7 @@ function updateAvailableTimeSlots() {
   const triggerLabel = document.getElementById("timeTriggerLabel");
   const summary = document.getElementById("availableTimeSummary");
   if (!dropdown || !trigger || !triggerLabel) return;
+  loadAppointments();
   const date =
     document.getElementById("dateSelect")?.value || dateToKey(selectedDate);
   const dentist =
@@ -1412,7 +1446,8 @@ function generateAvailableSlots(date, dentist, duration) {
   const existingAppointments = appointments.filter(
     (appointment) =>
       dateToKey(keyToDate(getAppointmentDate(appointment))) === date &&
-      isActiveAppointment(appointment),
+      sameDentist(getDentistId(appointment), dentist) &&
+      isBookingConflictAppointment(appointment),
   );
   for (
     let minutes = CLINIC_SCHEDULE.startHour * 60;
@@ -1472,6 +1507,11 @@ function getPatientBookingBlockMessage(
   const normalizedPatientId = String(patientId || "").trim();
   if (!normalizedPatientId) return "";
 
+  const restriction = getPatientBookingRestriction();
+  if (restriction.isRestricted) {
+    return getBookingRestrictionMessage(restriction);
+  }
+
   const existingAppointment = appointments.find((appointment) => {
     if (String(getAppointmentId(appointment)) === String(ignoreAppointmentId)) {
       return false;
@@ -1516,6 +1556,36 @@ function getPatientBookingBlockMessage(
   const timeLabel = formatTime(getAppointmentTime(existingAppointment));
   return `You already have an active appointment scheduled on ${dateLabel} at ${timeLabel}. Please complete or delete that appointment before booking another one.`;
 }
+function getPatientBookingRestriction() {
+  const behavior = window.DentaNuevaAppointmentBehavior;
+  if (!behavior) {
+    return { isRestricted: false, noShowCount: 0, restrictedUntil: null };
+  }
+  return behavior.getRestriction(appointments, getCurrentPatientId());
+}
+function getBookingRestrictionMessage(restriction) {
+  const behavior = window.DentaNuevaAppointmentBehavior;
+  const endDate = behavior?.formatRestrictionEnd
+    ? behavior.formatRestrictionEnd(restriction.restrictedUntil)
+    : restriction.restrictedUntil?.toLocaleDateString("en-US");
+  return `Booking is temporarily restricted due to repeated missed appointments. You may book again after ${endDate || "the restriction ends"}.`;
+}
+function renderBookingRestrictionAlert() {
+  const alert = document.getElementById("bookingRestrictionAlert");
+  const message = document.getElementById("bookingRestrictionMessage");
+  const warning = document.getElementById("bookingWarningAlert");
+  const warningMessage = document.getElementById("bookingWarningMessage");
+  if (!alert || !message || !warning || !warningMessage) return;
+  const restriction = getPatientBookingRestriction();
+  alert.hidden = !restriction.isRestricted;
+  warning.hidden = !restriction.isWarning;
+  if (restriction.isRestricted) {
+    message.textContent = getBookingRestrictionMessage(restriction);
+  } else if (restriction.isWarning) {
+    warningMessage.textContent =
+      "You have 2 missed appointments. One more No Show will temporarily restrict new appointment booking for 2 days.";
+  }
+}
 function updateBookingButton() {
   const button = document.getElementById(
     bookingStep === 1 ? "continueBooking" : "confirmBooking",
@@ -1558,9 +1628,10 @@ function hasScheduleConflict(date, dentist, time, duration) {
   );
   const end = new Date(start.getTime() + duration * 60000);
   return appointments.some((appointment) => {
-    if (!isActiveAppointment(appointment)) return false;
+    if (!isBookingConflictAppointment(appointment)) return false;
     if (dateToKey(keyToDate(getAppointmentDate(appointment))) !== date)
       return false;
+    if (!sameDentist(getDentistId(appointment), dentist)) return false;
     const appointmentTime = getAppointmentTime(appointment);
     if (!appointmentTime) return false;
     const [appointmentHour, appointmentMinute] = appointmentTime
@@ -1871,6 +1942,7 @@ function updateMedicalRecordSummary() {
 }
 function confirmBooking() {
   currentUser = getCurrentUser();
+  loadAppointments();
   resolveCurrentPatient();
   if (!validateAppointmentDetails()) return;
   const patientId = getCurrentPatientId();

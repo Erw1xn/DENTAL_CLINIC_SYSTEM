@@ -1534,6 +1534,10 @@ document.addEventListener("DOMContentLoaded", () => {
     return type === "stock-in" ? "+" : "-";
   }
 
+  function getMovementTimestamp(movement, item) {
+    return movement.createdAt || movement.date || item.updatedAt || "";
+  }
+
   function openItemViewModal(item) {
     closeActionMenu();
 
@@ -1544,8 +1548,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const movements = getMovements()
       .filter((movement) => String(movement.itemId) === String(item.id))
       .sort((a, b) => {
-        const aTime = new Date(a.date || "").getTime();
-        const bTime = new Date(b.date || "").getTime();
+        const aTime = new Date(getMovementTimestamp(a, item)).getTime();
+        const bTime = new Date(getMovementTimestamp(b, item)).getTime();
 
         return bTime - aTime;
       });
@@ -1615,7 +1619,11 @@ document.addEventListener("DOMContentLoaded", () => {
                       ${escapeHTML(getMovementLabel(movement.type))}
                     </strong>
                     <span>
-                      ${escapeHTML(formatItemDateTime(movement.date))}
+                      ${escapeHTML(
+                        formatItemDateTime(
+                          getMovementTimestamp(movement, item),
+                        ),
+                      )}
                     </span>
                   </div>
                   <div class="item-history-quantity ${typeClass}">
