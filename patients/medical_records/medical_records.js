@@ -1302,6 +1302,12 @@ function renderPatientTreatments() {
 
             const note = treatment.note || treatment.notes || "";
 
+            const consumedMaterials = Array.isArray(treatment.consumedMaterials)
+              ? treatment.consumedMaterials.filter(
+                  (item) => Number(item.quantity) > 0,
+                )
+              : [];
+
             const appointmentId = treatment.appointmentId || "";
 
             return `
@@ -1363,6 +1369,22 @@ function renderPatientTreatments() {
                         <div class="patient-treatment-note">
                           <span>NOTES</span>
                           <p>${escapeHTML(note)}</p>
+                        </div>
+                      `
+                      : ""
+                  }
+
+                  ${
+                    consumedMaterials.length
+                      ? `
+                        <div class="patient-treatment-materials">
+                          <span><i class="fa-solid fa-boxes-stacked"></i> ITEMS USED</span>
+                          <p>${consumedMaterials
+                            .map(
+                              (item) =>
+                                `${escapeHTML(item.itemName || item.name || "Item")} x ${Number(item.quantity)}`,
+                            )
+                            .join(" · ")}</p>
                         </div>
                       `
                       : ""
