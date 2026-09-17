@@ -49,25 +49,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && ($_POST["action"] ?? "") === "updat
     }
     $updateStmt->close();
 }
-$stmt = $conn->prepare("
-    SELECT
-        user_id,
-        firstname,
-        lastname,
-        name,
-        email,
-        role,
-        doctor_id,
-        specialization,
-        access_level,
-        status,
-        profile_image,
-        contact
-    FROM tbl_users
-    WHERE user_id = ?
-    AND role = 'doctor'
-    LIMIT 1
-");
+
+$stmt = $conn->prepare("SELECT user_id, firstname, lastname, name, email, role, doctor_id, specialization, access_level, status, profile_image, contact FROM tbl_users WHERE user_id = ? AND role = 'doctor' LIMIT 1");
 if (!$stmt) {
     http_response_code(500);
     response(false, "Database error while loading your profile.");
@@ -83,72 +66,13 @@ if (!$result || $result->num_rows === 0) {
 }
 $doctor = $result->fetch_assoc();
 $stmt->close();
-$doctorId = trim((string)($doctor["doctor_id"] ?? ""));
-if ($doctorId === "") {
-    $nextId = 1;
-    $idStmt = $conn->prepare("
-        SELECT MAX(CAST(SUBSTRING(doctor_id, 5) AS UNSIGNED)) AS max_doctor_number
-        FROM tbl_users
-        WHERE role = 'doctor'
-        AND doctor_id REGEXP '^DOC-[0-9]{4}$'
-    ");
-    if (!$idStmt) {
-        $conn->close();
-        http_response_code(500);
-        response(false, "Database error while generating your Doctor ID.");
-    }
-    $idStmt->execute();
-    $idResult = $idStmt->get_result();
-    if ($idResult && $idResult->num_rows > 0) {
-        $idRow = $idResult->fetch_assoc();
-        $maxNumber = (int)($idRow["max_doctor_number"] ?? 0);
-        $nextId = $maxNumber + 1;
-    }
-    $idStmt->close();
-    $doctorId = "DOC-" . str_pad((string)$nextId, 4, "0", STR_PAD_LEFT);
-    $updateIdStmt = $conn->prepare("
-        UPDATE tbl_users
-        SET doctor_id = ?
-        WHERE user_id = ?
-        AND role = 'doctor'
-        AND (doctor_id IS NULL OR doctor_id = '')
-    ");
-    if (!$updateIdStmt) {
-        $conn->close();
-        http_response_code(500);
-        response(false, "Database error while saving your Doctor ID.");
-    }
-    $updateIdStmt->bind_param("si", $doctorId, $userId);
-    if (!$updateIdStmt->execute()) {
-        $updateIdStmt->close();
-        $conn->close();
-        http_response_code(500);
-        response(false, "Unable to save your Doctor ID.");
-    }
-    $updateIdStmt->close();
-    if ($conn->affected_rows === 0) {
-        $verifyStmt = $conn->prepare("
-            SELECT doctor_id
-            FROM tbl_users
-            WHERE user_id = ?
-            AND role = 'doctor'
-            LIMIT 1
-        ");
-        if ($verifyStmt) {
-            $verifyStmt->bind_param("i", $userId);
-            $verifyStmt->execute();
-            $verifyResult = $verifyStmt->get_result();
-            if ($verifyResult && $verifyResult->num_rows > 0) {
-                $verifyRow = $verifyResult->fetch_assoc();
-                if (!empty($verifyRow["doctor_id"])) {
-                    $doctorId = $verifyRow["doctor_id"];
-                }
-            }
-            $verifyStmt->close();
-        }
-    }
-    $doctor["doctor_id"] = $doctorId;
-}
+
+$doctorId = "DOC-" . str_pad((string) $userId, 4, "0", STR_PAD_LEFT);
+$updateIdStmt = $conn->prepare("UPDATE tbl_users SET doctor_id = ?, staff_id = NULL WHERE user_id = ? AND role = 'doctor' LIMIT 1");
+$updateIdStmt->bind_param("si", $doctorId, $userId);
+$updateIdStmt->execute();
+$updateIdStmt->close();
+
 $doctor["doctor_id"] = $doctorId;
 $_SESSION["doctor_id"] = $doctorId;
 $_SESSION["specialization"] = $doctor["specialization"] ?? "";

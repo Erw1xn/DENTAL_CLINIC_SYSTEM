@@ -4,6 +4,8 @@ const PATIENTS_STORAGE_KEY = "dentanueva_patients";
 const CURRENT_USER_KEY = "currentUser";
 const DOCTORS_STORAGE_KEY = "dentanueva_doctors";
 const RESCHEDULE_REQUESTS_STORAGE_KEY = "dentanueva_reschedule_requests";
+const PATIENT_RECORD_API = "../../api/patient_records.php";
+const DOCTORS_API = "../../api/doctors.php";
 const SERVICES = [
   { id: "consultation", name: "Consultation", duration: 30 },
   { id: "dental_cleaning", name: "Dental Cleaning", duration: 45 },
@@ -33,6 +35,7 @@ let doctors = [];
 const CLINIC_SCHEDULE = { startHour: 10, endHour: 20, slotMinutes: 30 };
 let patients = [];
 let appointments = [];
+let doctorScheduleAppointments = [];
 let currentPatient = null;
 let currentUser = null;
 let selectedDate = new Date();
@@ -47,12 +50,14 @@ let bookingStep = 1;
 let calendarDate = new Date();
 document.addEventListener("DOMContentLoaded", initializePage);
 function initializePage() {
+  clearAppointmentCaches();
   currentUser = getCurrentUser();
   loadPatients();
   loadDoctors();
   renderDentistSelector();
   loadAppointments();
   resolveCurrentPatient();
+  void hydrateCurrentPatientFromDatabase();
   normalizeSelectedDate();
   normalizeCalendarDate();
   setupEvents();
@@ -68,6 +73,15 @@ function initializePage() {
     normalizeSelectedDate();
     renderAll();
   }, 30000);
+}
+function clearAppointmentCaches() {
+  [
+    LEGACY_STORAGE_KEY,
+    PATIENTS_STORAGE_KEY,
+    DOCTORS_STORAGE_KEY,
+    "currentPatient",
+    "loggedInPatient",
+  ].forEach((key) => localStorage.removeItem(key));
 }
 function setupEvents() {
   document
@@ -309,13 +323,20 @@ function formatShortDate(dateValue) {
 }
 function formatTime(timeValue) {
   if (!timeValue) return "";
-  const parts = String(timeValue).split(":");
-  const hour = Number(parts[0]);
-  const minute = Number(parts[1] || 0);
-  if (Number.isNaN(hour) || Number.isNaN(minute)) return String(timeValue);
-  const suffix = hour >= 12 ? "PM" : "AM";
-  const displayHour = hour % 12 || 12;
-  return `${displayHour}:${String(minute).padStart(2, "0")} ${suffix}`;
+  const text = String(timeValue).trim();
+  const match = text.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?$/i);
+  if (!match) return String(timeValue);
+
+  let hour = Number(match[1]);
+  const minute = Number(match[2]);
+  const suffix = (match[4] || (hour >= 12 ? "PM" : "AM")).toUpperCase();
+
+  if (match[4]) {
+    if (suffix === "AM" && hour === 12) hour = 0;
+    if (suffix === "PM" && hour < 12) hour += 12;
+  }
+
+  return `${hour % 12 || 12}:${String(minute).padStart(2, "0")} ${suffix}`;
 }
 function getAppointmentEndTime(appointment) {
   const time = getAppointmentTime(appointment);
@@ -419,7 +440,19 @@ function sameDentist(left, right) {
 function getDentistName(appointment) {
   const dentistId = getDentistId(appointment);
   if (DENTISTS[dentistId]) return DENTISTS[dentistId].name;
-  if (appointment?.dentist_name) return appointment.dentist_name;
+  if (
+    appointment?.dentist_name ||
+    appointment?.dentistName ||
+    appointment?.doctor_name ||
+    appointment?.doctorName
+  ) {
+    return (
+      appointment.dentist_name ||
+      appointment.dentistName ||
+      appointment.doctor_name ||
+      appointment.doctorName
+    );
+  }
   if (typeof dentistId === "string" && dentistId.startsWith("Dr."))
     return dentistId;
   return "Assigned Dentist";
@@ -450,56 +483,52 @@ function getPatientStatusLabel(status, appointmentDate) {
   return "Scheduled";
 }
 function getCurrentUser() {
-  try {
-    const stored = sessionStorage.getItem(CURRENT_USER_KEY);
-    if (!stored) {
-      return null;
+  const storedCandidates = [
+    sessionStorage.getItem(CURRENT_USER_KEY),
+    localStorage.getItem(CURRENT_USER_KEY),
+  ];
+
+  for (const stored of storedCandidates) {
+    if (!stored) continue;
+    try {
+      const parsed = JSON.parse(stored);
+      if (parsed && typeof parsed === "object") {
+        return parsed;
+      }
+    } catch (error) {
+      console.warn("Unable to parse stored currentUser.", error);
     }
-    const parsed = JSON.parse(stored);
-    return parsed && typeof parsed === "object" ? parsed : null;
-  } catch {
-    return null;
   }
+
+  return null;
 }
 function loadPatients() {
-  try {
-    const primary = localStorage.getItem(PATIENTS_STORAGE_KEY);
-    if (!primary) {
-      patients = [];
-      return;
-    }
-    const parsed = JSON.parse(primary);
-    patients = Array.isArray(parsed)
-      ? parsed
-      : Array.isArray(parsed?.patients)
-        ? parsed.patients
-        : [];
-  } catch {
-    patients = [];
-  }
+  patients = [];
 }
 function loadDoctors() {
+  return hydrateDoctorsFromDatabase();
+}
+async function hydrateDoctorsFromDatabase() {
   try {
-    const stored = localStorage.getItem(DOCTORS_STORAGE_KEY);
-    if (!stored) {
-      doctors = [];
-      DENTISTS = {};
-      return;
+    const response = await fetch(DOCTORS_API, {
+      credentials: "same-origin",
+      cache: "no-store",
+    });
+    const result = await response.json();
+    if (!response.ok || !result.success || !Array.isArray(result.data)) {
+      throw new Error(result.message || "Doctor list unavailable.");
     }
-    const parsed = JSON.parse(stored);
-    const source = Array.isArray(parsed)
-      ? parsed
-      : Array.isArray(parsed?.doctors)
-        ? parsed.doctors
-        : [];
-    doctors = source
+    doctors = result.data
       .map(normalizeDoctor)
       .filter((doctor) => doctor.id && doctor.name);
     DENTISTS = doctors.reduce((result, doctor) => {
       result[doctor.id] = doctor;
       return result;
     }, {});
-  } catch {
+    renderDentistSelector();
+    renderAll();
+  } catch (error) {
+    console.warn("Database doctors unavailable.", error);
     doctors = [];
     DENTISTS = {};
   }
@@ -542,6 +571,9 @@ function normalizeDoctor(doctor) {
       .join("") || "DR";
   return {
     ...doctor,
+    role: String(doctor.role || "doctor")
+      .trim()
+      .toLowerCase(),
     id,
     dentistId: id,
     name,
@@ -578,65 +610,50 @@ function renderDentistSelector() {
     ? currentValue
     : doctors[0].id;
 }
-function loadAppointments() {
+async function loadAppointments() {
+  appointments = [];
   try {
-    const primaryStored = localStorage.getItem(APPOINTMENTS_STORAGE_KEY);
-    const legacyStored = localStorage.getItem(LEGACY_STORAGE_KEY);
-    let stored = primaryStored;
-    if (!stored) stored = legacyStored;
-    if (!stored) {
-      appointments = [];
-      return;
+    const storedAppointments = localStorage.getItem(APPOINTMENTS_STORAGE_KEY);
+    if (storedAppointments) {
+      const parsed = JSON.parse(storedAppointments);
+      if (Array.isArray(parsed)) {
+        appointments = parsed;
+      }
     }
-    const parsed = JSON.parse(stored);
-    const storedAppointments = Array.isArray(parsed)
-      ? parsed
-      : Array.isArray(parsed?.appointments)
-        ? parsed.appointments
-        : [];
-    appointments = storedAppointments
-      .map((appointment) => {
-        const rawPatientId =
-          appointment?.patient_id ||
-          appointment?.patientId ||
-          appointment?.patientID ||
-          "";
-        const matchedPatient = findPatientByIdentifier(rawPatientId);
-        const canonicalPatientId =
-          getCanonicalPatientId(matchedPatient) || String(rawPatientId).trim();
-        if (!canonicalPatientId) return appointment;
-        return {
-          ...appointment,
-          patientId: canonicalPatientId,
-          patient_id: canonicalPatientId,
-        };
-      })
-      .map((appointment) => {
-        if (
-          (appointment.dentist === "villanueva" || !appointment.dentist) &&
-          doctors.length === 1 &&
-          !DENTISTS.villanueva
-        ) {
-          return {
-            ...appointment,
-            dentist: doctors[0].id,
-            dentistId: doctors[0].id,
-            dentist_id: doctors[0].id,
-          };
-        }
-        return appointment;
-      });
-  } catch {
-    appointments = [];
+  } catch (error) {
+    console.warn("Unable to read stored appointments.", error);
+  }
+  if (window.DentaNuevaAppointmentDatabase) {
+    await hydrateAppointmentsFromDatabase();
+  }
+  return appointments;
+}
+async function hydrateAppointmentsFromDatabase() {
+  if (!window.DentaNuevaAppointmentDatabase) return;
+  try {
+    const remoteAppointments =
+      await window.DentaNuevaAppointmentDatabase.load();
+    const remote = Array.isArray(remoteAppointments) ? remoteAppointments : [];
+    if (remote.length) {
+      appointments = remote;
+      localStorage.setItem(APPOINTMENTS_STORAGE_KEY, JSON.stringify(remote));
+    }
+    renderAll();
+  } catch (error) {
+    console.warn(
+      "Database appointments unavailable; using local records.",
+      error,
+    );
   }
 }
-function saveAppointments() {
+async function saveAppointments() {
   try {
     const payload = Array.isArray(appointments) ? appointments : [];
-    const serialized = JSON.stringify(payload);
     appointments = payload;
-    localStorage.setItem(APPOINTMENTS_STORAGE_KEY, serialized);
-    localStorage.setItem(LEGACY_STORAGE_KEY, serialized);
+    localStorage.setItem(APPOINTMENTS_STORAGE_KEY, JSON.stringify(payload));
+    if (window.DentaNuevaAppointmentDatabase) {
+      await window.DentaNuevaAppointmentDatabase.save(payload);
+    }
   } catch (error) {
     console.error("Unable to save appointments:", error);
   }
@@ -681,9 +698,27 @@ function resolveCurrentPatient() {
   const email = String(
     currentUser?.email || currentUser?.emailAddress || "",
   ).trim();
-  const patientId = String(currentUser?.patientId || "").trim();
+  const patientId = String(
+    currentUser?.patientId ||
+      currentUser?.patient_id ||
+      currentUser?.patientID ||
+      currentUser?.id ||
+      "",
+  ).trim();
   currentPatient = null;
-  if (userId) {
+
+  if (patientId && /^PN-/i.test(patientId)) {
+    currentPatient = findPatientByIdentifier(patientId) || {
+      patientId,
+      id: patientId,
+      patient_id: patientId,
+      fullName: currentUser?.name || currentUser?.fullName || "Patient",
+      email,
+      userId: userId || currentUser?.userId || currentUser?.user_id || "",
+    };
+  }
+
+  if (!currentPatient && userId) {
     currentPatient =
       patients.find((patient) => {
         const patientUserId = String(
@@ -706,34 +741,60 @@ function resolveCurrentPatient() {
       }) || null;
   }
   if (!currentPatient && patientId) {
-    currentPatient = findPatientByIdentifier(patientId);
+    currentPatient = findPatientByIdentifier(patientId) || {
+      patientId,
+      id: patientId,
+      patient_id: patientId,
+      fullName: currentUser?.name || currentUser?.fullName || "Patient",
+      email,
+      userId: userId || currentUser?.userId || currentUser?.user_id || "",
+    };
   }
-  if (!currentPatient) {
-    const storedPatient =
-      localStorage.getItem("currentPatient") ||
-      localStorage.getItem("loggedInPatient");
-    if (storedPatient) {
-      try {
-        const parsedPatient = JSON.parse(storedPatient);
-        currentPatient =
-          findPatientByIdentifier(getCanonicalPatientId(parsedPatient)) ||
-          findPatientByIdentifier(parsedPatient?.patient_id) ||
-          findPatientByIdentifier(parsedPatient?.patientId) ||
-          findPatientByIdentifier(parsedPatient?.id) ||
-          findPatientByIdentifier(parsedPatient?.user_id) ||
-          findPatientByIdentifier(parsedPatient?.userId) ||
-          null;
-      } catch {
-        currentPatient = null;
-      }
-    }
-  }
+
   if (currentPatient && currentUser) {
     const resolvedPatientId = getCanonicalPatientId(currentPatient);
     if (resolvedPatientId) {
       currentUser.patientId = resolvedPatientId;
+      currentUser.patient_id = resolvedPatientId;
       sessionStorage.setItem(CURRENT_USER_KEY, JSON.stringify(currentUser));
+      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(currentUser));
     }
+  }
+}
+async function hydrateCurrentPatientFromDatabase() {
+  if (!currentUser) return;
+  try {
+    const response = await fetch(PATIENT_RECORD_API, {
+      credentials: "same-origin",
+      cache: "no-store",
+    });
+    const result = await response.json();
+    if (!response.ok || !result.success || !result.data) return;
+
+    const remotePatient = result.data;
+    const remotePatientId = getCanonicalPatientId(remotePatient);
+    const localIndex = patients.findIndex(
+      (patient) => getCanonicalPatientId(patient) === remotePatientId,
+    );
+    currentPatient = {
+      ...(localIndex >= 0 ? patients[localIndex] : {}),
+      ...remotePatient,
+      patientId: remotePatientId,
+      id: remotePatientId,
+    };
+    if (localIndex >= 0) {
+      patients[localIndex] = currentPatient;
+    } else {
+      patients.push(currentPatient);
+    }
+    currentUser.patientId = remotePatientId;
+    sessionStorage.setItem(CURRENT_USER_KEY, JSON.stringify(currentUser));
+    renderAll();
+  } catch (error) {
+    console.warn(
+      "Database patient record unavailable; using local record.",
+      error,
+    );
   }
 }
 function getCurrentPatientId() {
@@ -741,11 +802,36 @@ function getCurrentPatientId() {
     const patientId = getCanonicalPatientId(currentPatient);
     if (patientId) return patientId;
   }
-  const currentUserPatientId = String(currentUser?.patientId || "").trim();
+
+  const currentUserPatientId = String(
+    currentUser?.patientId ||
+      currentUser?.patient_id ||
+      currentUser?.patientID ||
+      "",
+  ).trim();
   if (currentUserPatientId) {
     const patient = findPatientByIdentifier(currentUserPatientId);
     return getCanonicalPatientId(patient) || currentUserPatientId;
   }
+
+  const fallbackUserId = String(
+    currentUser?.id || currentUser?.userId || currentUser?.user_id || "",
+  ).trim();
+  if (fallbackUserId) {
+    const patient = patients.find((item) => {
+      const patientUserId = String(
+        item?.user_id || item?.userId || item?.userIdRef || "",
+      ).trim();
+      return (
+        patientUserId &&
+        patientUserId.toLowerCase() === fallbackUserId.toLowerCase()
+      );
+    });
+    if (patient) {
+      return getCanonicalPatientId(patient);
+    }
+  }
+
   return "";
 }
 function getCurrentPatientName() {
@@ -765,7 +851,24 @@ function getPatientAppointments() {
     .trim()
     .toLowerCase();
   if (!patientId) {
-    return [];
+    const fallbackPatientId = String(
+      currentUser?.patientId ||
+        currentUser?.patient_id ||
+        currentUser?.patientID ||
+        "",
+    ).trim();
+    if (!fallbackPatientId) return [];
+    return appointments.filter((appointment) => {
+      const appointmentPatientId = String(
+        appointment?.patient_id ||
+          appointment?.patientId ||
+          appointment?.patientID ||
+          "",
+      )
+        .trim()
+        .toLowerCase();
+      return appointmentPatientId === fallbackPatientId.trim().toLowerCase();
+    });
   }
   return appointments.filter((appointment) => {
     const appointmentPatientId = String(
@@ -871,16 +974,28 @@ function shiftCalendarMonth(direction) {
 function renderUpcomingAppointment() {
   const container = document.getElementById("upcomingAppointment");
   if (!container) return;
-  const dateKey = dateToKey(selectedDate);
-  const dateAppointments = getDateAppointments(dateKey).sort((a, b) => {
-    const activeA = isActiveAppointment(a) ? 0 : 1;
-    const activeB = isActiveAppointment(b) ? 0 : 1;
-    if (activeA !== activeB) return activeA - activeB;
-    const timeA = String(getAppointmentTime(a));
-    const timeB = String(getAppointmentTime(b));
-    return timeA.localeCompare(timeB);
-  });
-  const appointment = dateAppointments[0];
+
+  const selectedKey = dateToKey(selectedDate);
+  const selectedDateAppointments = getPatientAppointments()
+    .filter((appointment) => {
+      const appointmentDate = String(getAppointmentDate(appointment) || "");
+      return (
+        appointmentDate && dateToKey(keyToDate(appointmentDate)) === selectedKey
+      );
+    })
+    .sort((a, b) => {
+      const dateA = String(getAppointmentDate(a));
+      const dateB = String(getAppointmentDate(b));
+      if (dateA !== dateB) return dateA.localeCompare(dateB);
+      const timeA = String(getAppointmentTime(a));
+      const timeB = String(getAppointmentTime(b));
+      return timeA.localeCompare(timeB);
+    });
+
+  const appointment =
+    selectedDateAppointments.find((item) => isActiveAppointment(item)) ||
+    selectedDateAppointments[0];
+
   if (!appointment) {
     container.innerHTML = `
 <div class="empty-upcoming">
@@ -956,11 +1071,13 @@ function updateServiceDurationInfo() {
     ? `${service.name} follows a fixed duration of ${service.duration} minutes.`
     : "Each service type follows a fixed, non-editable duration.";
 }
-function openBookingModal(date = null, dentist = null) {
+async function openBookingModal(date = null, dentist = null) {
   currentUser = getCurrentUser();
   loadAppointments();
-  loadDoctors();
+  await loadDoctors();
   renderDentistSelector();
+  resolveCurrentPatient();
+  await hydrateCurrentPatientFromDatabase();
   resolveCurrentPatient();
   const restriction = getPatientBookingRestriction();
   if (restriction.isRestricted) {
@@ -1261,15 +1378,25 @@ function classifyBookingPeriod(minutes) {
   if (minutes < 18 * 60) return "Afternoon";
   return "Evening";
 }
+function getDoctorScheduleAppointmentsForDate(date, dentist) {
+  const combined = [...appointments, ...doctorScheduleAppointments];
+  return combined.filter((appointment) => {
+    if (!date || !dentist || !getAppointmentDate(appointment)) return false;
+    const appointmentDate = getAppointmentDate(appointment);
+    return (
+      dateToKey(keyToDate(appointmentDate)) === date &&
+      sameDentist(getDentistId(appointment), dentist) &&
+      isBookingConflictAppointment(appointment)
+    );
+  });
+}
 function generateBookingSlotStatuses(date, dentist, duration) {
   const result = [];
   const dateObject = keyToDate(date);
   const today = new Date();
-  const existingAppointments = appointments.filter(
-    (appointment) =>
-      dateToKey(keyToDate(getAppointmentDate(appointment))) === date &&
-      sameDentist(getDentistId(appointment), dentist) &&
-      isBookingConflictAppointment(appointment),
+  const existingAppointments = getDoctorScheduleAppointmentsForDate(
+    date,
+    dentist,
   );
   for (
     let minutes = CLINIC_SCHEDULE.startHour * 60;
@@ -1363,18 +1490,38 @@ function appendBookingTimeGroup(container, label, slots) {
   });
   container.appendChild(grid);
 }
-function updateAvailableTimeSlots() {
+async function loadDoctorScheduleForSelectedDate(date, dentist) {
+  if (!date || !dentist || !window.DentaNuevaAppointmentDatabase) {
+    doctorScheduleAppointments = [];
+    return;
+  }
+
+  try {
+    const schedule = await window.DentaNuevaAppointmentDatabase.load({
+      scope: "doctor_schedule",
+      doctor_id: dentist,
+      date,
+    });
+    doctorScheduleAppointments = Array.isArray(schedule) ? schedule : [];
+  } catch (error) {
+    console.warn("Unable to load doctor schedule for conflict checks.", error);
+    doctorScheduleAppointments = [];
+  }
+}
+
+async function updateAvailableTimeSlots() {
   const dropdown = document.getElementById("timeDropdown");
   const trigger = document.getElementById("timeTrigger");
   const triggerLabel = document.getElementById("timeTriggerLabel");
   const summary = document.getElementById("availableTimeSummary");
   if (!dropdown || !trigger || !triggerLabel) return;
-  loadAppointments();
+  await loadAppointments();
   const date =
     document.getElementById("dateSelect")?.value || dateToKey(selectedDate);
   const dentist =
     document.getElementById("dentistSelect")?.value || doctors[0]?.id || "";
   const duration = Number(document.getElementById("durationInput")?.value || 0);
+  await loadDoctorScheduleForSelectedDate(date, dentist);
   dropdown.innerHTML = "";
   if (!date || isPastDate(date)) {
     trigger.disabled = true;
@@ -1443,11 +1590,9 @@ function generateAvailableSlots(date, dentist, duration) {
   const result = [];
   const dateObject = keyToDate(date);
   const today = new Date();
-  const existingAppointments = appointments.filter(
-    (appointment) =>
-      dateToKey(keyToDate(getAppointmentDate(appointment))) === date &&
-      sameDentist(getDentistId(appointment), dentist) &&
-      isBookingConflictAppointment(appointment),
+  const existingAppointments = getDoctorScheduleAppointmentsForDate(
+    date,
+    dentist,
   );
   for (
     let minutes = CLINIC_SCHEDULE.startHour * 60;
@@ -1627,36 +1772,35 @@ function hasScheduleConflict(date, dentist, time, duration) {
     0,
   );
   const end = new Date(start.getTime() + duration * 60000);
-  return appointments.some((appointment) => {
-    if (!isBookingConflictAppointment(appointment)) return false;
-    if (dateToKey(keyToDate(getAppointmentDate(appointment))) !== date)
-      return false;
-    if (!sameDentist(getDentistId(appointment), dentist)) return false;
-    const appointmentTime = getAppointmentTime(appointment);
-    if (!appointmentTime) return false;
-    const [appointmentHour, appointmentMinute] = appointmentTime
-      .split(":")
-      .map(Number);
-    const appointmentStart = new Date(
-      dateObject.getFullYear(),
-      dateObject.getMonth(),
-      dateObject.getDate(),
-      appointmentHour,
-      appointmentMinute || 0,
-      0,
-      0,
-    );
-    const appointmentDuration = Number(
-      appointment.duration ||
-        appointment.duration_minutes ||
-        appointment.durationMinutes ||
-        30,
-    );
-    const appointmentEnd = new Date(
-      appointmentStart.getTime() + appointmentDuration * 60000,
-    );
-    return start < appointmentEnd && end > appointmentStart;
-  });
+  return getDoctorScheduleAppointmentsForDate(date, dentist).some(
+    (appointment) => {
+      if (!isBookingConflictAppointment(appointment)) return false;
+      const appointmentTime = getAppointmentTime(appointment);
+      if (!appointmentTime) return false;
+      const [appointmentHour, appointmentMinute] = appointmentTime
+        .split(":")
+        .map(Number);
+      const appointmentStart = new Date(
+        dateObject.getFullYear(),
+        dateObject.getMonth(),
+        dateObject.getDate(),
+        appointmentHour,
+        appointmentMinute || 0,
+        0,
+        0,
+      );
+      const appointmentDuration = Number(
+        appointment.duration ||
+          appointment.duration_minutes ||
+          appointment.durationMinutes ||
+          30,
+      );
+      const appointmentEnd = new Date(
+        appointmentStart.getTime() + appointmentDuration * 60000,
+      );
+      return start < appointmentEnd && end > appointmentStart;
+    },
+  );
 }
 function updateConflictNotice(conflict, customMessage = "") {
   const notice = document.getElementById("scheduleConflictNotice");
@@ -1940,9 +2084,9 @@ function updateMedicalRecordSummary() {
       : "None reported";
   summary.innerHTML = `<div class="medical-record-summary-grid"><div><span>Dental Concern</span><strong>${escapeHtml(concernText)}</strong></div><div><span>Medical History</span><strong>${escapeHtml(historyText)}</strong></div><div><span>Allergies</span><strong>${escapeHtml(allergyText)}</strong></div><div><span>Medication Status</span><strong>${escapeHtml(medication)}</strong></div><div><span>Last Dental Visit</span><strong>${escapeHtml(lastVisit)}</strong></div><div><span>Last Treatment</span><strong>${escapeHtml(lastTreatment)}</strong></div><div class="medical-record-summary-item-wide"><span>Dental Experience</span><strong>${escapeHtml(dentalExperience)}</strong></div></div><div class="medical-record-summary-status"><i class="fa-solid fa-circle-check"></i><span>Record available for this appointment</span></div>`;
 }
-function confirmBooking() {
+async function confirmBooking() {
   currentUser = getCurrentUser();
-  loadAppointments();
+  await loadAppointments();
   resolveCurrentPatient();
   if (!validateAppointmentDetails()) return;
   const patientId = getCurrentPatientId();
@@ -2077,7 +2221,13 @@ function confirmBooking() {
     paymentAmount: 0,
   };
   appointments.push(appointment);
-  saveAppointments();
+  try {
+    await saveAppointments();
+  } catch (error) {
+    console.error("Unable to sync appointment to database:", error);
+    showToast("Appointment could not be saved. Please try again.");
+    return;
+  }
   syncAppointmentToPatient(appointment);
   selectedDate = keyToDate(date);
   calendarDate = new Date(selectedDate);
@@ -2342,6 +2492,11 @@ function deleteAppointment() {
     (item) => getAppointmentId(item) !== appointmentId,
   );
   saveAppointments();
+  void window.DentaNuevaAppointmentDatabase?.remove(appointmentId).catch(
+    (error) => {
+      console.error("Unable to delete appointment from database:", error);
+    },
+  );
 
   if (currentPatient) {
     currentPatient.appointments = Array.isArray(currentPatient.appointments)
@@ -2565,11 +2720,21 @@ function openStaffRescheduleModal(request) {
     dateInput.min = dateToKey(new Date());
     dateInput.value = "";
   }
+  updateStaffRescheduleConfirmState();
   renderStaffRequestTimeGrid("");
   closeAppointmentDetail();
   modal.classList.add("show");
   modal.setAttribute("aria-hidden", "false");
   document.body.style.overflow = "hidden";
+}
+function updateStaffRescheduleConfirmState() {
+  const confirmButton = document.getElementById("confirmStaffReschedule");
+  const dateInput = document.getElementById("staffRequestDate");
+  if (!confirmButton || !dateInput) return;
+  const hasSelection = Boolean(dateInput.value && staffRequestTime);
+  confirmButton.disabled = !hasSelection;
+  confirmButton.classList.toggle("is-disabled", !hasSelection);
+  confirmButton.setAttribute("aria-disabled", String(!hasSelection));
 }
 function closeStaffRescheduleModal() {
   const modal = document.getElementById("staffRescheduleModal");
@@ -2579,10 +2744,17 @@ function closeStaffRescheduleModal() {
   staffRequestTargetId = null;
   staffRequestTime = "";
   document.body.style.overflow = "";
+  const confirmButton = document.getElementById("confirmStaffReschedule");
+  if (confirmButton) {
+    confirmButton.disabled = true;
+    confirmButton.classList.add("is-disabled");
+    confirmButton.setAttribute("aria-disabled", "true");
+  }
 }
 function handleStaffRequestDateChange(event) {
   const date = event.target.value;
   staffRequestTime = "";
+  updateStaffRescheduleConfirmState();
   renderStaffRequestTimeGrid(date);
 }
 function renderStaffRequestTimeGrid(date) {
@@ -2631,10 +2803,12 @@ function renderStaffRequestTimeGrid(date) {
     button.textContent = slot.label;
     button.addEventListener("click", () => {
       staffRequestTime = slot.value;
+      updateStaffRescheduleConfirmState();
       renderStaffRequestTimeGrid(date);
     });
     grid.appendChild(button);
   });
+  updateStaffRescheduleConfirmState();
 }
 function confirmStaffRescheduleResponse() {
   if (!staffRequestTargetId) return;
@@ -2690,34 +2864,79 @@ function confirmStaffRescheduleResponse() {
     return;
   }
   const updatedAt = new Date().toISOString();
+  const nextApprovedCount =
+    getApprovedRescheduleCountForAppointment(appointment.id) + 1;
+
+  appointment.id = appointment.id;
+  appointment.appointment_id = appointment.id;
+  appointment.appointmentId = appointment.id;
+  appointment.date = newDate;
+  appointment.appointment_date = newDate;
+  appointment.appointmentDate = newDate;
+  appointment.start = staffRequestTime;
+  appointment.time = staffRequestTime;
+  appointment.appointment_time = staffRequestTime;
+  appointment.appointmentTime = staffRequestTime;
+  appointment.status = "scheduled";
+  appointment.approvedRescheduleCount = nextApprovedCount;
+  appointment.rescheduleCount = nextApprovedCount;
+  appointment.reschedule_count = nextApprovedCount;
+  appointment.rescheduleRequest = null;
+
   requests[index] = {
     ...requests[index],
-    request_id: requests[index].request_id || requests[index].id,
+    id:
+      requests[index].id || requests[index].request_id || staffRequestTargetId,
+    request_id:
+      requests[index].request_id ||
+      requests[index].id ||
+      String(staffRequestTargetId),
     appointment_id:
       requests[index].appointment_id || requests[index].appointmentId,
+    appointmentId:
+      requests[index].appointmentId ||
+      requests[index].appointment_id ||
+      appointment.id,
     patient_id:
       requests[index].patient_id ||
       requests[index].patientId ||
+      getCurrentPatientId(),
+    patientId:
+      requests[index].patientId ||
+      requests[index].patient_id ||
       getCurrentPatientId(),
     preferred_date: newDate,
     preferred_time: staffRequestTime,
     preferredDate: newDate,
     preferredTime: staffRequestTime,
+    approved_date: newDate,
+    approved_time: staffRequestTime,
+    approvedDate: newDate,
+    approvedTime: staffRequestTime,
     initiatedBy: requests[index].initiatedBy || "staff",
     initiated_by:
       requests[index].initiated_by || requests[index].initiatedBy || "staff",
     patientResponseAt: updatedAt,
     patient_response_at: updatedAt,
-    patientAcknowledged: false,
-    patientAcknowledgedAt: null,
+    patientAcknowledged: true,
+    patientAcknowledgedAt: updatedAt,
+    approved_at: updatedAt,
     updatedAt,
     updated_at: updatedAt,
-    status: "Pending",
+    status: "Approved",
+    approved_reschedule_count: nextApprovedCount,
   };
+
   saveRescheduleRequests(requests);
+  saveAppointments();
+  syncAppointmentToPatient(appointment);
   closeStaffRescheduleModal();
   renderAll();
-  showToast("Your preferred schedule was sent to the clinic for review.");
+  renderRescheduleAlert();
+  showToast("New schedule confirmed and the appointment has been updated.");
+  setTimeout(() => {
+    openAppointmentDetail(String(appointment.id));
+  }, 50);
 }
 function loadRescheduleRequests() {
   const stored = localStorage.getItem(RESCHEDULE_REQUESTS_STORAGE_KEY);
@@ -2815,8 +3034,10 @@ function renderRescheduleAlert() {
     } else if (status === "approved") {
       const date = latest?.approved_date || latest?.approvedDate || "";
       const time = latest?.approved_time || latest?.approvedTime || "";
-      const appointment = findAppointmentById(
-        latest?.appointment_id || latest?.appointmentId,
+      const appointment = appointments.find(
+        (item) =>
+          String(getAppointmentId(item)) ===
+          String(latest?.appointment_id || latest?.appointmentId || ""),
       );
       const dentist = appointment
         ? getDentistName(appointment)

@@ -22,15 +22,15 @@ let statusActionType = null;
 let toastTimer = null;
 let currentDoctorDentistId = null;
 let currentDoctor = null;
-document.addEventListener("DOMContentLoaded", () => {
-  initializeCurrentDoctor();
+document.addEventListener("DOMContentLoaded", async () => {
+  clearAppointmentCaches();
+  await initializeCurrentDoctor();
   initializeDate();
-  loadAppointments();
+  await hydrateAppointmentsFromDatabase();
   setupEvents();
-  updateAutomaticAppointmentStatuses();
   renderAll();
   setInterval(() => {
-    loadAppointments();
+    void hydrateAppointmentsFromDatabase();
     const changed = updateAutomaticAppointmentStatuses();
     if (changed) {
       renderAll();
@@ -41,6 +41,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }, 1000);
 });
+function clearAppointmentCaches() {
+  [LEGACY_STORAGE_KEY].forEach((key) => localStorage.removeItem(key));
+}
 function getCurrentUser() {
   const storedUser = sessionStorage.getItem("currentUser");
   if (!storedUser) {
@@ -132,11 +135,10 @@ function normalizeDoctorName(value) {
     .replace(/\s+/g, " ")
     .trim();
 }
-function findDoctorAccount(currentUser) {
+function findDoctorAccount(currentUser, doctors = getStoredDoctors()) {
   if (!currentUser) {
     return null;
   }
-  const doctors = getStoredDoctors();
   const currentDoctorId = getDoctorIdFromUser(currentUser);
   if (currentDoctorId) {
     const byDoctorId = doctors.find((doctor) => {
@@ -270,10 +272,29 @@ function getCurrentDoctorDentistId() {
   }
   return null;
 }
-function initializeCurrentDoctor() {
+async function refreshDoctorRegistryFromDatabase() {
+  try {
+    const response = await fetch("../../api/doctors.php", {
+      credentials: "same-origin",
+      cache: "no-store",
+    });
+    const result = await response.json();
+    if (!response.ok || !result.success || !Array.isArray(result.data)) {
+      throw new Error(result.message || "Doctors unavailable.");
+    }
+    localStorage.setItem(DOCTORS_STORAGE_KEY, JSON.stringify(result.data));
+    return result.data;
+  } catch (error) {
+    console.warn("Unable to reload doctor registry from database.", error);
+    return getStoredDoctors();
+  }
+}
+
+async function initializeCurrentDoctor() {
   const currentUser = getCurrentUser();
+  const doctors = await refreshDoctorRegistryFromDatabase();
   registerCurrentDoctor();
-  const doctorAccount = findDoctorAccount(currentUser);
+  const doctorAccount = findDoctorAccount(currentUser, doctors);
   currentDoctor = doctorAccount || currentUser;
   currentDoctorDentistId = getCurrentDoctorDentistId();
 }
@@ -384,28 +405,32 @@ function setupEvents() {
   }
 }
 function loadAppointments() {
-  let stored = localStorage.getItem(APPOINTMENTS_STORAGE_KEY);
-  if (!stored) {
-    stored = localStorage.getItem(LEGACY_STORAGE_KEY);
-  }
-  if (!stored) {
-    appointments = [];
-    return;
-  }
+  return appointments;
+}
+async function hydrateAppointmentsFromDatabase() {
+  if (!window.DentaNuevaAppointmentDatabase) return;
   try {
-    const parsed = JSON.parse(stored);
-    if (Array.isArray(parsed)) {
-      appointments = parsed.map(normalizeAppointment);
-    } else {
-      appointments = [];
-    }
+    const remoteAppointments =
+      await window.DentaNuevaAppointmentDatabase.load();
+    appointments = Array.isArray(remoteAppointments)
+      ? remoteAppointments.map(normalizeAppointment)
+      : [];
+    renderCalendar();
+    renderTimeline();
+    renderWaitingQueue();
   } catch (error) {
-    console.error("Unable to load patient appointments:", error);
-    appointments = [];
+    console.warn(
+      "Database appointments unavailable; using local records.",
+      error,
+    );
   }
 }
 function saveAppointmentsToStorage() {
-  localStorage.setItem(APPOINTMENTS_STORAGE_KEY, JSON.stringify(appointments));
+  void window.DentaNuevaAppointmentDatabase?.save(appointments).catch(
+    (error) => {
+      console.error("Unable to sync appointments to database:", error);
+    },
+  );
 }
 function normalizeAppointment(appt) {
   const appointmentDoctorId = resolveAppointmentDoctorId(
@@ -508,16 +533,21 @@ function minutesToTime(totalMinutes) {
   );
 }
 function fmtTime(time) {
-  const minutes = timeToMinutes(time);
-  let hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  const suffix = hours >= 12 ? "PM" : "AM";
-  if (hours === 0) {
-    hours = 12;
-  } else if (hours > 12) {
-    hours -= 12;
+  if (!time) return "";
+  const text = String(time).trim();
+  const match = text.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?$/i);
+  if (!match) return text;
+
+  let hour = Number(match[1]);
+  const minute = Number(match[2]);
+  const suffix = (match[4] || (hour >= 12 ? "PM" : "AM")).toUpperCase();
+
+  if (match[4]) {
+    if (suffix === "AM" && hour === 12) hour = 0;
+    if (suffix === "PM" && hour < 12) hour += 12;
   }
-  return `${hours}:${String(mins).padStart(2, "0")} ${suffix}`;
+
+  return `${hour % 12 || 12}:${String(minute).padStart(2, "0")} ${suffix}`;
 }
 function formatDateLong(dateKey) {
   const date = keyToDate(dateKey);
@@ -535,6 +565,14 @@ function getAppointmentEnd(appt) {
 function getAppointmentEndTime(appt) {
   return minutesToTime(getAppointmentEnd(appt));
 }
+function isNoShowEligible(appt) {
+  if (appt.status !== APPOINTMENT_STATUS.SCHEDULED || !isToday(appt.date)) {
+    return false;
+  }
+  const now = new Date();
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  return currentMinutes >= timeToMinutes(appt.start) + 15;
+}
 function updateAutomaticAppointmentStatuses() {
   const now = new Date();
   const todayKey = dateToKey(now);
@@ -544,11 +582,21 @@ function updateAutomaticAppointmentStatuses() {
     if (appt.date !== todayKey) {
       return;
     }
-    if (appt.status !== APPOINTMENT_STATUS.IN_CONSULTATION) {
+    const appointmentEnd = getAppointmentEnd(appt);
+    const appointmentStart = timeToMinutes(appt.start);
+    if (
+      appt.status === APPOINTMENT_STATUS.SCHEDULED &&
+      currentMinutes >= appointmentStart + 15
+    ) {
+      appt.status = APPOINTMENT_STATUS.NO_SHOW;
+      appt.noShowAt = new Date().toISOString();
+      changed = true;
       return;
     }
-    const appointmentEnd = getAppointmentEnd(appt);
-    if (currentMinutes >= appointmentEnd) {
+    if (
+      appt.status === APPOINTMENT_STATUS.IN_CONSULTATION &&
+      currentMinutes >= appointmentEnd
+    ) {
       appt.status = APPOINTMENT_STATUS.READY_COMPLETE;
       changed = true;
     }
@@ -637,7 +685,6 @@ function filteredAppts() {
   return filtered;
 }
 function renderAll() {
-  loadAppointments();
   updateAutomaticAppointmentStatuses();
   renderCalendar();
   renderTimeline();
@@ -740,6 +787,7 @@ function makeDayBtn(date, muted) {
   button.textContent = date.getDate();
   button.addEventListener("click", () => {
     selectedDate = new Date(date);
+    currentCalendarDate = new Date(date.getFullYear(), date.getMonth(), 1);
     renderAll();
   });
   return button;
@@ -750,7 +798,12 @@ function shiftMonth(offset) {
     currentCalendarDate.getMonth() + offset,
     1,
   );
-  renderCalendar();
+  selectedDate = new Date(
+    currentCalendarDate.getFullYear(),
+    currentCalendarDate.getMonth(),
+    1,
+  );
+  renderAll();
 }
 function renderTimeline() {
   const timeline = document.getElementById("timeline");
@@ -1000,15 +1053,17 @@ function createAppointmentStatusButton(appt) {
       checkInAppointment(appt.id);
     });
     wrapper.appendChild(button);
-    const noShowButton = document.createElement("button");
-    noShowButton.type = "button";
-    noShowButton.className = "appt-status-btn status-noshow";
-    noShowButton.innerHTML = '<i class="fa-solid fa-user-slash"></i> No Show';
-    noShowButton.addEventListener("click", (event) => {
-      event.stopPropagation();
-      openStatusConfirmation(appt.id, "markNoShow");
-    });
-    wrapper.appendChild(noShowButton);
+    if (isNoShowEligible(appt)) {
+      const noShowButton = document.createElement("button");
+      noShowButton.type = "button";
+      noShowButton.className = "appt-status-btn status-noshow";
+      noShowButton.innerHTML = '<i class="fa-solid fa-user-slash"></i> No Show';
+      noShowButton.addEventListener("click", (event) => {
+        event.stopPropagation();
+        openStatusConfirmation(appt.id, "markNoShow");
+      });
+      wrapper.appendChild(noShowButton);
+    }
     return wrapper;
   }
   if (appt.status === APPOINTMENT_STATUS.IN_CONSULTATION) {
@@ -1041,6 +1096,21 @@ function createAppointmentStatusButton(appt) {
     badge.innerHTML = '<i class="fa-solid fa-circle-check"></i> Completed';
     wrapper.appendChild(badge);
     return wrapper;
+  }
+  if (appt.status === APPOINTMENT_STATUS.NO_SHOW && isToday(appt.date)) {
+    const now = new Date();
+    if (now.getHours() * 60 + now.getMinutes() < getAppointmentEnd(appt)) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "appt-status-btn status-checkin";
+      button.innerHTML = '<i class="fa-solid fa-user-check"></i> Late Check In';
+      button.addEventListener("click", (event) => {
+        event.stopPropagation();
+        checkInAppointment(appt.id);
+      });
+      wrapper.appendChild(button);
+      return wrapper;
+    }
   }
   if (appt.status === APPOINTMENT_STATUS.NO_SHOW) {
     const badge = document.createElement("span");
@@ -1079,7 +1149,16 @@ function checkInAppointment(id) {
     });
     return;
   }
-  if (appt.status !== APPOINTMENT_STATUS.SCHEDULED || !isToday(appt.date)) {
+  if (
+    ![APPOINTMENT_STATUS.SCHEDULED, APPOINTMENT_STATUS.NO_SHOW].includes(
+      appt.status,
+    ) ||
+    !isToday(appt.date)
+  ) {
+    return;
+  }
+  const now = new Date();
+  if (now.getHours() * 60 + now.getMinutes() >= getAppointmentEnd(appt)) {
     return;
   }
   appt.status = APPOINTMENT_STATUS.IN_CONSULTATION;

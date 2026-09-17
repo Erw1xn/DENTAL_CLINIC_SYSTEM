@@ -761,26 +761,21 @@ function formatDisplayTime(value) {
     return "--:--";
   }
   const text = String(value).trim();
-  const twelveHourMatch = text.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-  if (twelveHourMatch) {
-    const hour = parseInt(twelveHourMatch[1], 10);
-    const minute = twelveHourMatch[2];
-    const period = twelveHourMatch[3].toUpperCase();
-    return `${String(hour).padStart(2, "0")}:${minute} ${period}`;
+  const match = text.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?$/i);
+  if (!match) {
+    return text;
   }
-  const twentyFourHourMatch = text.match(/^(\d{1,2}):(\d{2})$/);
-  if (twentyFourHourMatch) {
-    let hour = parseInt(twentyFourHourMatch[1], 10);
-    const minute = twentyFourHourMatch[2];
-    const period = hour >= 12 ? "PM" : "AM";
-    if (hour === 0) {
-      hour = 12;
-    } else if (hour > 12) {
-      hour -= 12;
-    }
-    return `${String(hour).padStart(2, "0")}:${minute} ${period}`;
+
+  let hour = Number(match[1]);
+  const minute = Number(match[2]);
+  const suffix = (match[4] || (hour >= 12 ? "PM" : "AM")).toUpperCase();
+
+  if (match[4]) {
+    if (suffix === "AM" && hour === 12) hour = 0;
+    if (suffix === "PM" && hour < 12) hour += 12;
   }
-  return text;
+
+  return `${hour % 12 || 12}:${String(minute).padStart(2, "0")} ${suffix}`;
 }
 function renderDentistAvailability() {
   const container = document.getElementById("dentistList");

@@ -142,16 +142,21 @@ function timeToMinutes(time) {
   return Number(parts[0]) * 60 + Number(parts[1] || 0);
 }
 function formatTime(time) {
-  const total = timeToMinutes(time);
-  let hours = Math.floor(total / 60);
-  const minutes = total % 60;
-  const suffix = hours >= 12 ? "PM" : "AM";
-  if (hours === 0) {
-    hours = 12;
-  } else if (hours > 12) {
-    hours -= 12;
+  if (!time) return "";
+  const text = String(time).trim();
+  const match = text.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?$/i);
+  if (!match) return text;
+
+  let hour = Number(match[1]);
+  const minute = Number(match[2]);
+  const suffix = (match[4] || (hour >= 12 ? "PM" : "AM")).toUpperCase();
+
+  if (match[4]) {
+    if (suffix === "AM" && hour === 12) hour = 0;
+    if (suffix === "PM" && hour < 12) hour += 12;
   }
-  return `${hours}:${String(minutes).padStart(2, "0")} ${suffix}`;
+
+  return `${hour % 12 || 12}:${String(minute).padStart(2, "0")} ${suffix}`;
 }
 function getInitials(name) {
   return String(name || "Patient")

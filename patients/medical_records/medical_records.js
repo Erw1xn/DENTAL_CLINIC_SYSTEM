@@ -2,6 +2,7 @@
 
 const CURRENT_USER_KEY = "currentUser";
 const PATIENT_RECORD_API = "../../api/patient_records.php";
+const APPOINTMENTS_API = "../../api/appointments.php";
 
 let currentUser = null;
 let currentPatient = null;
@@ -19,11 +20,27 @@ async function initializeMedicalRecords() {
   currentUser = getCurrentUser();
   loadOrCreatePatientRecord();
   await hydratePatientRecordFromDatabase();
+  await hydratePatientAppointmentsFromDatabase();
   bindEvents();
   bindClinicalImageViewer();
   populatePatientProfile();
   updatePageState();
   openPatientRecordTab(null);
+}
+
+async function hydratePatientAppointmentsFromDatabase() {
+  if (!currentPatient) return;
+  try {
+    const response = await fetch(APPOINTMENTS_API, {
+      credentials: "same-origin",
+      cache: "no-store",
+    });
+    const result = await response.json();
+    if (!response.ok || !result.success || !Array.isArray(result.data)) return;
+    currentPatient.appointments = result.data;
+  } catch (error) {
+    console.warn("Database appointments unavailable.", error);
+  }
 }
 
 async function hydratePatientRecordFromDatabase() {
@@ -732,6 +749,9 @@ function renderPatientRecordTab(tabName) {
 
   if (tabName === "appointments") {
     renderPatientAppointments();
+    void hydratePatientAppointmentsFromDatabase().then(() =>
+      renderPatientAppointments(),
+    );
   }
 }
 

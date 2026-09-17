@@ -131,16 +131,36 @@ function patientPayload(mysqli $conn, string $patientId): ?array
         $patient['medicalForm'] = null;
     }
 
-    $stmt = $conn->prepare('SELECT * FROM tbl_patient_appointments WHERE patient_id = ? ORDER BY appointment_date DESC, appointment_time DESC');
+    $stmt = $conn->prepare("SELECT a.*, u.doctor_id AS doctor_code, TRIM(COALESCE(u.name, CONCAT(u.firstname, ' ', u.lastname))) AS doctor_name FROM tbl_patient_appointments a LEFT JOIN tbl_users u ON u.user_id = a.doctor_id WHERE a.patient_id = ? ORDER BY a.appointment_date DESC, a.appointment_time DESC");
     $stmt->bind_param('s', $patientId);
     $stmt->execute();
     $appointments = $stmt->get_result();
     while ($row = $appointments->fetch_assoc()) {
         $patient['appointments'][] = [
+            'id' => $row['appointment_uid'] ?: $row['appointment_id'],
             'appointmentId' => $row['appointment_id'],
+            'appointment_uid' => $row['appointment_uid'],
+            'patientId' => $row['patient_id'],
             'appointment_date' => $row['appointment_date'],
             'appointment_time' => $row['appointment_time'],
+            'date' => $row['appointment_date'],
+            'start' => $row['appointment_time'],
+            'time' => $row['appointment_time'],
+            'type' => $row['service_type'],
+            'service' => $row['service_type'],
+            'duration' => (int) $row['duration_minutes'],
+            'dentist' => $row['doctor_code'],
+            'dentistId' => $row['doctor_code'],
+            'dentist_id' => $row['doctor_code'],
+            'doctorId' => $row['doctor_code'],
+            'doctor_id' => $row['doctor_code'],
+            'dentistName' => $row['doctor_name'],
+            'dentist_name' => $row['doctor_name'],
+            'doctorName' => $row['doctor_name'],
+            'doctor_name' => $row['doctor_name'],
             'status' => $row['status'],
+            'checkedIn' => (bool) $row['checked_in'],
+            'checkedInAt' => $row['checked_in_at'],
             'reason' => $row['reason'],
             'notes' => $row['notes'],
         ];
@@ -170,11 +190,12 @@ function patientPayload(mysqli $conn, string $patientId): ?array
     $images = $stmt->get_result();
     while ($row = $images->fetch_assoc()) {
         $patient['clinicalImages'][] = [
+            'id' => (int) $row['image_id'],
             'imageId' => $row['image_id'],
             'title' => $row['title'],
             'description' => $row['description'],
-            'beforeImageData' => $row['before_image'],
-            'afterImageData' => $row['after_image'],
+            'beforeImageData' => preg_match('/^data:image\//', (string) $row['before_image']) ? $row['before_image'] : '/' . trim(dirname(dirname($_SERVER['SCRIPT_NAME'] ?? '/api/patient_records.php')), '/') . '/' . ltrim((string) $row['before_image'], '/'),
+            'afterImageData' => preg_match('/^data:image\//', (string) $row['after_image']) ? $row['after_image'] : '/' . trim(dirname(dirname($_SERVER['SCRIPT_NAME'] ?? '/api/patient_records.php')), '/') . '/' . ltrim((string) $row['after_image'], '/'),
             'date' => $row['image_date'],
         ];
     }
@@ -305,21 +326,6 @@ try {
                 $treatmentNotes = (string) ($treatment['note'] ?? $treatment['notes'] ?? '');
                 $consumedMaterials = json_encode($treatment['consumedMaterials'] ?? []);
                 $stmt->bind_param('ssssss', $patientId, $toothNumber, $procedureName, $treatmentDate, $treatmentNotes, $consumedMaterials);
-                $stmt->execute();
-            }
-            $stmt->close();
-        }
-
-        if (array_key_exists('clinicalImages', $patient)) {
-            $conn->query("DELETE FROM tbl_clinical_images WHERE patient_id = '" . $conn->real_escape_string($patientId) . "'");
-            $stmt = $conn->prepare('INSERT INTO tbl_clinical_images (patient_id, title, description, before_image, after_image, image_date) VALUES (?, ?, ?, ?, ?, NULLIF(?, ""))');
-            foreach (is_array($patient['clinicalImages']) ? $patient['clinicalImages'] : [] as $image) {
-                $imageTitle = (string) ($image['title'] ?? 'Clinical Image');
-                $imageDescription = (string) ($image['description'] ?? '');
-                $beforeImage = (string) ($image['beforeImageData'] ?? $image['beforeImage'] ?? '');
-                $afterImage = (string) ($image['afterImageData'] ?? $image['afterImage'] ?? '');
-                $imageDate = (string) ($image['date'] ?? $image['createdAt'] ?? '');
-                $stmt->bind_param('ssssss', $patientId, $imageTitle, $imageDescription, $beforeImage, $afterImage, $imageDate);
                 $stmt->execute();
             }
             $stmt->close();

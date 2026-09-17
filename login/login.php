@@ -71,9 +71,34 @@ if ($role !== "user" && $role !== "staff" && $role !== "doctor") {
     $conn->close();
     response(false, "Your account has an invalid role. Please contact the administrator.");
 }
+
+// Keep only the identity that belongs to the account's active role.
+$userId = (int) $user["user_id"];
+$patientId = "PN-" . str_pad((string) $userId, 4, "0", STR_PAD_LEFT);
+$staffId = $role === "staff" ? "STF-" . str_pad((string) $userId, 4, "0", STR_PAD_LEFT) : null;
+$doctorId = $role === "doctor" ? "DOC-" . str_pad((string) $userId, 4, "0", STR_PAD_LEFT) : null;
+$identityStmt = $conn->prepare("UPDATE tbl_users SET staff_id = ?, doctor_id = ? WHERE user_id = ? LIMIT 1");
+$identityStmt->bind_param("ssi", $staffId, $doctorId, $userId);
+$identityStmt->execute();
+$identityStmt->close();
+
+if ($role === "user") {
+    $patientStmt = $conn->prepare("INSERT INTO tbl_patients (patient_id, user_id, first_name, last_name, email, patient_type, status, created_by) VALUES (?, ?, COALESCE(?, ''), COALESCE(?, ''), ?, 'registered', 'active', ?) ON DUPLICATE KEY UPDATE user_id = VALUES(user_id), first_name = VALUES(first_name), last_name = VALUES(last_name), email = VALUES(email), patient_type = 'registered', status = 'active'");
+    $patientStmt->bind_param("sisssi", $patientId, $userId, $user["firstname"], $user["lastname"], $user["email"], $userId);
+    $patientStmt->execute();
+    $patientStmt->close();
+} else {
+    $archivePatientStmt = $conn->prepare("UPDATE tbl_patients SET status = 'inactive' WHERE user_id = ? AND patient_type = 'registered' LIMIT 1");
+    $archivePatientStmt->bind_param("i", $userId);
+    $archivePatientStmt->execute();
+    $archivePatientStmt->close();
+}
+$user["staff_id"] = $staffId;
+$user["doctor_id"] = $doctorId;
+$user["patient_id"] = $role === "user" ? $patientId : null;
 session_regenerate_id(true);
 $_SESSION["logged_in"] = true;
-$_SESSION["user_id"] = $user["user_id"];
+$_SESSION["user_id"] = $userId;
 $_SESSION["firstname"] = $user["firstname"];
 $_SESSION["lastname"] = $user["lastname"];
 $_SESSION["name"] = $user["name"];

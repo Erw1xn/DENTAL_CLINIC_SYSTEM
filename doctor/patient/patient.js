@@ -1,6 +1,8 @@
 "use strict";
 
 const PATIENT_RECORD_API = "../../api/patient_records.php";
+const APPOINTMENTS_API = "../../api/appointments.php";
+const CLINICAL_IMAGES_API = "../../api/clinical_images";
 const APPOINTMENTS_STORAGE_KEY = "appointments";
 const LEGACY_APPOINTMENTS_STORAGE_KEY = "dentanueva_appointments";
 
@@ -32,7 +34,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   currentDoctorDentistId = getCurrentDoctorDentistId();
 
-  loadDoctorAppointments();
+  void loadDoctorAppointments();
 
   bindPatientEvents();
 
@@ -209,8 +211,25 @@ function getCurrentDoctorDentistId() {
   }
   return null;
 }
-function loadDoctorAppointments() {
-  doctorAppointments = [];
+async function loadDoctorAppointments() {
+  try {
+    const response = await fetch(APPOINTMENTS_API, {
+      credentials: "same-origin",
+      cache: "no-store",
+    });
+    const result = await response.json();
+    if (!response.ok || !result.success || !Array.isArray(result.data)) {
+      throw new Error(result.message || "Appointments unavailable.");
+    }
+    doctorAppointments = result.data;
+    renderPatients();
+  } catch (error) {
+    console.warn(
+      "Database appointments unavailable; using local records.",
+      error,
+    );
+    doctorAppointments = [];
+  }
 }
 
 function patientHasAppointmentWithDoctor(patient) {
@@ -1496,17 +1515,25 @@ function formatTime12Hour(timeString) {
   const time = String(timeString).trim();
 
   if (/[APap][Mm]$/.test(time)) {
+    const match = time.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)$/i);
+    if (match) {
+      const hour = Number(match[1]);
+      const minute = match[2];
+      const period = match[4].toUpperCase();
+      const normalizedHour = period === "AM" && hour === 12 ? 0 : hour;
+      const displayHour = normalizedHour % 12 || 12;
+      return `${displayHour}:${minute} ${period}`;
+    }
     return time;
   }
 
-  const match = time.match(/^(\d{1,2}):(\d{2})$/);
+  const match = time.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
 
   if (!match) {
     return time;
   }
 
   let hours = Number(match[1]);
-
   const minutes = match[2];
 
   if (Number.isNaN(hours) || hours < 0 || hours > 23) {
@@ -5145,7 +5172,7 @@ function bindClinicalImagesWorkspace(patient) {
     readImageFile(afterFile.files?.[0], afterPreview, "after");
   };
 
-  saveButton.onclick = () => {
+  saveButton.onclick = async () => {
     const title = titleInput.value.trim();
 
     const date = dateInput.value || getLocalDateString();
@@ -5178,33 +5205,37 @@ function bindClinicalImagesWorkspace(patient) {
       return;
     }
 
-    if (!Array.isArray(targetPatient.clinicalImages)) {
-      targetPatient.clinicalImages = [];
+    const formData = new FormData();
+    formData.append("patient_id", patientId);
+    formData.append("title", title);
+    formData.append("description", description);
+    formData.append("image_date", date);
+    formData.append("before_image", beforeFile.files[0]);
+    formData.append("after_image", afterFile.files[0]);
+
+    saveButton.disabled = true;
+    try {
+      const response = await fetch(`${CLINICAL_IMAGES_API}/upload.php`, {
+        method: "POST",
+        body: formData,
+        credentials: "same-origin",
+        cache: "no-store",
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success || !result.data) {
+        throw new Error(result.message || "Unable to upload clinical images.");
+      }
+
+      if (!Array.isArray(targetPatient.clinicalImages)) {
+        targetPatient.clinicalImages = [];
+      }
+      targetPatient.clinicalImages.unshift(result.data);
+    } catch (error) {
+      alert(error.message || "Unable to upload clinical images.");
+      return;
+    } finally {
+      saveButton.disabled = false;
     }
-
-    const now = new Date().toISOString();
-
-    targetPatient.clinicalImages.push({
-      id: `clinical_image_${Date.now()}_${Math.random()
-        .toString(36)
-        .slice(2, 8)}`,
-
-      patientId,
-
-      title,
-
-      description,
-
-      beforeImageData,
-
-      afterImageData,
-
-      date,
-
-      createdAt: now,
-
-      updatedAt: now,
-    });
 
     const patientIndex = patients.findIndex(
       (item) =>
@@ -5337,7 +5368,7 @@ function bindClinicalImagesWorkspace(patient) {
     });
   };
 
-  const deleteImage = (imageId) => {
+  const deleteImage = async (imageId) => {
     const targetPatient = findPatientById(patientId) || patient;
 
     if (!targetPatient) {
@@ -5361,6 +5392,24 @@ function bindClinicalImagesWorkspace(patient) {
     );
 
     if (!confirmed) {
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append("image_id", imageId);
+      const response = await fetch(`${CLINICAL_IMAGES_API}/delete.php`, {
+        method: "POST",
+        body: formData,
+        credentials: "same-origin",
+        cache: "no-store",
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || "Unable to delete clinical images.");
+      }
+    } catch (error) {
+      alert(error.message || "Unable to delete clinical images.");
       return;
     }
 

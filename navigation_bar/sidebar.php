@@ -58,25 +58,9 @@ if (!$result || $result->num_rows === 0) {
 $user = $result->fetch_assoc();
 $stmt->close();
 
-if ($requestedRole === "staff" && trim((string)($user["staff_id"] ?? "")) === "") {
-    $idStmt = $conn->prepare("SELECT MAX(CAST(SUBSTRING(staff_id, 5) AS UNSIGNED)) AS max_staff_number FROM tbl_users WHERE role = 'staff' AND staff_id REGEXP '^STF-[0-9]{4}$'");
-    if (!$idStmt) {
-        $conn->close();
-        http_response_code(500);
-        response(false, "Database error while generating your Staff ID.");
-    }
-    $idStmt->execute();
-    $idResult = $idStmt->get_result();
-    $idRow = $idResult ? $idResult->fetch_assoc() : null;
-    $nextNumber = ((int)($idRow["max_staff_number"] ?? 0)) + 1;
-    $idStmt->close();
-    $staffId = "STF-" . str_pad((string)$nextNumber, 4, "0", STR_PAD_LEFT);
-    $updateIdStmt = $conn->prepare("UPDATE tbl_users SET staff_id = ? WHERE user_id = ? AND role = 'staff' AND (staff_id IS NULL OR staff_id = '')");
-    if (!$updateIdStmt) {
-        $conn->close();
-        http_response_code(500);
-        response(false, "Database error while saving your Staff ID.");
-    }
+if ($requestedRole === "staff") {
+    $staffId = "STF-" . str_pad((string)$userId, 4, "0", STR_PAD_LEFT);
+    $updateIdStmt = $conn->prepare("UPDATE tbl_users SET staff_id = ?, doctor_id = NULL WHERE user_id = ? AND role = 'staff' LIMIT 1");
     $updateIdStmt->bind_param("si", $staffId, $userId);
     $updateIdStmt->execute();
     $updateIdStmt->close();

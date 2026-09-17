@@ -1,5 +1,6 @@
 "use strict";
 const PATIENT_RECORD_API = "../../api/patient_records.php";
+const APPOINTMENTS_API = "../../api/appointments.php";
 let patients = [];
 let currentPatientId = null;
 let currentMedicalPatientId = null;
@@ -28,6 +29,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   loadPatients();
   void hydratePatientsFromDatabase();
+  void hydrateAppointmentsFromDatabase();
   bindPatientEvents();
   bindMedicalFormEvents();
   bindActionMenuEvents();
@@ -77,9 +79,47 @@ async function hydratePatientsFromDatabase() {
       });
     });
     renderPatients();
+    void hydrateAppointmentsFromDatabase();
   } catch (error) {
     console.warn(
       "Database patient list unavailable; using local records.",
+      error,
+    );
+  }
+}
+
+async function hydrateAppointmentsFromDatabase() {
+  try {
+    if (!patients.length) {
+      await hydratePatientsFromDatabase();
+    }
+    const response = await fetch(APPOINTMENTS_API, {
+      credentials: "same-origin",
+      cache: "no-store",
+    });
+    const result = await response.json();
+    if (!response.ok || !result.success || !Array.isArray(result.data)) {
+      throw new Error(result.message || "Appointments unavailable.");
+    }
+    const appointmentsByPatient = new Map();
+    result.data.forEach((appointment) => {
+      const patientId = String(
+        appointment.patientId || appointment.patient_id || "",
+      ).trim();
+      if (!patientId) return;
+      const records = appointmentsByPatient.get(patientId) || [];
+      records.push(appointment);
+      appointmentsByPatient.set(patientId, records);
+    });
+    patients = patients.map((patient) => {
+      const patientId = String(patient.patientId || patient.id || "").trim();
+      const records = appointmentsByPatient.get(patientId);
+      return records ? { ...patient, appointments: records } : patient;
+    });
+    renderPatients();
+  } catch (error) {
+    console.warn(
+      "Database appointments unavailable; using patient records.",
       error,
     );
   }
@@ -341,6 +381,7 @@ function startAppointmentRealtimeRefresh() {
     clearInterval(appointmentRefreshInterval);
   }
   appointmentRefreshInterval = setInterval(() => {
+    void hydrateAppointmentsFromDatabase();
     renderPatients();
   }, 1000);
 }
@@ -1316,25 +1357,29 @@ function formatTime12Hour(timeString) {
   if (!timeString) {
     return "";
   }
+
   const time = String(timeString).trim();
-  if (/[APap][Mm]$/.test(time)) {
-    return time;
-  }
-  const match = time.match(/^(\d{1,2}):(\d{2})$/);
+  const match = time.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?$/i);
+
   if (!match) {
     return time;
   }
+
   let hours = Number(match[1]);
   const minutes = match[2];
-  if (Number.isNaN(hours) || hours < 0 || hours > 23) {
-    return time;
+  const suffix = (match[4] || (hours >= 12 ? "PM" : "AM")).toUpperCase();
+
+  if (match[4]) {
+    if (suffix === "AM" && hours === 12) hours = 0;
+    if (suffix === "PM" && hours < 12) hours += 12;
   }
-  const period = hours >= 12 ? "PM" : "AM";
+
   hours = hours % 12;
   if (hours === 0) {
     hours = 12;
   }
-  return `${hours}:${minutes} ${period}`;
+
+  return `${hours}:${minutes} ${suffix}`;
 }
 
 function renderAppointment(appointment) {
@@ -3605,18 +3650,21 @@ function buildStaffAppointments(appointments) {
       return "Not provided";
     }
 
-    const raw = String(value);
+    const raw = String(value).trim();
+    const match = raw.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?$/i);
 
-    if (/^\d{1,2}:\d{2}$/.test(raw)) {
-      const [hour, minute] = raw.split(":").map(Number);
+    if (match) {
+      let hour = Number(match[1]);
+      const minute = Number(match[2]);
+      const suffix = (match[4] || (hour >= 12 ? "PM" : "AM")).toUpperCase();
 
-      const date = new Date();
-      date.setHours(hour, minute, 0, 0);
+      if (match[4]) {
+        if (suffix === "AM" && hour === 12) hour = 0;
+        if (suffix === "PM" && hour < 12) hour += 12;
+      }
 
-      return date.toLocaleTimeString("en-US", {
-        hour: "numeric",
-        minute: "2-digit",
-      });
+      const normalizedHour = hour % 12 || 12;
+      return `${normalizedHour}:${String(minute).padStart(2, "0")} ${suffix}`;
     }
 
     return escapeHTML(raw);
