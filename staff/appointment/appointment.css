@@ -3013,6 +3013,13 @@ body {
   padding: 8px 13px 12px 16px;
   gap: 4px;
 }
+.schedule-panel.schedule-panel--expanded {
+  height: auto;
+  min-height: 560px;
+}
+.schedule-panel.schedule-panel--expanded .time-slots-container {
+  overflow-y: visible;
+}
 .tl-row {
   grid-template-columns: 66px minmax(0, 1fr);
   min-height: 64px;

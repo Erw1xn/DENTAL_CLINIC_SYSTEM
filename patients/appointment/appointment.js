@@ -56,6 +56,7 @@ function initializePage() {
   loadDoctors();
   renderDentistSelector();
   loadAppointments();
+  void hydrateRescheduleRequestsFromDatabase();
   resolveCurrentPatient();
   void hydrateCurrentPatientFromDatabase();
   normalizeSelectedDate();
@@ -69,6 +70,7 @@ function initializePage() {
     loadDoctors();
     renderDentistSelector();
     loadAppointments();
+    void hydrateRescheduleRequestsFromDatabase();
     resolveCurrentPatient();
     normalizeSelectedDate();
     renderAll();
@@ -76,6 +78,7 @@ function initializePage() {
 }
 function clearAppointmentCaches() {
   [
+    APPOINTMENTS_STORAGE_KEY,
     LEGACY_STORAGE_KEY,
     PATIENTS_STORAGE_KEY,
     DOCTORS_STORAGE_KEY,
@@ -623,9 +626,7 @@ async function loadAppointments() {
   } catch (error) {
     console.warn("Unable to read stored appointments.", error);
   }
-  if (window.DentaNuevaAppointmentDatabase) {
-    await hydrateAppointmentsFromDatabase();
-  }
+    if (window.DentaNuevaAppointmentDatabase) await hydrateAppointmentsFromDatabase();
   return appointments;
 }
 async function hydrateAppointmentsFromDatabase() {
@@ -634,10 +635,8 @@ async function hydrateAppointmentsFromDatabase() {
     const remoteAppointments =
       await window.DentaNuevaAppointmentDatabase.load();
     const remote = Array.isArray(remoteAppointments) ? remoteAppointments : [];
-    if (remote.length) {
-      appointments = remote;
-      localStorage.setItem(APPOINTMENTS_STORAGE_KEY, JSON.stringify(remote));
-    }
+    appointments = remote;
+    localStorage.setItem(APPOINTMENTS_STORAGE_KEY, JSON.stringify(remote));
     renderAll();
   } catch (error) {
     console.warn(
@@ -654,8 +653,10 @@ async function saveAppointments() {
     if (window.DentaNuevaAppointmentDatabase) {
       await window.DentaNuevaAppointmentDatabase.save(payload);
     }
+    return true;
   } catch (error) {
     console.error("Unable to save appointments:", error);
+    return false;
   }
 }
 function getPatientIdentifiers(patient) {
@@ -1390,7 +1391,12 @@ function getDoctorScheduleAppointmentsForDate(date, dentist) {
     );
   });
 }
-function generateBookingSlotStatuses(date, dentist, duration) {
+function generateBookingSlotStatuses(
+  date,
+  dentist,
+  duration,
+  ignoredAppointmentId = null,
+) {
   const result = [];
   const dateObject = keyToDate(date);
   const today = new Date();
@@ -1418,6 +1424,12 @@ function generateBookingSlotStatuses(date, dentist, duration) {
     const value = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
     const isPast = date === dateToKey(today) && slotStart <= today;
     const isScheduled = existingAppointments.some((appointment) => {
+      if (
+        ignoredAppointmentId &&
+        String(getAppointmentId(appointment)) === String(ignoredAppointmentId)
+      ) {
+        return false;
+      }
       const appointmentTime = getAppointmentTime(appointment);
       if (!appointmentTime) return false;
       const [appointmentHour, appointmentMinute] = appointmentTime
@@ -1586,7 +1598,7 @@ async function updateAvailableTimeSlots() {
   if (evening.length) appendBookingTimeGroup(dropdown, "Evening", evening);
   updateBookingButton();
 }
-function generateAvailableSlots(date, dentist, duration) {
+function generateAvailableSlots(date, dentist, duration, ignoredAppointmentId = null) {
   const result = [];
   const dateObject = keyToDate(date);
   const today = new Date();
@@ -1613,6 +1625,12 @@ function generateAvailableSlots(date, dentist, duration) {
     const slotEnd = new Date(slotStart.getTime() + duration * 60000);
     if (date === dateToKey(today) && slotStart <= today) continue;
     const conflict = existingAppointments.some((appointment) => {
+      if (
+        ignoredAppointmentId &&
+        String(getAppointmentId(appointment)) === String(ignoredAppointmentId)
+      ) {
+        return false;
+      }
       const appointmentTime = getAppointmentTime(appointment);
       if (!appointmentTime) return false;
       const [appointmentHour, appointmentMinute] = appointmentTime
@@ -1758,7 +1776,13 @@ function updateBookingButton() {
     !!patientBlockMessage;
   updateConflictNotice(conflict, patientBlockMessage);
 }
-function hasScheduleConflict(date, dentist, time, duration) {
+function hasScheduleConflict(
+  date,
+  dentist,
+  time,
+  duration,
+  ignoredAppointmentId = null,
+) {
   if (!date || !dentist || !time || !duration) return false;
   const dateObject = keyToDate(date);
   const [hour, minute] = time.split(":").map(Number);
@@ -1774,6 +1798,12 @@ function hasScheduleConflict(date, dentist, time, duration) {
   const end = new Date(start.getTime() + duration * 60000);
   return getDoctorScheduleAppointmentsForDate(date, dentist).some(
     (appointment) => {
+      if (
+        ignoredAppointmentId &&
+        String(getAppointmentId(appointment)) === String(ignoredAppointmentId)
+      ) {
+        return false;
+      }
       if (!isBookingConflictAppointment(appointment)) return false;
       const appointmentTime = getAppointmentTime(appointment);
       if (!appointmentTime) return false;
@@ -2361,7 +2391,7 @@ function openAppointmentDetail(appointmentId) {
     requestButton.disabled = limitReached;
     requestButton.textContent = limitReached
       ? "Reschedule Limit Reached"
-      : "Request Reschedule";
+      : "Reschedule";
     requestButton.title = limitReached
       ? "This appointment has reached the maximum of 2 approved reschedules."
       : "Request a different schedule for this appointment.";
@@ -2554,7 +2584,6 @@ function openRescheduleRequestModal() {
   const modal = document.getElementById("rescheduleRequestModal");
   const current = document.getElementById("requestCurrentAppointment");
   const requestDate = document.getElementById("requestDate");
-  const requestMessage = document.getElementById("requestMessage");
   if (!modal || !current) return;
   current.innerHTML = `
 <strong>${escapeHtml(getAppointmentService(appointment))}</strong>
@@ -2564,7 +2593,6 @@ function openRescheduleRequestModal() {
     requestDate.min = dateToKey(new Date());
     requestDate.value = "";
   }
-  if (requestMessage) requestMessage.value = "";
   renderRequestTimeGrid("");
   closeAppointmentDetail();
   modal.classList.add("show");
@@ -2584,7 +2612,7 @@ function handleRequestDateChange(event) {
   requestTime = "";
   renderRequestTimeGrid(date);
 }
-function renderRequestTimeGrid(date) {
+async function renderRequestTimeGrid(date) {
   const grid = document.getElementById("requestTimeGrid");
   const count = document.getElementById("requestAvailabilityCount");
   if (!grid) return;
@@ -2607,9 +2635,16 @@ function renderRequestTimeGrid(date) {
       appointment.durationMinutes ||
       30,
   );
-  const slots = generateAvailableSlots(date, dentist, duration);
+  await loadDoctorScheduleForSelectedDate(date, dentist);
+  const slots = generateBookingSlotStatuses(
+    date,
+    dentist,
+    duration,
+    requestAppointmentId,
+  );
+  const availableSlots = slots.filter((slot) => !slot.isPast && !slot.isScheduled);
   if (count)
-    count.textContent = `${slots.length} available ${slots.length === 1 ? "time" : "times"}`;
+    count.textContent = `${availableSlots.length} available ${availableSlots.length === 1 ? "time" : "times"}`;
   if (!slots.length) {
     grid.innerHTML = `<div class="time-empty warning"><i class="fa-regular fa-clock"></i><span>No available times for the selected date.</span></div>`;
     return;
@@ -2620,15 +2655,24 @@ function renderRequestTimeGrid(date) {
     button.type = "button";
     button.className = "time-option";
     if (slot.value === requestTime) button.classList.add("selected");
-    button.textContent = slot.label;
-    button.addEventListener("click", () => {
-      requestTime = slot.value;
-      renderRequestTimeGrid(date);
-    });
+    if (slot.isScheduled || slot.isPast) {
+      button.disabled = true;
+      button.classList.add(slot.isScheduled ? "scheduled" : "disabled");
+      button.dataset.tooltip = slot.isScheduled
+        ? "This time is already booked."
+        : "This time has already passed.";
+      button.innerHTML = `<i class="fa-solid ${slot.isScheduled ? "fa-ban time-unavailable-icon" : "fa-clock time-past-icon"}"></i><span>${slot.label}</span>`;
+    } else {
+      button.textContent = slot.label;
+      button.addEventListener("click", () => {
+        requestTime = slot.value;
+        void renderRequestTimeGrid(date);
+      });
+    }
     grid.appendChild(button);
   });
 }
-function sendRescheduleRequest() {
+async function sendRescheduleRequest() {
   if (!requestAppointmentId) {
     showToast("No appointment selected.");
     return;
@@ -2644,9 +2688,7 @@ function sendRescheduleRequest() {
     );
     return;
   }
-  const reason = document.getElementById("requestReason")?.value || "other";
   const preferredDate = document.getElementById("requestDate")?.value || "";
-  const message = document.getElementById("requestMessage")?.value.trim() || "";
   if (!preferredDate) {
     showToast("Please select a preferred new date.");
     return;
@@ -2655,35 +2697,80 @@ function sendRescheduleRequest() {
     showToast("Please select a preferred new time.");
     return;
   }
-  const requests = loadRescheduleRequests();
-  const existingPending = requests.find(
-    (request) =>
-      String(request?.appointment_id || request?.appointmentId || "") ===
-        String(requestAppointmentId) &&
-      normalizeStatus(request?.status || "") === "pending",
-  );
-  if (existingPending) {
-    showToast("A reschedule request is already pending for this appointment.");
-    closeRescheduleRequestModal();
-    renderRescheduleAlert();
+  if (isPastDate(preferredDate)) {
+    showToast("The selected date has already passed.");
     return;
   }
-  const request = {
-    request_id: `REQ-${Date.now()}`,
-    appointment_id: requestAppointmentId,
-    patient_id: getCurrentPatientId(),
-    reason,
-    preferred_date: preferredDate,
-    preferred_time: requestTime,
-    message,
-    status: "Pending",
-    created_at: new Date().toISOString(),
-  };
-  requests.push(request);
-  saveRescheduleRequests(requests);
+  const duration = Number(
+    appointment.duration ||
+      appointment.duration_minutes ||
+      appointment.durationMinutes ||
+      30,
+  );
+  await loadAppointments();
+  await loadDoctorScheduleForSelectedDate(
+    preferredDate,
+    getDentistId(appointment),
+  );
+  const refreshedAppointment = findAppointmentById(requestAppointmentId);
+  if (!refreshedAppointment) {
+    showToast("The appointment could not be refreshed.");
+    return;
+  }
+  if (
+    hasScheduleConflict(
+      preferredDate,
+      getDentistId(refreshedAppointment),
+      requestTime,
+      duration,
+      requestAppointmentId,
+    )
+  ) {
+    showToast("The selected time is already occupied.");
+    renderRequestTimeGrid(preferredDate);
+    return;
+  }
+  const nextCount = getAppointmentRescheduleCount(refreshedAppointment) + 1;
+  if (nextCount > 2) {
+    showToast("This appointment has reached the maximum of 2 reschedules.");
+    return;
+  }
+  const now = new Date().toISOString();
+  const history = Array.isArray(refreshedAppointment.rescheduleHistory)
+    ? refreshedAppointment.rescheduleHistory
+    : [];
+  history.push({
+    oldDate: getAppointmentDate(refreshedAppointment),
+    oldTime: getAppointmentTime(refreshedAppointment),
+    newDate: preferredDate,
+    newTime: requestTime,
+    requestedBy: "patient",
+    changedAt: now,
+  });
+  refreshedAppointment.date = preferredDate;
+  refreshedAppointment.appointment_date = preferredDate;
+  refreshedAppointment.appointmentDate = preferredDate;
+  refreshedAppointment.start = requestTime;
+  refreshedAppointment.time = requestTime;
+  refreshedAppointment.appointment_time = requestTime;
+  refreshedAppointment.appointmentTime = requestTime;
+  refreshedAppointment.status = "scheduled";
+  refreshedAppointment.rescheduleCount = nextCount;
+  refreshedAppointment.reschedule_count = nextCount;
+  refreshedAppointment.approvedRescheduleCount = nextCount;
+  refreshedAppointment.rescheduleHistory = history;
+  refreshedAppointment.reschedule_history = history;
+  const saved = await saveAppointments();
+  if (!saved) {
+    showToast("Unable to reschedule the appointment. Please try again.");
+    return;
+  }
   closeRescheduleRequestModal();
-  renderRescheduleAlert();
-  showToast("Reschedule request sent to the clinic.");
+  selectedDate = keyToDate(preferredDate);
+  calendarDate = new Date(selectedDate);
+  calendarDate.setDate(1);
+  renderAll();
+  showToast("Appointment rescheduled successfully.");
 }
 function openStaffRescheduleModal(request) {
   staffRequestTargetId = request?.id || request?.request_id || null;
@@ -2757,7 +2844,7 @@ function handleStaffRequestDateChange(event) {
   updateStaffRescheduleConfirmState();
   renderStaffRequestTimeGrid(date);
 }
-function renderStaffRequestTimeGrid(date) {
+async function renderStaffRequestTimeGrid(date) {
   const grid = document.getElementById("staffRequestTimeGrid");
   const count = document.getElementById("staffRequestAvailabilityCount");
   if (!grid) return;
@@ -2787,9 +2874,17 @@ function renderStaffRequestTimeGrid(date) {
       appointment?.durationMinutes ||
       30,
   );
-  const slots = generateAvailableSlots(date, dentist, duration);
+  await loadDoctorScheduleForSelectedDate(date, dentist);
+  const appointmentId = getAppointmentId(appointment);
+  const slots = generateBookingSlotStatuses(
+    date,
+    dentist,
+    duration,
+    appointmentId,
+  );
+  const availableSlots = slots.filter((slot) => !slot.isPast && !slot.isScheduled);
   if (count)
-    count.textContent = `${slots.length} available ${slots.length === 1 ? "time" : "times"}`;
+    count.textContent = `${availableSlots.length} available ${availableSlots.length === 1 ? "time" : "times"}`;
   if (!slots.length) {
     grid.innerHTML = `<div class="time-empty warning"><i class="fa-regular fa-clock"></i><span>No available times for the selected date.</span></div>`;
     return;
@@ -2800,17 +2895,26 @@ function renderStaffRequestTimeGrid(date) {
     button.type = "button";
     button.className = "time-option";
     if (slot.value === staffRequestTime) button.classList.add("selected");
-    button.textContent = slot.label;
-    button.addEventListener("click", () => {
-      staffRequestTime = slot.value;
-      updateStaffRescheduleConfirmState();
-      renderStaffRequestTimeGrid(date);
-    });
+    if (slot.isScheduled || slot.isPast) {
+      button.disabled = true;
+      button.classList.add(slot.isScheduled ? "scheduled" : "disabled");
+      button.dataset.tooltip = slot.isScheduled
+        ? "This time is already booked."
+        : "This time has already passed.";
+      button.innerHTML = `<i class="fa-solid ${slot.isScheduled ? "fa-ban time-unavailable-icon" : "fa-clock time-past-icon"}"></i><span>${slot.label}</span>`;
+    } else {
+      button.textContent = slot.label;
+      button.addEventListener("click", () => {
+        staffRequestTime = slot.value;
+        updateStaffRescheduleConfirmState();
+        void renderStaffRequestTimeGrid(date);
+      });
+    }
     grid.appendChild(button);
   });
   updateStaffRescheduleConfirmState();
 }
-function confirmStaffRescheduleResponse() {
+async function confirmStaffRescheduleResponse() {
   if (!staffRequestTargetId) return;
   const request = loadRescheduleRequests().find(
     (item) =>
@@ -2833,6 +2937,11 @@ function confirmStaffRescheduleResponse() {
     showToast("The appointment could not be found.");
     return;
   }
+  const restriction = getPatientBookingRestriction();
+  if (restriction.isRestricted) {
+    showToast(getBookingRestrictionMessage(restriction));
+    return;
+  }
   const duration = Number(
     appointment.duration ||
       appointment.duration_minutes ||
@@ -2843,12 +2952,15 @@ function confirmStaffRescheduleResponse() {
     showToast("The selected date has already passed.");
     return;
   }
+  await loadAppointments();
+  await loadDoctorScheduleForSelectedDate(newDate, getDentistId(appointment));
   if (
     hasScheduleConflict(
       newDate,
       getDentistId(appointment),
       staffRequestTime,
       duration,
+      getAppointmentId(appointment),
     )
   ) {
     showToast("The selected time is already occupied.");
@@ -2928,7 +3040,11 @@ function confirmStaffRescheduleResponse() {
   };
 
   saveRescheduleRequests(requests);
-  saveAppointments();
+  const saved = await saveAppointments();
+  if (!saved) {
+    showToast("Unable to update the appointment. Please try again.");
+    return;
+  }
   syncAppointmentToPatient(appointment);
   closeStaffRescheduleModal();
   renderAll();
@@ -2955,6 +3071,25 @@ function saveRescheduleRequests(requests) {
     RESCHEDULE_REQUESTS_STORAGE_KEY,
     JSON.stringify(requests),
   );
+  void window.DentaNuevaAppointmentDatabase?.saveRescheduleRequests(
+    requests,
+  ).catch((error) =>
+    console.error("Unable to sync reschedule requests:", error),
+  );
+}
+async function hydrateRescheduleRequestsFromDatabase() {
+  try {
+    const requests =
+      await window.DentaNuevaAppointmentDatabase?.loadRescheduleRequests();
+    if (!Array.isArray(requests)) return;
+    localStorage.setItem(
+      RESCHEDULE_REQUESTS_STORAGE_KEY,
+      JSON.stringify(requests),
+    );
+    renderAll();
+  } catch (error) {
+    console.warn("Database reschedule requests unavailable.", error);
+  }
 }
 function renderRescheduleAlert() {
   const alert = document.getElementById("rescheduleAlert");

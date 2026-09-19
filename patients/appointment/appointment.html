@@ -1116,7 +1116,7 @@
           </button>
           <button type="button" class="btn-request" id="requestRescheduleBtn">
             <i class="fa-solid fa-calendar-days"></i>
-            Request Reschedule
+            Reschedule
           </button>
         </div>
       </div>
@@ -1165,8 +1165,8 @@
         <div class="modal-header">
           <div>
             <span class="modal-kicker">Schedule Request</span>
-            <h3>Request Reschedule</h3>
-            <p>Send a schedule change request to the clinic staff.</p>
+            <h3>Reschedule Appointment</h3>
+            <p>Select a new available date and time for this appointment.</p>
           </div>
           <button
             type="button"
@@ -1182,20 +1182,6 @@
             class="current-appointment-box"
             id="requestCurrentAppointment"
           ></div>
-          <div class="form-group">
-            <label for="requestReason">Reason</label>
-            <div class="input-wrapper">
-              <i class="fa-solid fa-circle-question field-icon"></i>
-              <select id="requestReason" class="form-control">
-                <option value="personal_schedule">
-                  Personal schedule conflict
-                </option>
-                <option value="transportation">Transportation issue</option>
-                <option value="health_reason">Health or personal matter</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
-          </div>
           <div class="form-group">
             <label for="requestDate">Preferred New Date</label>
             <div class="input-wrapper">
@@ -1215,25 +1201,11 @@
               </div>
             </div>
           </div>
-          <div class="form-group">
-            <label for="requestMessage">Message to Clinic</label>
-            <textarea
-              id="requestMessage"
-              class="form-control textarea-control"
-              rows="4"
-              placeholder="Tell the clinic why you need to reschedule."
-            ></textarea>
-            <small
-              >Your request will be sent to the staff for review. Your current
-              appointment will remain unchanged until the clinic processes the
-              request.</small
-            >
-          </div>
           <div class="request-info-box">
             <i class="fa-solid fa-circle-info"></i>
             <span
-              >Submitting this request does not immediately change your
-              appointment schedule.</span
+              >Your appointment will update immediately after the new schedule
+              is confirmed.</span
             >
           </div>
         </div>
@@ -1246,8 +1218,8 @@
             Cancel
           </button>
           <button type="button" class="btn-primary" id="sendRescheduleRequest">
-            <i class="fa-solid fa-paper-plane"></i>
-            Send Request
+            <i class="fa-solid fa-calendar-check"></i>
+            Reschedule
           </button>
         </div>
       </div>

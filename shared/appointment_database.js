@@ -46,5 +46,15 @@
         body: JSON.stringify({ id }),
       });
     },
+    async loadRescheduleRequests() {
+      return (await request({}, `${API}?scope=reschedule_requests`)) || [];
+    },
+    async saveRescheduleRequests(requests) {
+      return request({
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reschedule_requests: requests }),
+      });
+    },
   });
 })();

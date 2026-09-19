@@ -13,6 +13,7 @@ const NO_SHOW_TESTING_MODE = false;
 const FINANCE_PAGE_URL = "../finance/finance.html";
 const FINANCE_PENDING_PAYMENT_KEY = "dentaNuevaPendingPayment";
 const RESCHEDULE_REQUESTS_STORAGE_KEY = "dentanueva_reschedule_requests";
+const ALL_DENTISTS_FILTER = "all";
 const SERVICE_DURATIONS = {
   Consultation: 30,
   "Dental Cleaning": 45,
@@ -65,6 +66,7 @@ document.addEventListener("DOMContentLoaded", () => {
   void loadDentists();
   loadPatients();
   loadAppointments();
+  void hydrateRescheduleRequestsFromDatabase();
   initializeDate();
   setupEvents();
   const dentistFilter = document.getElementById("dentistFilter");
@@ -88,9 +90,12 @@ document.addEventListener("DOMContentLoaded", () => {
   openAppointmentFromURL();
 });
 function clearAppointmentCaches() {
-  [LEGACY_STORAGE_KEY, PATIENTS_STORAGE_KEY, DOCTORS_STORAGE_KEY].forEach(
-    (key) => localStorage.removeItem(key),
-  );
+  [
+    APPOINTMENTS_STORAGE_KEY,
+    LEGACY_STORAGE_KEY,
+    PATIENTS_STORAGE_KEY,
+    DOCTORS_STORAGE_KEY,
+  ].forEach((key) => localStorage.removeItem(key));
 }
 function handleStorageChange(event) {
   if (event.key === DOCTORS_STORAGE_KEY) {
@@ -180,9 +185,12 @@ async function loadDentists() {
     };
   });
   populateDentistSelects();
-  selectedDentistFilter = dentists[previousSelection]
-    ? previousSelection
-    : getDefaultDentistId();
+  selectedDentistFilter =
+    previousSelection === ALL_DENTISTS_FILTER
+      ? ALL_DENTISTS_FILTER
+      : dentists[previousSelection]
+        ? previousSelection
+        : ALL_DENTISTS_FILTER;
   const filter = document.getElementById("dentistFilter");
   if (filter) filter.value = selectedDentistFilter;
   renderAll();
@@ -197,13 +205,28 @@ function populateDentistSelects() {
     if (!select) return;
     const currentValue = select.value;
     select.innerHTML = "";
+    if (selectId === "dentistFilter") {
+      const allOption = document.createElement("option");
+      allOption.value = ALL_DENTISTS_FILTER;
+      allOption.textContent = "All Dentists";
+      select.appendChild(allOption);
+    }
     options.forEach((doctor) => {
       const option = document.createElement("option");
       option.value = doctor.id;
       option.textContent = doctor.name;
       select.appendChild(option);
     });
-    if (dentists[currentValue]) select.value = currentValue;
+    if (selectId === "dentistFilter") {
+      select.value =
+        currentValue === ALL_DENTISTS_FILTER
+          ? ALL_DENTISTS_FILTER
+          : dentists[currentValue]
+            ? currentValue
+            : ALL_DENTISTS_FILTER;
+    } else if (dentists[currentValue]) {
+      select.value = currentValue;
+    }
   });
 }
 function getDentistRecord(dentistId) {
@@ -247,6 +270,9 @@ function resolveDentistId(value) {
   return matchedDoctor?.id || normalizedValue;
 }
 function appointmentMatchesDentist(appt, dentistId = selectedDentistFilter) {
+  if (dentistId === ALL_DENTISTS_FILTER) {
+    return true;
+  }
   const appointmentDentist =
     appt.dentist ||
     appt.dentistId ||
@@ -664,10 +690,8 @@ async function hydrateAppointmentsFromDatabase() {
     const remote = Array.isArray(remoteAppointments)
       ? remoteAppointments.map(normalizeAppointment)
       : [];
-    if (remote.length) {
-      appointments = remote;
-      localStorage.setItem(APPOINTMENTS_STORAGE_KEY, JSON.stringify(remote));
-    }
+    appointments = remote;
+    localStorage.setItem(APPOINTMENTS_STORAGE_KEY, JSON.stringify(remote));
     removeAppointmentsForDeletedPatients();
     linkExistingAppointmentsToPatients();
     renderAll();
@@ -797,6 +821,14 @@ function normalizeAppointment(appt) {
     paymentStatus: appt.paymentStatus || "unpaid",
     paymentAmount: Number(appt.paymentAmount) || 0,
     rescheduleRequest: appt.rescheduleRequest || null,
+    rescheduleCount: Number(appt.rescheduleCount || appt.reschedule_count) || 0,
+    approvedRescheduleCount:
+      Number(appt.approvedRescheduleCount || appt.approved_reschedule_count) || 0,
+    rescheduleHistory: Array.isArray(appt.rescheduleHistory)
+      ? appt.rescheduleHistory
+      : Array.isArray(appt.reschedule_history)
+        ? appt.reschedule_history
+        : [],
   };
   if (
     normalized.dentist === "villanueva" &&
@@ -1578,7 +1610,7 @@ async function openNewModal(date = null, time = null) {
     : selectedKey;
   typeInput.value = "Consultation";
   durationInput.value = SERVICE_DURATIONS.Consultation;
-  dentistInput.value = selectedDentistFilter || getDefaultDentistId();
+  dentistInput.value = getDefaultDentistId();
   dentistInput.disabled = true;
   updateAvailableTimeSlots(time);
   if (isPastDate(selectedKey)) {
@@ -2077,11 +2109,32 @@ function loadRescheduleRequests() {
     return [];
   }
 }
-function saveRescheduleRequests(requests) {
+async function saveRescheduleRequests(requests) {
   localStorage.setItem(
     RESCHEDULE_REQUESTS_STORAGE_KEY,
     JSON.stringify(requests),
   );
+  try {
+    await window.DentaNuevaAppointmentDatabase?.saveRescheduleRequests(requests);
+    return true;
+  } catch (error) {
+    console.error("Unable to sync reschedule requests:", error);
+    return false;
+  }
+}
+async function hydrateRescheduleRequestsFromDatabase() {
+  try {
+    const requests =
+      await window.DentaNuevaAppointmentDatabase?.loadRescheduleRequests();
+    if (!Array.isArray(requests)) return;
+    localStorage.setItem(
+      RESCHEDULE_REQUESTS_STORAGE_KEY,
+      JSON.stringify(requests),
+    );
+    renderAll();
+  } catch (error) {
+    console.warn("Database reschedule requests unavailable.", error);
+  }
 }
 function getRescheduleReasonLabel(reason) {
   const labels = {
@@ -2247,7 +2300,7 @@ function closeRescheduleRequestModal() {
   overlay?.classList.remove("show");
   rescheduleRequestTargetId = null;
 }
-function submitRescheduleRequest() {
+async function submitRescheduleRequest() {
   if (!rescheduleRequestTargetId) {
     return;
   }
@@ -2331,7 +2384,11 @@ function submitRescheduleRequest() {
   } else {
     requests.push(requestRecord);
   }
-  saveRescheduleRequests(requests);
+  const saved = await saveRescheduleRequests(requests);
+  if (!saved) {
+    showToast("Unable to send the reschedule request. Please try again.");
+    return;
+  }
   appointment.rescheduleRequest = {
     id: requestRecord.id,
     status: "pending",
@@ -3186,26 +3243,7 @@ function filteredAppts() {
           appt.id,
         ),
     )
-    .filter((appt) => {
-      const appointmentDentistId = resolveDentistId(
-        appt.dentist ||
-          appt.dentistId ||
-          appt.dentist_id ||
-          appt.dentistID ||
-          appt.doctor ||
-          appt.doctorId ||
-          appt.doctor_id ||
-          appt.doctorID ||
-          appt.doctorName ||
-          appt.assignedDentist ||
-          appt.assignedDentistId ||
-          appt.assignedDoctor ||
-          appt.assignedDoctorId ||
-          "",
-      );
-      const selectedDentistId = resolveDentistId(selectedDentistFilter);
-      return appointmentDentistId === selectedDentistId;
-    })
+    .filter((appt) => appointmentMatchesDentist(appt))
     .filter((appt) => {
       if (!search) {
         return true;
@@ -3258,6 +3296,11 @@ function renderTimeline() {
     dateLabel.textContent = formatDateLong(selectedKey);
   }
   const dayAppointments = filteredAppts();
+  const schedulePanel = timeline.closest(".schedule-panel");
+  schedulePanel?.classList.toggle(
+    "schedule-panel--expanded",
+    dayAppointments.length > 10,
+  );
   if (!dayAppointments.length) {
     const emptyState = document.createElement("div");
     emptyState.className = "schedule-empty-state";
@@ -3418,8 +3461,13 @@ function renderRealtimeDentistsDuty() {
   const selectedKey = dateToKey(selectedDate);
   const visibleDentistId = selectedDentistFilter || getDefaultDentistId();
   const dentist = getDentistRecord(visibleDentistId) || {
-    name: "No doctors available",
-    color: "#9CA3AF",
+    name:
+      visibleDentistId === ALL_DENTISTS_FILTER
+        ? "All Dentists"
+        : "No doctors available",
+    specialty:
+      visibleDentistId === ALL_DENTISTS_FILTER ? "Combined schedule" : "",
+    color: visibleDentistId === ALL_DENTISTS_FILTER ? "#176B38" : "#9CA3AF",
   };
   const doctorAppointments = appointments
     .filter(

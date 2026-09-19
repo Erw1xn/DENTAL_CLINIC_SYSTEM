@@ -27,6 +27,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   await initializeCurrentDoctor();
   initializeDate();
   await hydrateAppointmentsFromDatabase();
+  await hydrateRescheduleRequestsFromDatabase();
   setupEvents();
   renderAll();
   setInterval(() => {
@@ -470,6 +471,14 @@ function normalizeAppointment(appt) {
     duration:
       Number(appt.duration) || getDefaultDuration(appt.type || appt.service),
     status: appt.status || APPOINTMENT_STATUS.SCHEDULED,
+    rescheduleCount: Number(appt.rescheduleCount || appt.reschedule_count) || 0,
+    approvedRescheduleCount:
+      Number(appt.approvedRescheduleCount || appt.approved_reschedule_count) || 0,
+    rescheduleHistory: Array.isArray(appt.rescheduleHistory)
+      ? appt.rescheduleHistory
+      : Array.isArray(appt.reschedule_history)
+        ? appt.reschedule_history
+        : [],
   };
   if (!Number.isFinite(normalized.duration) || normalized.duration <= 0) {
     normalized.duration = 30;
@@ -869,6 +878,19 @@ function loadRescheduleRequests() {
   } catch (error) {
     console.error("Unable to load reschedule requests:", error);
     return [];
+  }
+}
+async function hydrateRescheduleRequestsFromDatabase() {
+  try {
+    const requests =
+      await window.DentaNuevaAppointmentDatabase?.loadRescheduleRequests();
+    if (!Array.isArray(requests)) return;
+    localStorage.setItem(
+      RESCHEDULE_REQUESTS_STORAGE_KEY,
+      JSON.stringify(requests),
+    );
+  } catch (error) {
+    console.warn("Database reschedule requests unavailable.", error);
   }
 }
 function getPendingRescheduleRequestForAppointment(appointmentId) {

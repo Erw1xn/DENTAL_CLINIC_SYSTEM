@@ -120,6 +120,35 @@ if ($method === 'GET') {
     $doctorId = trim((string) ($_GET['doctor_id'] ?? $_GET['dentist_id'] ?? ''));
     $date = trim((string) ($_GET['date'] ?? ''));
 
+    if ($scope === 'reschedule_requests') {
+        $sql = "SELECT r.*, a.appointment_uid, a.appointment_date AS current_sched_date, a.appointment_time AS current_sched_time FROM tbl_reschedule_requests r JOIN tbl_patient_appointments a ON a.appointment_id = r.appointment_id";
+        $patientId = '';
+        if ($role === 'user') {
+            $patientId = 'PN-' . str_pad((string) $userId, 4, '0', STR_PAD_LEFT);
+            $sql .= ' WHERE r.patient_id = ?';
+        }
+        $sql .= ' ORDER BY r.created_at DESC, r.reschedule_request_id DESC';
+        $stmt = $conn->prepare($sql);
+        if ($role === 'user') {
+            $stmt->bind_param('s', $patientId);
+        }
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $requests = [];
+        while ($row = $result->fetch_assoc()) {
+            $requests[] = array_merge($row, [
+                'id' => $row['request_id'],
+                'requestId' => $row['request_id'],
+                'appointment_id' => $row['appointment_uid'] ?: (string) $row['appointment_id'],
+                'appointmentId' => $row['appointment_uid'] ?: (string) $row['appointment_id'],
+                'databaseAppointmentId' => (int) $row['appointment_id'],
+                'status' => $row['status'],
+            ]);
+        }
+        $stmt->close();
+        appointmentResponse(true, 'Reschedule requests loaded.', $requests);
+    }
+
     if ($scope === 'doctor_schedule' && $doctorId !== '' && $date !== '') {
         $doctorUserId = appointmentDoctorUserId($conn, $doctorId);
         $sql = "SELECT a.*, p.first_name, p.last_name, u.doctor_id AS doctor_code, TRIM(COALESCE(u.name, CONCAT(u.firstname, ' ', u.lastname))) AS doctor_name FROM tbl_patient_appointments a JOIN tbl_patients p ON p.patient_id = a.patient_id LEFT JOIN tbl_users u ON u.user_id = a.doctor_id WHERE a.appointment_date = ? AND (a.doctor_id = ? OR u.doctor_id = ? OR u.user_id = ?) ORDER BY a.appointment_time ASC";
@@ -155,8 +184,9 @@ if ($method === 'DELETE') {
     if ($appointmentId === '') {
         appointmentResponse(false, 'Appointment ID is required.', null, 422);
     }
-    $stmt = $conn->prepare('SELECT patient_id FROM tbl_patient_appointments WHERE appointment_uid = ? LIMIT 1');
-    $stmt->bind_param('s', $appointmentId);
+    $numericAppointmentId = ctype_digit($appointmentId) ? (int) $appointmentId : 0;
+    $stmt = $conn->prepare('SELECT patient_id FROM tbl_patient_appointments WHERE appointment_uid = ? OR appointment_id = ? LIMIT 1');
+    $stmt->bind_param('si', $appointmentId, $numericAppointmentId);
     $stmt->execute();
     $row = $stmt->get_result()->fetch_assoc();
     $stmt->close();
@@ -164,8 +194,8 @@ if ($method === 'DELETE') {
         appointmentResponse(true, 'Appointment already removed.');
     }
     appointmentPatientAccess($conn, $row['patient_id'], $userId, $role);
-    $stmt = $conn->prepare('DELETE FROM tbl_patient_appointments WHERE appointment_uid = ?');
-    $stmt->bind_param('s', $appointmentId);
+    $stmt = $conn->prepare('DELETE FROM tbl_patient_appointments WHERE appointment_uid = ? OR appointment_id = ?');
+    $stmt->bind_param('si', $appointmentId, $numericAppointmentId);
     $stmt->execute();
     $stmt->close();
     appointmentResponse(true, 'Appointment deleted.');
@@ -173,6 +203,52 @@ if ($method === 'DELETE') {
 
 if ($method !== 'POST') {
     appointmentResponse(false, 'Unsupported request method.', null, 405);
+}
+
+if (isset($input['reschedule_requests'])) {
+    $requests = is_array($input['reschedule_requests']) ? $input['reschedule_requests'] : [];
+    foreach ($requests as $request) {
+        if (!is_array($request)) {
+            continue;
+        }
+        $requestId = trim((string) ($request['request_id'] ?? $request['requestId'] ?? $request['id'] ?? ''));
+        $appointmentValue = trim((string) ($request['appointment_id'] ?? $request['appointmentId'] ?? ''));
+        $patientId = trim((string) ($request['patient_id'] ?? $request['patientId'] ?? ''));
+        if ($requestId === '' || $appointmentValue === '' || $patientId === '') {
+            continue;
+        }
+        appointmentPatientAccess($conn, $patientId, $userId, $role);
+        $numericAppointmentId = ctype_digit($appointmentValue) ? (int) $appointmentValue : 0;
+        $lookup = $conn->prepare('SELECT appointment_id FROM tbl_patient_appointments WHERE appointment_uid = ? OR appointment_id = ? LIMIT 1');
+        $lookup->bind_param('si', $appointmentValue, $numericAppointmentId);
+        $lookup->execute();
+        $appointmentRow = $lookup->get_result()->fetch_assoc();
+        $lookup->close();
+        if (!$appointmentRow) {
+            continue;
+        }
+        $appointmentId = (int) $appointmentRow['appointment_id'];
+        $status = strtolower(str_replace(' ', '_', (string) ($request['status'] ?? 'pending')));
+        if (!in_array($status, ['pending', 'approved', 'rejected'], true)) {
+            $status = 'pending';
+        }
+        $requestedBy = strtolower((string) ($request['requested_by'] ?? ($role === 'user' ? 'patient' : $role)));
+        if (!in_array($requestedBy, ['patient', 'staff', 'doctor'], true)) {
+            $requestedBy = 'patient';
+        }
+        $reason = (string) ($request['reason'] ?? '');
+        $reasonLabel = (string) ($request['reason_label'] ?? $request['reasonLabel'] ?? '');
+        $message = (string) ($request['message'] ?? '');
+        $preferredDate = (string) ($request['preferred_date'] ?? $request['preferredDate'] ?? '');
+        $preferredTime = (string) ($request['preferred_time'] ?? $request['preferredTime'] ?? '');
+        $approvedDate = (string) ($request['approved_date'] ?? $request['approvedDate'] ?? '');
+        $approvedTime = (string) ($request['approved_time'] ?? $request['approvedTime'] ?? '');
+        $stmt = $conn->prepare('INSERT INTO tbl_reschedule_requests (appointment_id, patient_id, request_id, status, requested_by, reason, reason_label, message, preferred_date, preferred_time, approved_date, approved_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULLIF(?, ""), NULLIF(?, ""), NULLIF(?, ""), NULLIF(?, "")) ON DUPLICATE KEY UPDATE status = VALUES(status), requested_by = VALUES(requested_by), reason = VALUES(reason), reason_label = VALUES(reason_label), message = VALUES(message), preferred_date = VALUES(preferred_date), preferred_time = VALUES(preferred_time), approved_date = VALUES(approved_date), approved_time = VALUES(approved_time), updated_at = NOW()');
+        $stmt->bind_param('isssssssssss', $appointmentId, $patientId, $requestId, $status, $requestedBy, $reason, $reasonLabel, $message, $preferredDate, $preferredTime, $approvedDate, $approvedTime);
+        $stmt->execute();
+        $stmt->close();
+    }
+    appointmentResponse(true, 'Reschedule requests saved.');
 }
 
 $records = $input['appointments'] ?? [$input['appointment'] ?? $input];
