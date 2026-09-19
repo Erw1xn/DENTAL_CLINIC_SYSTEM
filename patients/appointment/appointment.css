@@ -2306,47 +2306,47 @@ textarea:focus-visible {
   border-color: var(--green-700);
   color: #fff;
 }
-  .time-option.scheduled,
-  .time-option.disabled {
-    background: #eef1ef;
-    border-color: #d7ddda;
-    color: #8b958f;
-    cursor: not-allowed;
-    position: relative;
-  }
-  .time-option.scheduled:hover,
-  .time-option.disabled:hover {
-    background: #eef1ef;
-    border-color: #d7ddda;
-    color: #8b958f;
-    transform: none;
-  }
-  .time-option[data-tooltip]::after {
-    content: attr(data-tooltip);
-    position: absolute;
-    left: 50%;
-    bottom: calc(100% + 7px);
-    transform: translateX(-50%);
-    width: max-content;
-    max-width: 180px;
-    padding: 6px 8px;
-    background: #27342d;
-    color: #fff;
-    border-radius: 6px;
-    font-size: 7px;
-    font-weight: 500;
-    line-height: 1.35;
-    text-align: center;
-    white-space: normal;
-    pointer-events: none;
-    opacity: 0;
-    visibility: hidden;
-    z-index: 100;
-  }
-  .time-option[data-tooltip]:hover::after {
-    opacity: 1;
-    visibility: visible;
-  }
+.time-option.scheduled,
+.time-option.disabled {
+  background: #eef1ef;
+  border-color: #d7ddda;
+  color: #8b958f;
+  cursor: not-allowed;
+  position: relative;
+}
+.time-option.scheduled:hover,
+.time-option.disabled:hover {
+  background: #eef1ef;
+  border-color: #d7ddda;
+  color: #8b958f;
+  transform: none;
+}
+.time-option[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 7px);
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: 180px;
+  padding: 6px 8px;
+  background: #27342d;
+  color: #fff;
+  border-radius: 6px;
+  font-size: 7px;
+  font-weight: 500;
+  line-height: 1.35;
+  text-align: center;
+  white-space: normal;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  z-index: 100;
+}
+.time-option[data-tooltip]:hover::after {
+  opacity: 1;
+  visibility: visible;
+}
 .booking-progress-item.active strong {
   color: var(--green-700);
 }

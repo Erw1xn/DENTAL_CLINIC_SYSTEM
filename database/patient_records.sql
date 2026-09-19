@@ -113,6 +113,8 @@ CREATE TABLE IF NOT EXISTS tbl_reschedule_requests (
     preferred_time TIME NULL,
     approved_date DATE NULL,
     approved_time TIME NULL,
+    patient_acknowledged TINYINT(1) NOT NULL DEFAULT 0,
+    patient_acknowledged_at DATETIME NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (reschedule_request_id),
@@ -122,6 +124,10 @@ CREATE TABLE IF NOT EXISTS tbl_reschedule_requests (
     CONSTRAINT fk_reschedule_appointment FOREIGN KEY (appointment_id) REFERENCES tbl_patient_appointments(appointment_id) ON DELETE CASCADE,
     CONSTRAINT fk_reschedule_patient FOREIGN KEY (patient_id) REFERENCES tbl_patients(patient_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE tbl_reschedule_requests
+    ADD COLUMN IF NOT EXISTS patient_acknowledged TINYINT(1) NOT NULL DEFAULT 0 AFTER approved_time,
+    ADD COLUMN IF NOT EXISTS patient_acknowledged_at DATETIME NULL AFTER patient_acknowledged;
 
 CREATE TABLE IF NOT EXISTS tbl_patient_treatments (
     treatment_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,

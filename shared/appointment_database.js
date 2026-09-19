@@ -39,6 +39,13 @@
         body: JSON.stringify({ appointments }),
       });
     },
+    async reschedule(appointment) {
+      return request({
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reschedule: appointment }),
+      });
+    },
     async remove(id) {
       return request({
         method: "DELETE",

@@ -473,7 +473,8 @@ function normalizeAppointment(appt) {
     status: appt.status || APPOINTMENT_STATUS.SCHEDULED,
     rescheduleCount: Number(appt.rescheduleCount || appt.reschedule_count) || 0,
     approvedRescheduleCount:
-      Number(appt.approvedRescheduleCount || appt.approved_reschedule_count) || 0,
+      Number(appt.approvedRescheduleCount || appt.approved_reschedule_count) ||
+      0,
     rescheduleHistory: Array.isArray(appt.rescheduleHistory)
       ? appt.rescheduleHistory
       : Array.isArray(appt.reschedule_history)

@@ -702,9 +702,9 @@ async function hydrateAppointmentsFromDatabase() {
     );
   }
 }
-function saveAppointmentsToStorage() {
+async function saveAppointmentsToStorage() {
   if (!Array.isArray(appointments)) {
-    return;
+    return false;
   }
   try {
     localStorage.setItem(
@@ -715,13 +715,15 @@ function saveAppointmentsToStorage() {
     console.error("Unable to persist appointments to localStorage:", error);
   }
   if (!window.DentaNuevaAppointmentDatabase) {
-    return;
+    return true;
   }
-  void window.DentaNuevaAppointmentDatabase.save(appointments).catch(
-    (error) => {
-      console.error("Unable to sync appointments to database:", error);
-    },
-  );
+  try {
+    await window.DentaNuevaAppointmentDatabase.save(appointments);
+    return true;
+  } catch (error) {
+    console.error("Unable to sync appointments to database:", error);
+    return false;
+  }
 }
 function removeAppointmentsForDeletedPatients() {
   if (!Array.isArray(appointments)) {
@@ -823,7 +825,8 @@ function normalizeAppointment(appt) {
     rescheduleRequest: appt.rescheduleRequest || null,
     rescheduleCount: Number(appt.rescheduleCount || appt.reschedule_count) || 0,
     approvedRescheduleCount:
-      Number(appt.approvedRescheduleCount || appt.approved_reschedule_count) || 0,
+      Number(appt.approvedRescheduleCount || appt.approved_reschedule_count) ||
+      0,
     rescheduleHistory: Array.isArray(appt.rescheduleHistory)
       ? appt.rescheduleHistory
       : Array.isArray(appt.reschedule_history)
@@ -2115,7 +2118,9 @@ async function saveRescheduleRequests(requests) {
     JSON.stringify(requests),
   );
   try {
-    await window.DentaNuevaAppointmentDatabase?.saveRescheduleRequests(requests);
+    await window.DentaNuevaAppointmentDatabase?.saveRescheduleRequests(
+      requests,
+    );
     return true;
   } catch (error) {
     console.error("Unable to sync reschedule requests:", error);
@@ -2559,7 +2564,7 @@ function renderRescheduleRequests() {
   });
 }
 
-function approveRescheduleRequest(requestId, newDate, newTime) {
+async function approveRescheduleRequest(requestId, newDate, newTime) {
   const requests = loadRescheduleRequests();
   const requestIndex = requests.findIndex(
     (request) => String(getRescheduleRequestId(request)) === String(requestId),
@@ -2569,6 +2574,7 @@ function approveRescheduleRequest(requestId, newDate, newTime) {
     return;
   }
   const request = requests[requestIndex];
+  await hydrateAppointmentsFromDatabase();
   const appointment = appointments.find(
     (appt) => String(appt.id) === String(getRescheduleAppointmentId(request)),
   );
@@ -2642,8 +2648,27 @@ function approveRescheduleRequest(requestId, newDate, newTime) {
     request.updatedAt ||
     new Date().toISOString();
   requests[requestIndex] = request;
-  saveRescheduleRequests(requests);
-  saveAppointmentsToStorage();
+  const requestSaved = await saveRescheduleRequests(requests);
+  if (!requestSaved) {
+    showToast("Unable to save the reschedule request. Please try again.");
+    return;
+  }
+  let savedAppointments;
+  try {
+    savedAppointments =
+      await window.DentaNuevaAppointmentDatabase.reschedule(appointment);
+  } catch (error) {
+    console.error("Unable to save the new schedule:", error);
+    showToast("Unable to save the new schedule. Please try again.");
+    return;
+  }
+  if (Array.isArray(savedAppointments)) {
+    appointments = savedAppointments.map(normalizeAppointment);
+    localStorage.setItem(
+      APPOINTMENTS_STORAGE_KEY,
+      JSON.stringify(appointments),
+    );
+  }
   syncAppointmentToPatient(appointment);
   closeRescheduleReviewModal();
   renderAll();
