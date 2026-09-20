@@ -18,6 +18,7 @@ let currentMedicalStep = 1;
 
 let appointmentRefreshInterval = null;
 let patientFormValidationBound = false;
+let patientSaveInProgress = false;
 
 const $ = (id) => document.getElementById(id);
 
@@ -102,7 +103,7 @@ async function hydratePatientsFromDatabase() {
 }
 
 async function syncPatientProfileToDatabase(patient) {
-  if (!patient) return;
+  if (!patient) return null;
   try {
     const response = await fetch(PATIENT_RECORD_API, {
       method: "POST",
@@ -121,10 +122,10 @@ async function syncPatientProfileToDatabase(patient) {
     if (result.data) {
       Object.assign(patient, result.data);
     }
-    return true;
+    return result.data || patient;
   } catch (error) {
     console.error("Unable to sync patient profile to database.", error);
-    return false;
+    return null;
   }
 }
 
@@ -933,8 +934,11 @@ function openEditPatientModal(patientId) {
   $("patientModalBackdrop").setAttribute("aria-hidden", "false");
 }
 
-function savePatientFromForm(event) {
+async function savePatientFromForm(event) {
   event.preventDefault();
+  if (patientSaveInProgress) {
+    return;
+  }
 
   const form = $("patientForm");
 
@@ -1000,9 +1004,9 @@ function savePatientFromForm(event) {
     ? findPatient(currentPatientId)
     : null;
 
-  const patientId = existingPatient?.patientId || generatePatientId();
+  const patientId = existingPatient?.patientId || "";
 
-  const id = existingPatient?.id || patientId;
+  const id = existingPatient?.id || "";
 
   const now = new Date().toISOString();
 
@@ -1040,12 +1044,26 @@ function savePatientFromForm(event) {
     updatedAt: now,
   };
 
+  patientSaveInProgress = true;
+  const submitButton = form?.querySelector('button[type="submit"]');
+  if (submitButton) {
+    submitButton.disabled = true;
+  }
+  const savedPatient = await syncPatientProfileToDatabase(patient);
+  patientSaveInProgress = false;
+  if (submitButton) {
+    submitButton.disabled = false;
+  }
+  if (!savedPatient) {
+    alert("The patient could not be saved to the database. Please try again.");
+    return;
+  }
+  Object.assign(patient, savedPatient);
+
   if (!existingPatient) {
     patient.createdAt = now;
 
-    patient.medicalForm = null;
-
-    patients.push(patient);
+    patients.push(normalizePatient(patient));
   } else {
     const index = patients.findIndex(
       (item) =>
@@ -1054,13 +1072,9 @@ function savePatientFromForm(event) {
     );
 
     if (index !== -1) {
-      patients[index] = patient;
+      patients[index] = normalizePatient(patient);
     }
   }
-
-  savePatients();
-
-  void syncPatientProfileToDatabase(patient);
 
   closePatientModal();
 

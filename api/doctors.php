@@ -13,7 +13,7 @@ if (empty($_SESSION['logged_in']) || empty($_SESSION['user_id'])) {
     exit;
 }
 
-$result = $conn->query("SELECT user_id, firstname, lastname, name, email, doctor_id, specialization, profile_image, contact FROM tbl_users WHERE LOWER(role) = 'doctor' AND LOWER(COALESCE(status, 'active')) = 'active' ORDER BY lastname, firstname, user_id");
+$result = $conn->query("SELECT user_id, firstname, lastname, name, email, doctor_id, specialization, profile_image, contact FROM tbl_users WHERE LOWER(TRIM(role)) = 'doctor' AND LOWER(TRIM(COALESCE(NULLIF(status, ''), 'active'))) = 'active' ORDER BY lastname, firstname, user_id");
 $doctors = [];
 while ($doctor = $result->fetch_assoc()) {
     $userId = (int) $doctor['user_id'];

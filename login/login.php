@@ -83,10 +83,33 @@ $identityStmt->execute();
 $identityStmt->close();
 
 if ($role === "user") {
-    $patientStmt = $conn->prepare("INSERT INTO tbl_patients (patient_id, user_id, first_name, last_name, email, patient_type, status, created_by) VALUES (?, ?, COALESCE(?, ''), COALESCE(?, ''), ?, 'registered', 'active', ?) ON DUPLICATE KEY UPDATE user_id = VALUES(user_id), first_name = VALUES(first_name), last_name = VALUES(last_name), email = VALUES(email), patient_type = 'registered', status = 'active'");
-    $patientStmt->bind_param("sisssi", $patientId, $userId, $user["firstname"], $user["lastname"], $user["email"], $userId);
-    $patientStmt->execute();
-    $patientStmt->close();
+    $existingPatientStmt = $conn->prepare("SELECT patient_id FROM tbl_patients WHERE user_id = ? LIMIT 1");
+    $existingPatientStmt->bind_param("i", $userId);
+    $existingPatientStmt->execute();
+    $existingPatient = $existingPatientStmt->get_result()->fetch_assoc();
+    $existingPatientStmt->close();
+    if ($existingPatient) {
+        $patientId = $existingPatient["patient_id"];
+    } else {
+        $nextPatientNumber = 1;
+        while (true) {
+            $candidatePatientId = "PN-" . str_pad((string) $nextPatientNumber, 4, "0", STR_PAD_LEFT);
+            $candidateStmt = $conn->prepare("SELECT patient_id FROM tbl_patients WHERE patient_id = ? LIMIT 1");
+            $candidateStmt->bind_param("s", $candidatePatientId);
+            $candidateStmt->execute();
+            $candidateExists = $candidateStmt->get_result()->num_rows === 1;
+            $candidateStmt->close();
+            if (!$candidateExists) {
+                $patientId = $candidatePatientId;
+                break;
+            }
+            $nextPatientNumber++;
+        }
+        $patientStmt = $conn->prepare("INSERT INTO tbl_patients (patient_id, user_id, first_name, last_name, email, patient_type, status, created_by) VALUES (?, ?, COALESCE(?, ''), COALESCE(?, ''), ?, 'registered', 'active', ?)");
+        $patientStmt->bind_param("sisssi", $patientId, $userId, $user["firstname"], $user["lastname"], $user["email"], $userId);
+        $patientStmt->execute();
+        $patientStmt->close();
+    }
 } else {
     $archivePatientStmt = $conn->prepare("UPDATE tbl_patients SET status = 'inactive' WHERE user_id = ? AND patient_type = 'registered' LIMIT 1");
     $archivePatientStmt->bind_param("i", $userId);

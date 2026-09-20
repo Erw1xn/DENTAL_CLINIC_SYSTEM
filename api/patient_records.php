@@ -131,7 +131,7 @@ function patientPayload(mysqli $conn, string $patientId): ?array
         $patient['medicalForm'] = null;
     }
 
-    $stmt = $conn->prepare("SELECT a.*, u.doctor_id AS doctor_code, TRIM(COALESCE(u.name, CONCAT(u.firstname, ' ', u.lastname))) AS doctor_name FROM tbl_patient_appointments a LEFT JOIN tbl_users u ON u.user_id = a.doctor_id WHERE a.patient_id = ? ORDER BY a.appointment_date DESC, a.appointment_time DESC");
+    $stmt = $conn->prepare("SELECT a.*, COALESCE(NULLIF(u.doctor_id, ''), CONCAT('DOC-', LPAD(u.user_id, 4, '0'))) AS doctor_code, TRIM(COALESCE(u.name, CONCAT(u.firstname, ' ', u.lastname))) AS doctor_name FROM tbl_patient_appointments a LEFT JOIN tbl_users u ON u.user_id = a.doctor_id WHERE a.patient_id = ? ORDER BY a.appointment_date DESC, a.appointment_time DESC");
     $stmt->bind_param('s', $patientId);
     $stmt->execute();
     $appointments = $stmt->get_result();
@@ -235,6 +235,29 @@ if ($method === 'GET') {
     jsonResponse(true, 'Patient record loaded.', patientPayload($conn, $requestedPatientId));
 }
 
+if ($method === 'DELETE') {
+    if ($role !== 'staff' && $role !== 'doctor') {
+        jsonResponse(false, 'Only staff or doctors may delete patient records.', null, 403);
+    }
+    $input = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($input)) {
+        $input = $_REQUEST;
+    }
+    $patientId = trim((string) ($input['patientId'] ?? $requestedPatientId));
+    if ($patientId === '') {
+        jsonResponse(false, 'Patient ID is required.', null, 422);
+    }
+    $stmt = $conn->prepare('DELETE FROM tbl_patients WHERE patient_id = ? LIMIT 1');
+    $stmt->bind_param('s', $patientId);
+    $stmt->execute();
+    $deleted = $stmt->affected_rows;
+    $stmt->close();
+    if ($deleted !== 1) {
+        jsonResponse(false, 'Patient record was not found.', null, 404);
+    }
+    jsonResponse(true, 'Patient record deleted.', ['patientId' => $patientId]);
+}
+
 if ($method !== 'POST') {
     jsonResponse(false, 'Unsupported request method.', null, 405);
 }
@@ -247,8 +270,6 @@ $patientId = trim((string) ($input['patientId'] ?? $requestedPatientId));
 if ($role === 'user') {
     $patientId = 'PN-' . str_pad((string) $userId, 4, '0', STR_PAD_LEFT);
 } elseif ($patientId === '') {
-    $patientId = generateWalkInPatientId($conn);
-} elseif (!patientRecordExists($conn, $patientId)) {
     $patientId = generateWalkInPatientId($conn);
 }
 ensurePatient($conn, $patientId, $userId, $role);
@@ -301,21 +322,6 @@ try {
     }
 
     if ($role === 'doctor' && is_array($patient)) {
-        if (array_key_exists('appointments', $patient)) {
-            $conn->query("DELETE FROM tbl_patient_appointments WHERE patient_id = '" . $conn->real_escape_string($patientId) . "'");
-            $stmt = $conn->prepare('INSERT INTO tbl_patient_appointments (patient_id, appointment_date, appointment_time, status, reason, notes) VALUES (?, NULLIF(?, ""), NULLIF(?, ""), ?, ?, ?)');
-            foreach (is_array($patient['appointments']) ? $patient['appointments'] : [] as $appointment) {
-                $appointmentDate = (string) ($appointment['appointment_date'] ?? $appointment['date'] ?? '');
-                $appointmentTime = (string) ($appointment['appointment_time'] ?? $appointment['start'] ?? '');
-                $appointmentStatus = (string) ($appointment['status'] ?? 'pending');
-                $appointmentReason = (string) ($appointment['reason'] ?? $appointment['purpose'] ?? '');
-                $appointmentNotes = (string) ($appointment['notes'] ?? $appointment['note'] ?? '');
-                $stmt->bind_param('ssssss', $patientId, $appointmentDate, $appointmentTime, $appointmentStatus, $appointmentReason, $appointmentNotes);
-                $stmt->execute();
-            }
-            $stmt->close();
-        }
-
         if (array_key_exists('treatments', $patient)) {
             $conn->query("DELETE FROM tbl_patient_treatments WHERE patient_id = '" . $conn->real_escape_string($patientId) . "'");
             $stmt = $conn->prepare('INSERT INTO tbl_patient_treatments (patient_id, tooth_number, procedure_name, treatment_date, notes, consumed_materials) VALUES (?, ?, ?, NULLIF(?, ""), ?, ?)');

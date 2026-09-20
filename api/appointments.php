@@ -43,8 +43,14 @@ function appointmentDoctorUserId(mysqli $conn, string $value): ?int
     if ($value === '') {
         return null;
     }
-    $stmt = $conn->prepare('SELECT user_id FROM tbl_users WHERE doctor_id = ? OR user_id = ? LIMIT 1');
     $numericValue = ctype_digit($value) ? (int) $value : 0;
+    if (preg_match('/^DOC-(\d+)$/i', $value, $matches)) {
+        $numericValue = (int) $matches[1];
+    }
+    $stmt = $conn->prepare("SELECT user_id FROM tbl_users WHERE LOWER(role) = 'doctor' AND (doctor_id = ? OR user_id = ?) LIMIT 1");
+    if (!$stmt) {
+        return null;
+    }
     $stmt->bind_param('si', $value, $numericValue);
     $stmt->execute();
     $row = $stmt->get_result()->fetch_assoc();
@@ -99,7 +105,7 @@ function appointmentPayload(array $row): array
 
 function loadAppointments(mysqli $conn, string $patientId = ''): array
 {
-    $sql = "SELECT a.*, p.first_name, p.last_name, u.doctor_id AS doctor_code, TRIM(COALESCE(u.name, CONCAT(u.firstname, ' ', u.lastname))) AS doctor_name FROM tbl_patient_appointments a JOIN tbl_patients p ON p.patient_id = a.patient_id LEFT JOIN tbl_users u ON u.user_id = a.doctor_id";
+    $sql = "SELECT a.*, p.first_name, p.last_name, COALESCE(NULLIF(u.doctor_id, ''), CONCAT('DOC-', LPAD(u.user_id, 4, '0'))) AS doctor_code, TRIM(COALESCE(u.name, CONCAT(u.firstname, ' ', u.lastname))) AS doctor_name FROM tbl_patient_appointments a JOIN tbl_patients p ON p.patient_id = a.patient_id LEFT JOIN tbl_users u ON u.user_id = a.doctor_id";
     if ($patientId !== '') {
         $sql .= ' WHERE a.patient_id = ?';
     }
@@ -154,7 +160,7 @@ if ($method === 'GET') {
 
     if ($scope === 'doctor_schedule' && $doctorId !== '' && $date !== '') {
         $doctorUserId = appointmentDoctorUserId($conn, $doctorId);
-        $sql = "SELECT a.*, p.first_name, p.last_name, u.doctor_id AS doctor_code, TRIM(COALESCE(u.name, CONCAT(u.firstname, ' ', u.lastname))) AS doctor_name FROM tbl_patient_appointments a JOIN tbl_patients p ON p.patient_id = a.patient_id LEFT JOIN tbl_users u ON u.user_id = a.doctor_id WHERE a.appointment_date = ? AND (a.doctor_id = ? OR u.doctor_id = ? OR u.user_id = ?) ORDER BY a.appointment_time ASC";
+        $sql = "SELECT a.*, p.first_name, p.last_name, COALESCE(NULLIF(u.doctor_id, ''), CONCAT('DOC-', LPAD(u.user_id, 4, '0'))) AS doctor_code, TRIM(COALESCE(u.name, CONCAT(u.firstname, ' ', u.lastname))) AS doctor_name FROM tbl_patient_appointments a JOIN tbl_patients p ON p.patient_id = a.patient_id LEFT JOIN tbl_users u ON u.user_id = a.doctor_id WHERE a.appointment_date = ? AND (a.doctor_id = ? OR u.doctor_id = ? OR u.user_id = ?) ORDER BY a.appointment_time ASC";
         $stmt = $conn->prepare($sql);
         $stmt->bind_param('sisi', $date, $doctorUserId, $doctorId, $doctorUserId);
         $stmt->execute();
@@ -310,6 +316,9 @@ try {
         appointmentPatientAccess($conn, $patientId, $userId, $role);
         $doctorValue = (string) ($appointment['dentist_id'] ?? $appointment['dentistId'] ?? $appointment['doctor_id'] ?? $appointment['doctorId'] ?? $appointment['dentist'] ?? '');
         $doctorUserId = appointmentDoctorUserId($conn, $doctorValue);
+        if ($doctorUserId === null) {
+            throw new RuntimeException('A valid doctor is required before saving an appointment.');
+        }
         $date = (string) ($appointment['date'] ?? $appointment['appointment_date'] ?? '');
         $time = (string) ($appointment['start'] ?? $appointment['time'] ?? $appointment['appointment_time'] ?? '');
         $service = (string) ($appointment['type'] ?? $appointment['service'] ?? $appointment['service_type'] ?? 'Dental Appointment');
@@ -323,7 +332,7 @@ try {
         $paymentStatus = (string) ($appointment['paymentStatus'] ?? 'unpaid');
         $paymentAmount = (float) ($appointment['paymentAmount'] ?? 0);
         $cancelledAt = (string) ($appointment['cancelledAt'] ?? $appointment['cancelled_at'] ?? '');
-        $stmt = $conn->prepare('INSERT INTO tbl_patient_appointments (appointment_uid, patient_id, doctor_id, appointment_date, appointment_time, service_type, duration_minutes, status, checked_in, checked_in_at, consultation_started, manual_ready_complete, payment_status, payment_amount, cancelled_at, metadata) VALUES (?, ?, ?, NULLIF(?, ""), NULLIF(?, ""), ?, ?, ?, ?, NULLIF(?, ""), ?, ?, ?, ?, NULLIF(?, ""), ?) ON DUPLICATE KEY UPDATE patient_id = VALUES(patient_id), doctor_id = VALUES(doctor_id), appointment_date = VALUES(appointment_date), appointment_time = VALUES(appointment_time), service_type = VALUES(service_type), duration_minutes = VALUES(duration_minutes), status = VALUES(status), checked_in = VALUES(checked_in), checked_in_at = VALUES(checked_in_at), consultation_started = VALUES(consultation_started), manual_ready_complete = VALUES(manual_ready_complete), payment_status = VALUES(payment_status), payment_amount = VALUES(payment_amount), cancelled_at = VALUES(cancelled_at), metadata = VALUES(metadata), updated_at = NOW()');
+        $stmt = $conn->prepare('INSERT INTO tbl_patient_appointments (appointment_uid, patient_id, doctor_id, appointment_date, appointment_time, service_type, duration_minutes, status, checked_in, checked_in_at, consultation_started, manual_ready_complete, payment_status, payment_amount, cancelled_at, metadata) VALUES (?, ?, ?, NULLIF(?, ""), NULLIF(?, ""), ?, ?, ?, ?, NULLIF(?, ""), ?, ?, ?, ?, NULLIF(?, ""), ?) ON DUPLICATE KEY UPDATE patient_id = VALUES(patient_id), doctor_id = COALESCE(VALUES(doctor_id), doctor_id), appointment_date = VALUES(appointment_date), appointment_time = VALUES(appointment_time), service_type = VALUES(service_type), duration_minutes = VALUES(duration_minutes), status = VALUES(status), checked_in = VALUES(checked_in), checked_in_at = VALUES(checked_in_at), consultation_started = VALUES(consultation_started), manual_ready_complete = VALUES(manual_ready_complete), payment_status = VALUES(payment_status), payment_amount = VALUES(payment_amount), cancelled_at = VALUES(cancelled_at), metadata = VALUES(metadata), updated_at = NOW()');
         if (!$stmt) {
             throw new RuntimeException('Appointment query could not be prepared: ' . $conn->error);
         }

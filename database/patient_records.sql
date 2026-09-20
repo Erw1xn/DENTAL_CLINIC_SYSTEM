@@ -1,6 +1,33 @@
 -- DentaNueva patient and clinical record schema
 -- Run this once in dental_clinic_system. Existing tbl_users is preserved.
 
+-- The authentication code depends on this table. This definition is only
+-- created when an installation does not already have tbl_users.
+CREATE TABLE IF NOT EXISTS tbl_users (
+    user_id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    firstname VARCHAR(100) NOT NULL,
+    lastname VARCHAR(100) NOT NULL,
+    name VARCHAR(201) NOT NULL,
+    email VARCHAR(190) NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    role VARCHAR(30) NOT NULL DEFAULT 'user',
+    department VARCHAR(100) NULL,
+    staff_id VARCHAR(30) NULL,
+    doctor_id VARCHAR(30) NULL,
+    specialization VARCHAR(150) NULL,
+    access_level VARCHAR(30) NOT NULL DEFAULT 'user',
+    status VARCHAR(30) NOT NULL DEFAULT 'Active',
+    profile_image VARCHAR(255) NULL,
+    contact VARCHAR(30) NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id),
+    UNIQUE KEY uq_tbl_users_email (email)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE tbl_users
+    MODIFY role ENUM('user','staff','doctor') NOT NULL DEFAULT 'user';
+
 CREATE TABLE IF NOT EXISTS tbl_patients (
     patient_id VARCHAR(20) NOT NULL,
     user_id INT UNSIGNED NULL,

@@ -226,6 +226,8 @@ function populateDentistSelects() {
             : ALL_DENTISTS_FILTER;
     } else if (dentists[currentValue]) {
       select.value = currentValue;
+    } else if (options.length) {
+      select.value = options[0].id;
     }
   });
 }
@@ -1614,7 +1616,7 @@ async function openNewModal(date = null, time = null) {
   typeInput.value = "Consultation";
   durationInput.value = SERVICE_DURATIONS.Consultation;
   dentistInput.value = getDefaultDentistId();
-  dentistInput.disabled = true;
+  dentistInput.disabled = false;
   updateAvailableTimeSlots(time);
   if (isPastDate(selectedKey)) {
     pastNotice.classList.add("show");
@@ -1850,6 +1852,10 @@ function checkCurrentFormConflict() {
   }
   notice.classList.remove("show");
   if (!date || !start || !dentist || !duration) {
+    if (!dentist) {
+      saveBtn.disabled = true;
+      return;
+    }
     if (date && isPastDate(date)) {
       saveBtn.disabled = true;
       return;

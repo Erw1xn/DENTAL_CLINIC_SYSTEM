@@ -10,6 +10,7 @@ let currentPatientRecord = null;
 let selectedPatientId = null;
 let appointmentRefreshInterval = null;
 let patientFormValidationBound = false;
+let patientSaveInProgress = false;
 const $ = (id) => document.getElementById(id);
 
 let patientTableBody = null;
@@ -126,7 +127,7 @@ async function hydrateAppointmentsFromDatabase() {
 }
 
 async function syncPatientProfileToDatabase(patient) {
-  if (!patient) return;
+  if (!patient) return null;
   try {
     const response = await fetch(PATIENT_RECORD_API, {
       method: "POST",
@@ -145,10 +146,10 @@ async function syncPatientProfileToDatabase(patient) {
     if (result.data) {
       Object.assign(patient, result.data);
     }
-    return true;
+    return result.data || patient;
   } catch (error) {
     console.error("Unable to sync patient profile to database.", error);
-    return false;
+    return null;
   }
 }
 
@@ -919,8 +920,11 @@ function openEditPatientModal(patientId) {
   $("patientModalBackdrop").setAttribute("aria-hidden", "false");
 }
 
-function savePatientFromForm(event) {
+async function savePatientFromForm(event) {
   event.preventDefault();
+  if (patientSaveInProgress) {
+    return;
+  }
   const form = $("patientForm");
   if (form && !form.checkValidity()) {
     form.reportValidity();
@@ -974,8 +978,8 @@ function savePatientFromForm(event) {
             .trim()
             .toLowerCase() === emailValue,
       ) || null;
-  const patientId = existingPatient?.patientId || generatePatientId();
-  const id = existingPatient?.id || patientId;
+  const patientId = existingPatient?.patientId || "";
+  const id = existingPatient?.id || "";
   const now = new Date().toISOString();
   const patient = {
     ...(existingPatient || {}),
@@ -999,10 +1003,24 @@ function savePatientFromForm(event) {
       : [],
     updatedAt: now,
   };
+  patientSaveInProgress = true;
+  const submitButton = form?.querySelector('button[type="submit"]');
+  if (submitButton) {
+    submitButton.disabled = true;
+  }
+  const savedPatient = await syncPatientProfileToDatabase(patient);
+  patientSaveInProgress = false;
+  if (submitButton) {
+    submitButton.disabled = false;
+  }
+  if (!savedPatient) {
+    alert("The patient could not be saved to the database. Please try again.");
+    return;
+  }
+  Object.assign(patient, savedPatient);
   if (!existingPatient) {
-    patient.createdAt = now;
-    patient.medicalForm = null;
-    patients.push(patient);
+    patient.createdAt = patient.createdAt || now;
+    patients.push(normalizePatient(patient));
   } else {
     const index = patients.findIndex(
       (item) =>
@@ -1010,11 +1028,9 @@ function savePatientFromForm(event) {
         String(existingPatient.id || existingPatient.patientId),
     );
     if (index !== -1) {
-      patients[index] = patient;
+      patients[index] = normalizePatient(patient);
     }
   }
-  savePatients();
-  void syncPatientProfileToDatabase(patient);
   closePatientModal();
   renderPatients();
 
@@ -4678,13 +4694,34 @@ function deletePatient(patientId) {
   if (!confirmed) {
     return;
   }
-  patients = patients.filter(
-    (item) =>
-      String(item.id || item.patientId) !==
-      String(patient.id || patient.patientId),
-  );
-  savePatients();
-  renderPatients();
+  fetch(PATIENT_RECORD_API, {
+    method: "DELETE",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ patientId: patient.patientId || patient.id }),
+  })
+    .then(async (response) => {
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(
+          result.message || "Patient record could not be deleted.",
+        );
+      }
+      return result;
+    })
+    .then(() => {
+      patients = patients.filter(
+        (item) =>
+          String(item.id || item.patientId) !==
+          String(patient.id || patient.patientId),
+      );
+      closeActionMenu();
+      renderPatients();
+    })
+    .catch((error) => {
+      console.error("Unable to delete patient record.", error);
+      alert(error.message || "Patient record could not be deleted.");
+    });
 }
 
 document.addEventListener("keydown", (event) => {
