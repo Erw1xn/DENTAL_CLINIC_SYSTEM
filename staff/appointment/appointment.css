@@ -541,6 +541,12 @@ select:focus-visible {
     background 0.15s ease,
     color 0.15s ease;
 }
+.day.past-date {
+  color: #b8bfbb;
+}
+.day.past-date:hover {
+  color: #9fa8a3;
+}
 .day:hover {
   background: #f3f8f5;
   color: var(--green-700);

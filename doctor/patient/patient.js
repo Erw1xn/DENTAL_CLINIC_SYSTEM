@@ -320,7 +320,10 @@ function patientHasAppointmentWithDoctor(patient) {
 }
 
 function getDoctorPatients() {
-  return patients;
+  if (!currentDoctorDentistId) {
+    return [];
+  }
+  return patients.filter((patient) => patientHasAppointmentWithDoctor(patient));
 }
 
 function openSelectedDoctorPatient() {

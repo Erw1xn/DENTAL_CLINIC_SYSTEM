@@ -1,7 +1,4 @@
-const APPOINTMENTS_STORAGE_KEY = "appointments";
-const LEGACY_STORAGE_KEY = "dentanueva_appointments";
 const DOCTORS_STORAGE_KEY = "dentanueva_doctors";
-const RESCHEDULE_REQUESTS_STORAGE_KEY = "dentanueva_reschedule_requests";
 const START_HOUR = 10;
 const END_HOUR = 20;
 const SLOT_MIN = 30;
@@ -14,6 +11,7 @@ const APPOINTMENT_STATUS = {
   CANCELLED: "cancelled",
 };
 let appointments = [];
+let rescheduleRequests = [];
 let currentCalendarDate = new Date();
 let selectedDate = new Date();
 let selectedAppointmentId = null;
@@ -23,7 +21,6 @@ let toastTimer = null;
 let currentDoctorDentistId = null;
 let currentDoctor = null;
 document.addEventListener("DOMContentLoaded", async () => {
-  clearAppointmentCaches();
   await initializeCurrentDoctor();
   initializeDate();
   await hydrateAppointmentsFromDatabase();
@@ -31,7 +28,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   setupEvents();
   renderAll();
   setInterval(() => {
-    void hydrateAppointmentsFromDatabase();
     const changed = updateAutomaticAppointmentStatuses();
     if (changed) {
       renderAll();
@@ -42,9 +38,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }, 1000);
 });
-function clearAppointmentCaches() {
-  [LEGACY_STORAGE_KEY].forEach((key) => localStorage.removeItem(key));
-}
 function getCurrentUser() {
   const storedUser = sessionStorage.getItem("currentUser");
   if (!storedUser) {
@@ -409,7 +402,10 @@ function loadAppointments() {
   return appointments;
 }
 async function hydrateAppointmentsFromDatabase() {
-  if (!window.DentaNuevaAppointmentDatabase) return;
+  if (!window.DentaNuevaAppointmentDatabase) {
+    console.error("Appointment database API is unavailable.");
+    return;
+  }
   try {
     const remoteAppointments =
       await window.DentaNuevaAppointmentDatabase.load();
@@ -420,18 +416,21 @@ async function hydrateAppointmentsFromDatabase() {
     renderTimeline();
     renderWaitingQueue();
   } catch (error) {
-    console.warn(
-      "Database appointments unavailable; using local records.",
-      error,
-    );
+    console.error("Unable to load appointments from database:", error);
   }
 }
-function saveAppointmentsToStorage() {
-  void window.DentaNuevaAppointmentDatabase?.save(appointments).catch(
-    (error) => {
-      console.error("Unable to sync appointments to database:", error);
-    },
-  );
+async function saveAppointmentsToDatabase() {
+  if (!window.DentaNuevaAppointmentDatabase?.save) {
+    console.error("Appointment database API is unavailable.");
+    return false;
+  }
+  try {
+    await window.DentaNuevaAppointmentDatabase.save(appointments);
+    return true;
+  } catch (error) {
+    console.error("Unable to sync appointments to database:", error);
+    return false;
+  }
 }
 function normalizeAppointment(appt) {
   const appointmentDoctorId = resolveAppointmentDoctorId(
@@ -448,6 +447,7 @@ function normalizeAppointment(appt) {
     appt,
   );
   const normalized = {
+    ...appt,
     id:
       appt.id || `appt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
     patient: appt.patient || appt.patientName || "Unknown Patient",
@@ -592,7 +592,6 @@ function updateAutomaticAppointmentStatuses() {
     if (appt.date !== todayKey) {
       return;
     }
-    const appointmentEnd = getAppointmentEnd(appt);
     const appointmentStart = timeToMinutes(appt.start);
     if (
       appt.status === APPOINTMENT_STATUS.SCHEDULED &&
@@ -601,18 +600,10 @@ function updateAutomaticAppointmentStatuses() {
       appt.status = APPOINTMENT_STATUS.NO_SHOW;
       appt.noShowAt = new Date().toISOString();
       changed = true;
-      return;
-    }
-    if (
-      appt.status === APPOINTMENT_STATUS.IN_CONSULTATION &&
-      currentMinutes >= appointmentEnd
-    ) {
-      appt.status = APPOINTMENT_STATUS.READY_COMPLETE;
-      changed = true;
     }
   });
   if (changed) {
-    saveAppointmentsToStorage();
+    saveAppointmentsToDatabase();
   }
   return changed;
 }
@@ -751,6 +742,9 @@ function makeDayBtn(date, muted) {
   if (isToday(date)) {
     button.classList.add("today");
   }
+  if (isPastDate(date)) {
+    button.classList.add("past-date");
+  }
   const doctorDentistId = String(currentDoctorDentistId || "")
     .trim()
     .toLowerCase();
@@ -871,27 +865,21 @@ function renderTimeline() {
   });
 }
 function loadRescheduleRequests() {
-  try {
-    const stored = localStorage.getItem(RESCHEDULE_REQUESTS_STORAGE_KEY);
-    if (!stored) return [];
-    const parsed = JSON.parse(stored);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch (error) {
-    console.error("Unable to load reschedule requests:", error);
-    return [];
-  }
+  return Array.isArray(rescheduleRequests) ? rescheduleRequests : [];
 }
 async function hydrateRescheduleRequestsFromDatabase() {
+  if (!window.DentaNuevaAppointmentDatabase?.loadRescheduleRequests) {
+    console.error("Reschedule request database API is unavailable.");
+    rescheduleRequests = [];
+    return;
+  }
   try {
     const requests =
-      await window.DentaNuevaAppointmentDatabase?.loadRescheduleRequests();
-    if (!Array.isArray(requests)) return;
-    localStorage.setItem(
-      RESCHEDULE_REQUESTS_STORAGE_KEY,
-      JSON.stringify(requests),
-    );
+      await window.DentaNuevaAppointmentDatabase.loadRescheduleRequests();
+    rescheduleRequests = Array.isArray(requests) ? requests : [];
   } catch (error) {
-    console.warn("Database reschedule requests unavailable.", error);
+    console.error("Unable to load reschedule requests from database:", error);
+    rescheduleRequests = [];
   }
 }
 function getPendingRescheduleRequestForAppointment(appointmentId) {
@@ -1185,7 +1173,7 @@ function checkInAppointment(id) {
     return;
   }
   appt.status = APPOINTMENT_STATUS.IN_CONSULTATION;
-  saveAppointmentsToStorage();
+  saveAppointmentsToDatabase();
   renderAll();
   showToast(`${appt.patient} has been checked in.`);
 }
@@ -1264,7 +1252,7 @@ function confirmStatusAction() {
       return;
     }
     appt.status = APPOINTMENT_STATUS.READY_COMPLETE;
-    saveAppointmentsToStorage();
+    saveAppointmentsToDatabase();
     closeStatusConfirmation();
     renderAll();
     showToast(`${appt.patient}'s consultation is finished.`);
@@ -1276,7 +1264,7 @@ function confirmStatusAction() {
       return;
     }
     appt.status = APPOINTMENT_STATUS.COMPLETED;
-    saveAppointmentsToStorage();
+    saveAppointmentsToDatabase();
     closeStatusConfirmation();
     renderAll();
     showToast(`${appt.patient}'s appointment is now completed.`);
@@ -1288,7 +1276,7 @@ function confirmStatusAction() {
       return;
     }
     appt.status = APPOINTMENT_STATUS.NO_SHOW;
-    saveAppointmentsToStorage();
+    saveAppointmentsToDatabase();
     closeStatusConfirmation();
     renderAll();
     showToast(`${appt.patient} has been marked as No Show.`);

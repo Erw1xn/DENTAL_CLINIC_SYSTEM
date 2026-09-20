@@ -1,5 +1,3 @@
-const APPOINTMENTS_STORAGE_KEY = "appointments";
-const LEGACY_STORAGE_KEY = "dentanueva_appointments";
 const PATIENTS_STORAGE_KEY = "dentanueva_patients";
 const PATIENT_RECORD_API = "../../api/patient_records.php";
 const DOCTORS_API = "../../api/doctors.php";
@@ -12,7 +10,6 @@ const NO_SHOW_GRACE_PERIOD_MIN = 15;
 const NO_SHOW_TESTING_MODE = false;
 const FINANCE_PAGE_URL = "../finance/finance.html";
 const FINANCE_PENDING_PAYMENT_KEY = "dentaNuevaPendingPayment";
-const RESCHEDULE_REQUESTS_STORAGE_KEY = "dentanueva_reschedule_requests";
 const ALL_DENTISTS_FILTER = "all";
 const SERVICE_DURATIONS = {
   Consultation: 30,
@@ -50,6 +47,7 @@ const APPOINTMENT_STATUS = {
 };
 let appointments = [];
 let patients = [];
+let rescheduleRequests = [];
 let currentCalendarDate = new Date();
 let selectedDate = new Date();
 let editingId = null;
@@ -62,7 +60,6 @@ let selectedDentistFilter = "";
 let rescheduleReviewRequestId = null;
 let rescheduleDecisionRequestId = null;
 document.addEventListener("DOMContentLoaded", () => {
-  clearAppointmentCaches();
   void loadDentists();
   loadPatients();
   loadAppointments();
@@ -86,38 +83,8 @@ document.addEventListener("DOMContentLoaded", () => {
       checkCurrentFormConflict();
     }
   }, 1000);
-  window.addEventListener("storage", handleStorageChange);
   openAppointmentFromURL();
 });
-function clearAppointmentCaches() {
-  [
-    APPOINTMENTS_STORAGE_KEY,
-    LEGACY_STORAGE_KEY,
-    PATIENTS_STORAGE_KEY,
-    DOCTORS_STORAGE_KEY,
-  ].forEach((key) => localStorage.removeItem(key));
-}
-function handleStorageChange(event) {
-  if (event.key === DOCTORS_STORAGE_KEY) {
-    loadDentists();
-    loadAppointments();
-    renderAll();
-  }
-  if (event.key === PATIENTS_STORAGE_KEY) {
-    loadPatients();
-    removeAppointmentsForDeletedPatients();
-    refreshPatientSelector();
-    renderAll();
-  }
-  if (
-    event.key === APPOINTMENTS_STORAGE_KEY ||
-    event.key === LEGACY_STORAGE_KEY ||
-    event.key === RESCHEDULE_REQUESTS_STORAGE_KEY
-  ) {
-    loadAppointments();
-    renderAll();
-  }
-}
 function getDoctorId(doctor) {
   return String(
     doctor?.doctorId ||
@@ -666,23 +633,12 @@ function getCurrentFormPatient() {
 }
 function loadAppointments() {
   appointments = [];
-  try {
-    const storedAppointments = localStorage.getItem(APPOINTMENTS_STORAGE_KEY);
-    if (storedAppointments) {
-      const parsed = JSON.parse(storedAppointments);
-      if (Array.isArray(parsed)) {
-        appointments = parsed.map(normalizeAppointment);
-      }
-    }
-  } catch (error) {
-    console.warn("Unable to read stored appointments.", error);
-  }
   void hydrateAppointmentsFromDatabase();
 }
 async function hydrateAppointmentsFromDatabase() {
   if (!window.DentaNuevaAppointmentDatabase) {
-    removeAppointmentsForDeletedPatients();
-    linkExistingAppointmentsToPatients();
+    console.error("Appointment database API is unavailable.");
+    appointments = [];
     renderAll();
     return;
   }
@@ -693,37 +649,28 @@ async function hydrateAppointmentsFromDatabase() {
       ? remoteAppointments.map(normalizeAppointment)
       : [];
     appointments = remote;
-    localStorage.setItem(APPOINTMENTS_STORAGE_KEY, JSON.stringify(remote));
     removeAppointmentsForDeletedPatients();
     linkExistingAppointmentsToPatients();
     renderAll();
   } catch (error) {
-    console.warn(
-      "Database appointments unavailable; using local records.",
-      error,
-    );
+    console.error("Unable to load appointments from database:", error);
+    appointments = [];
+    renderAll();
   }
 }
-async function saveAppointmentsToStorage() {
+async function saveAppointmentsToDatabase() {
   if (!Array.isArray(appointments)) {
     return false;
   }
-  try {
-    localStorage.setItem(
-      APPOINTMENTS_STORAGE_KEY,
-      JSON.stringify(appointments),
-    );
-  } catch (error) {
-    console.error("Unable to persist appointments to localStorage:", error);
-  }
   if (!window.DentaNuevaAppointmentDatabase) {
-    return true;
+    console.error("Appointment database API is unavailable.");
+    return false;
   }
   try {
     await window.DentaNuevaAppointmentDatabase.save(appointments);
     return true;
   } catch (error) {
-    console.error("Unable to sync appointments to database:", error);
+    console.error("Unable to save appointments to database:", error);
     return false;
   }
 }
@@ -877,7 +824,7 @@ function linkExistingAppointmentsToPatients() {
     }
   });
   if (changed) {
-    saveAppointmentsToStorage();
+    saveAppointmentsToDatabase();
   }
   synchronizeAllPatientAppointments();
 }
@@ -1226,7 +1173,7 @@ function updateAutomaticAppointmentStatuses() {
     }
   });
   if (changed) {
-    saveAppointmentsToStorage();
+    saveAppointmentsToDatabase();
   }
   return changed;
 }
@@ -1652,7 +1599,7 @@ function openViewModal(id) {
     if (matched) {
       appt.patientId = matched.id;
       appt.patient = getPatientFullName(matched);
-      saveAppointmentsToStorage();
+      saveAppointmentsToDatabase();
       syncAppointmentToPatient(appt);
     }
   }
@@ -2051,7 +1998,7 @@ function saveAppt() {
     };
     newAppointment.appointmentId = newAppointment.id;
     appointments.push(newAppointment);
-    saveAppointmentsToStorage();
+    saveAppointmentsToDatabase();
     syncAppointmentToPatient(newAppointment);
     closeModal();
     selectedDate = keyToDate(date);
@@ -2086,7 +2033,7 @@ function saveAppt() {
   existing.dentist = dentist;
   existing.dentistId = dentist;
   existing.duration = duration;
-  saveAppointmentsToStorage();
+  saveAppointmentsToDatabase();
   syncAppointmentToPatient(existing);
   closeModal();
   selectedDate = keyToDate(date);
@@ -2107,44 +2054,41 @@ function saveAppt() {
   }
 }
 function loadRescheduleRequests() {
-  const stored = localStorage.getItem(RESCHEDULE_REQUESTS_STORAGE_KEY);
-  if (!stored) {
-    return [];
-  }
-  try {
-    const parsed = JSON.parse(stored);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch (error) {
-    return [];
-  }
+  return Array.isArray(rescheduleRequests) ? rescheduleRequests : [];
 }
 async function saveRescheduleRequests(requests) {
-  localStorage.setItem(
-    RESCHEDULE_REQUESTS_STORAGE_KEY,
-    JSON.stringify(requests),
-  );
+  if (!Array.isArray(requests)) {
+    return false;
+  }
+  if (!window.DentaNuevaAppointmentDatabase?.saveRescheduleRequests) {
+    console.error("Reschedule request database API is unavailable.");
+    return false;
+  }
   try {
-    await window.DentaNuevaAppointmentDatabase?.saveRescheduleRequests(
-      requests,
-    );
+    await window.DentaNuevaAppointmentDatabase.saveRescheduleRequests(requests);
+    rescheduleRequests = requests;
     return true;
   } catch (error) {
-    console.error("Unable to sync reschedule requests:", error);
+    console.error("Unable to save reschedule requests to database:", error);
     return false;
   }
 }
 async function hydrateRescheduleRequestsFromDatabase() {
+  if (!window.DentaNuevaAppointmentDatabase?.loadRescheduleRequests) {
+    console.error("Reschedule request database API is unavailable.");
+    rescheduleRequests = [];
+    renderAll();
+    return;
+  }
   try {
     const requests =
-      await window.DentaNuevaAppointmentDatabase?.loadRescheduleRequests();
-    if (!Array.isArray(requests)) return;
-    localStorage.setItem(
-      RESCHEDULE_REQUESTS_STORAGE_KEY,
-      JSON.stringify(requests),
-    );
+      await window.DentaNuevaAppointmentDatabase.loadRescheduleRequests();
+    rescheduleRequests = Array.isArray(requests) ? requests : [];
     renderAll();
   } catch (error) {
-    console.warn("Database reschedule requests unavailable.", error);
+    console.error("Unable to load reschedule requests from database:", error);
+    rescheduleRequests = [];
+    renderAll();
   }
 }
 function getRescheduleReasonLabel(reason) {
@@ -2409,7 +2353,7 @@ async function submitRescheduleRequest() {
     createdAt: requestRecord.createdAt,
     updatedAt: requestRecord.updatedAt,
   };
-  saveAppointmentsToStorage();
+  saveAppointmentsToDatabase();
   syncAppointmentToPatient(appointment);
   closeRescheduleRequestModal();
   closeModal();
@@ -2526,36 +2470,36 @@ function renderRescheduleRequests() {
     const card = document.createElement("div");
     card.className = "reschedule-request-card";
     card.innerHTML = `
-      <div class="reschedule-request-card-header">
-        <div class="reschedule-request-avatar">${escapeHtml(getInitials(patient))}</div>
-        <div class="reschedule-request-patient">
-          <strong>${escapeHtml(patient)}</strong>
-          <span>${escapeHtml(service)}</span>
+        <div class="reschedule-request-card-header">
+          <div class="reschedule-request-avatar">${escapeHtml(getInitials(patient))}</div>
+          <div class="reschedule-request-patient">
+            <strong>${escapeHtml(patient)}</strong>
+            <span>${escapeHtml(service)}</span>
+          </div>
+          <span class="reschedule-request-status">Pending</span>
         </div>
-        <span class="reschedule-request-status">Pending</span>
-      </div>
-      <div class="reschedule-request-schedule">
-        <div>
-          <span>Current Schedule</span>
-          <strong>${escapeHtml(formatDateLong(currentDate))} · ${escapeHtml(fmtTime(currentTime))}</strong>
+        <div class="reschedule-request-schedule">
+          <div>
+            <span>Current Schedule</span>
+            <strong>${escapeHtml(formatDateLong(currentDate))} · ${escapeHtml(fmtTime(currentTime))}</strong>
+          </div>
+          <i class="fa-solid fa-arrow-right"></i>
+          <div>
+            <span>Requested Schedule</span>
+            <strong>${escapeHtml(formatDateLong(preferredDate))} · ${escapeHtml(fmtTime(preferredTime))}</strong>
+          </div>
         </div>
-        <i class="fa-solid fa-arrow-right"></i>
-        <div>
-          <span>Requested Schedule</span>
-          <strong>${escapeHtml(formatDateLong(preferredDate))} · ${escapeHtml(fmtTime(preferredTime))}</strong>
+        <div class="reschedule-request-meta">
+          <span><strong>Reason:</strong> ${escapeHtml(reason)}</span>
+          <span><strong>Dentist:</strong> ${escapeHtml(dentist)}</span>
+          <span><strong>Approved Reschedules:</strong> ${currentRescheduleCount}/2</span>
         </div>
-      </div>
-      <div class="reschedule-request-meta">
-        <span><strong>Reason:</strong> ${escapeHtml(reason)}</span>
-        <span><strong>Dentist:</strong> ${escapeHtml(dentist)}</span>
-        <span><strong>Approved Reschedules:</strong> ${currentRescheduleCount}/2</span>
-      </div>
-      ${message ? `<div class="reschedule-request-message"><span>Message from Patient</span><p>${escapeHtml(message)}</p></div>` : ""}
-      <div class="reschedule-request-actions">
-        <button type="button" class="reschedule-request-reject"><i class="fa-solid fa-xmark"></i> Reject</button>
-        <button type="button" class="reschedule-request-approve"><i class="fa-solid fa-check"></i> Approve</button>
-      </div>
-    `;
+        ${message ? `<div class="reschedule-request-message"><span>Message from Patient</span><p>${escapeHtml(message)}</p></div>` : ""}
+        <div class="reschedule-request-actions">
+          <button type="button" class="reschedule-request-reject"><i class="fa-solid fa-xmark"></i> Reject</button>
+          <button type="button" class="reschedule-request-approve"><i class="fa-solid fa-check"></i> Approve</button>
+        </div>
+      `;
     const rejectButton = card.querySelector(".reschedule-request-reject");
     const approveButton = card.querySelector(".reschedule-request-approve");
     rejectButton?.addEventListener("click", (event) => {
@@ -2670,10 +2614,6 @@ async function approveRescheduleRequest(requestId, newDate, newTime) {
   }
   if (Array.isArray(savedAppointments)) {
     appointments = savedAppointments.map(normalizeAppointment);
-    localStorage.setItem(
-      APPOINTMENTS_STORAGE_KEY,
-      JSON.stringify(appointments),
-    );
   }
   syncAppointmentToPatient(appointment);
   closeRescheduleReviewModal();
@@ -2726,7 +2666,7 @@ function confirmDeleteAppt() {
   );
   saveRescheduleRequests(requests);
   appointments = appointments.filter((item) => item.id !== deleteTargetId);
-  saveAppointmentsToStorage();
+  saveAppointmentsToDatabase();
   void window.DentaNuevaAppointmentDatabase?.remove(deleteTargetId).catch(
     (error) => {
       console.error("Unable to delete appointment from database:", error);
@@ -2759,7 +2699,7 @@ function checkInAppointment(id) {
   appt.checkedInAt = new Date().toISOString();
   appt.consultationStarted = true;
   appt.manualReadyComplete = false;
-  saveAppointmentsToStorage();
+  saveAppointmentsToDatabase();
   syncAppointmentToPatient(appt);
   renderAll();
   showToast(
@@ -2773,7 +2713,7 @@ function startConsultation(id) {
   }
   appt.checkedIn = true;
   appt.consultationStarted = true;
-  saveAppointmentsToStorage();
+  saveAppointmentsToDatabase();
   syncAppointmentToPatient(appt);
   renderAll();
   showToast(`${appt.patient}'s consultation has started.`);
@@ -2917,7 +2857,7 @@ function confirmStatusAction() {
     appt.status = APPOINTMENT_STATUS.READY_COMPLETE;
     appt.consultationStarted = false;
     appt.manualReadyComplete = true;
-    saveAppointmentsToStorage();
+    saveAppointmentsToDatabase();
     syncAppointmentToPatient(appt);
     closeStatusConfirmation();
     renderAll();
@@ -2935,7 +2875,7 @@ function confirmStatusAction() {
     appt.checkedIn = true;
     appt.consultationStarted = false;
     appt.manualReadyComplete = false;
-    saveAppointmentsToStorage();
+    saveAppointmentsToDatabase();
     syncAppointmentToPatient(appt);
     closeStatusConfirmation();
     renderAll();
@@ -2955,7 +2895,7 @@ function confirmStatusAction() {
     appt.checkedInAt = null;
     appt.consultationStarted = false;
     appt.manualReadyComplete = false;
-    saveAppointmentsToStorage();
+    saveAppointmentsToDatabase();
     syncAppointmentToPatient(appt);
     closeStatusConfirmation();
     renderAll();
@@ -3217,6 +3157,9 @@ function makeDayBtn(date, muted) {
   if (isToday(date)) {
     button.classList.add("today");
   }
+  if (isPastDate(date)) {
+    button.classList.add("past-date");
+  }
   if (appointments.some((appt) => appt.date === key)) {
     button.classList.add("has-appt");
   }
@@ -3336,10 +3279,10 @@ function renderTimeline() {
     const emptyState = document.createElement("div");
     emptyState.className = "schedule-empty-state";
     emptyState.innerHTML = `
-      <i class="fa-regular fa-calendar"></i>
-      <strong>${selectedIsPast ? "No appointment records" : "No patient appointments"}</strong>
-      <span>${selectedIsPast ? "There are no appointment records for this date." : "No appointments scheduled for this date."}</span>
-    `;
+        <i class="fa-regular fa-calendar"></i>
+        <strong>${selectedIsPast ? "No appointment records" : "No patient appointments"}</strong>
+        <span>${selectedIsPast ? "There are no appointment records for this date." : "No appointments scheduled for this date."}</span>
+      `;
     timeline.appendChild(emptyState);
     return;
   }

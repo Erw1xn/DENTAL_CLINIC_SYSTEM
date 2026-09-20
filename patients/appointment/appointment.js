@@ -35,6 +35,7 @@ let doctors = [];
 const CLINIC_SCHEDULE = { startHour: 10, endHour: 20, slotMinutes: 30 };
 let patients = [];
 let appointments = [];
+let rescheduleRequests = [];
 let doctorScheduleAppointments = [];
 let currentPatient = null;
 let currentUser = null;
@@ -49,28 +50,28 @@ let rescheduleDetailsRequestId = null;
 let bookingStep = 1;
 let calendarDate = new Date();
 document.addEventListener("DOMContentLoaded", initializePage);
-function initializePage() {
+async function initializePage() {
   clearAppointmentCaches();
   currentUser = getCurrentUser();
   loadPatients();
-  loadDoctors();
-  renderDentistSelector();
-  loadAppointments();
-  void hydrateRescheduleRequestsFromDatabase();
-  resolveCurrentPatient();
-  void hydrateCurrentPatientFromDatabase();
   normalizeSelectedDate();
   normalizeCalendarDate();
   setupEvents();
   renderAll();
   window.addEventListener("storage", handleStorageChange);
-  setInterval(() => {
+  await loadDoctors();
+  await loadAppointments();
+  await hydrateRescheduleRequestsFromDatabase();
+  resolveCurrentPatient();
+  await hydrateCurrentPatientFromDatabase();
+  setInitialAppointmentDate();
+  renderAll();
+  setInterval(async () => {
     currentUser = getCurrentUser();
     loadPatients();
-    loadDoctors();
-    renderDentistSelector();
-    loadAppointments();
-    void hydrateRescheduleRequestsFromDatabase();
+    await loadDoctors();
+    await loadAppointments();
+    await hydrateRescheduleRequestsFromDatabase();
     resolveCurrentPatient();
     normalizeSelectedDate();
     renderAll();
@@ -262,7 +263,6 @@ function handleStorageChange(event) {
 }
 function renderAll() {
   renderPatientContext();
-  syncApprovedReschedulesToAppointments();
   renderCalendar();
   renderUpcomingAppointment();
   renderRescheduleAlert();
@@ -278,6 +278,38 @@ function normalizeSelectedDate() {
     selectedDate = today;
   }
 }
+function setInitialAppointmentDate() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const upcomingAppointments = getPatientAppointments()
+    .filter((appointment) => {
+      const appointmentDate = getAppointmentDate(appointment);
+      if (!appointmentDate) return false;
+      if (!isActiveAppointment(appointment)) return false;
+      return !isPastDate(appointmentDate);
+    })
+    .sort((a, b) => {
+      const dateA = getAppointmentDate(a);
+      const dateB = getAppointmentDate(b);
+      if (dateA !== dateB) {
+        return dateA.localeCompare(dateB);
+      }
+      return String(getAppointmentTime(a)).localeCompare(
+        String(getAppointmentTime(b)),
+      );
+    });
+  if (!upcomingAppointments.length) {
+    selectedDate = today;
+    calendarDate = new Date(today);
+    calendarDate.setDate(1);
+    return;
+  }
+  const appointmentDate = getAppointmentDate(upcomingAppointments[0]);
+  selectedDate = keyToDate(dateToKey(keyToDate(appointmentDate)));
+  calendarDate = new Date(selectedDate);
+  calendarDate.setDate(1);
+}
+
 function normalizeCalendarDate() {
   if (!(calendarDate instanceof Date) || Number.isNaN(calendarDate.getTime())) {
     calendarDate = new Date();
@@ -615,53 +647,35 @@ function renderDentistSelector() {
 }
 async function loadAppointments() {
   appointments = [];
-  try {
-    const storedAppointments = localStorage.getItem(APPOINTMENTS_STORAGE_KEY);
-    if (storedAppointments) {
-      const parsed = JSON.parse(storedAppointments);
-      if (Array.isArray(parsed)) {
-        appointments = parsed;
-      }
-    }
-  } catch (error) {
-    console.warn("Unable to read stored appointments.", error);
-  }
-  if (window.DentaNuevaAppointmentDatabase)
-    await hydrateAppointmentsFromDatabase();
+  await hydrateAppointmentsFromDatabase();
   return appointments;
 }
 async function hydrateAppointmentsFromDatabase() {
-  if (!window.DentaNuevaAppointmentDatabase) return;
+  if (!window.DentaNuevaAppointmentDatabase) {
+    console.error("Appointment database module is unavailable.");
+    return;
+  }
   try {
     const remoteAppointments =
       await window.DentaNuevaAppointmentDatabase.load();
-    const remote = Array.isArray(remoteAppointments) ? remoteAppointments : [];
-    appointments = remote;
-    localStorage.setItem(APPOINTMENTS_STORAGE_KEY, JSON.stringify(remote));
+    appointments = Array.isArray(remoteAppointments) ? remoteAppointments : [];
     renderAll();
   } catch (error) {
-    console.warn(
-      "Database appointments unavailable; using local records.",
-      error,
-    );
+    console.error("Unable to load appointments from database.", error);
+    appointments = [];
   }
 }
 async function saveAppointments() {
   try {
     const payload = Array.isArray(appointments) ? appointments : [];
-    appointments = payload;
-    localStorage.setItem(APPOINTMENTS_STORAGE_KEY, JSON.stringify(payload));
-    if (window.DentaNuevaAppointmentDatabase) {
-      const savedAppointments =
-        await window.DentaNuevaAppointmentDatabase.save(payload);
-      if (Array.isArray(savedAppointments)) {
-        appointments = savedAppointments;
-        localStorage.setItem(
-          APPOINTMENTS_STORAGE_KEY,
-          JSON.stringify(savedAppointments),
-        );
-      }
+    if (!window.DentaNuevaAppointmentDatabase) {
+      throw new Error("Appointment database module is unavailable.");
     }
+    const savedAppointments =
+      await window.DentaNuevaAppointmentDatabase.save(payload);
+    appointments = Array.isArray(savedAppointments)
+      ? savedAppointments
+      : payload;
     return true;
   } catch (error) {
     console.error("Unable to save appointments:", error);
@@ -767,7 +781,6 @@ function resolveCurrentPatient() {
       currentUser.patientId = resolvedPatientId;
       currentUser.patient_id = resolvedPatientId;
       sessionStorage.setItem(CURRENT_USER_KEY, JSON.stringify(currentUser));
-      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(currentUser));
     }
   }
 }
@@ -1008,13 +1021,13 @@ function renderUpcomingAppointment() {
 
   if (!appointment) {
     container.innerHTML = `
-<div class="empty-upcoming">
-<div class="empty-upcoming-icon">
-<i class="fa-regular fa-calendar-xmark"></i>
-</div>
-<p>No appointment recorded on this date.</p>
-</div>
-`;
+  <div class="empty-upcoming">
+  <div class="empty-upcoming-icon">
+  <i class="fa-regular fa-calendar-xmark"></i>
+  </div>
+  <p>No appointment recorded on this date.</p>
+  </div>
+  `;
     return;
   }
   const date = getAppointmentDate(appointment);
@@ -1032,42 +1045,42 @@ function renderUpcomingAppointment() {
   const statusLabel = getPatientStatusLabel(rawStatus, date);
   const statusClass = getStatusClass(rawStatus);
   container.innerHTML = `
-<div class="upcoming-card-content">
-<div>
-<div class="upcoming-patient-avatar">${escapeHtml(initials.toUpperCase())}</div>
-<div class="upcoming-patient-info">
-<strong>${escapeHtml(patientName)}</strong>
-<span>${escapeHtml(service)} • ${escapeHtml(dentist)}</span>
-<span class="detail-status ${statusClass}">${escapeHtml(statusLabel)}</span>
-</div>
-</div>
-<div class="upcoming-schedule">
-<div class="upcoming-date">
-<span class="upcoming-schedule-label">Appointment Date</span>
-<strong>${escapeHtml(formatDate(date))}</strong>
-</div>
-<div class="upcoming-time-range">
-<div>
-<span class="upcoming-schedule-label">Start Time</span>
-<strong>${escapeHtml(formatTime(time))}</strong>
-</div>
-<div class="upcoming-time-arrow">
-<i class="fa-solid fa-arrow-right"></i>
-</div>
-<div>
-<span class="upcoming-schedule-label">End Time</span>
-<strong>${escapeHtml(endTime)}</strong>
-</div>
-</div>
-</div>
-<div class="upcoming-divider"></div>
-<div class="upcoming-actions">
-<button type="button" class="btn-secondary" data-appointment-action="details" data-appointment-id="${escapeHtml(getAppointmentId(appointment))}">
-View Details
-</button>
-</div>
-</div>
-`;
+  <div class="upcoming-card-content">
+  <div>
+  <div class="upcoming-patient-avatar">${escapeHtml(initials.toUpperCase())}</div>
+  <div class="upcoming-patient-info">
+  <strong>${escapeHtml(patientName)}</strong>
+  <span>${escapeHtml(service)} • ${escapeHtml(dentist)}</span>
+  <span class="detail-status ${statusClass}">${escapeHtml(statusLabel)}</span>
+  </div>
+  </div>
+  <div class="upcoming-schedule">
+  <div class="upcoming-date">
+  <span class="upcoming-schedule-label">Appointment Date</span>
+  <strong>${escapeHtml(formatDate(date))}</strong>
+  </div>
+  <div class="upcoming-time-range">
+  <div>
+  <span class="upcoming-schedule-label">Start Time</span>
+  <strong>${escapeHtml(formatTime(time))}</strong>
+  </div>
+  <div class="upcoming-time-arrow">
+  <i class="fa-solid fa-arrow-right"></i>
+  </div>
+  <div>
+  <span class="upcoming-schedule-label">End Time</span>
+  <strong>${escapeHtml(endTime)}</strong>
+  </div>
+  </div>
+  </div>
+  <div class="upcoming-divider"></div>
+  <div class="upcoming-actions">
+  <button type="button" class="btn-secondary" data-appointment-action="details" data-appointment-id="${escapeHtml(getAppointmentId(appointment))}">
+  View Details
+  </button>
+  </div>
+  </div>
+  `;
 }
 function updateServiceDurationInfo() {
   const info = document.getElementById("serviceDurationInfo");
@@ -2073,7 +2086,6 @@ function saveMedicalRecordEditor() {
   } else {
     patients.push(currentPatient);
   }
-  localStorage.setItem(PATIENTS_STORAGE_KEY, JSON.stringify(patients));
   updateMedicalRecordSummary();
   closeMedicalRecordEditor();
   showToast("Medical record updated successfully.");
@@ -2241,7 +2253,6 @@ async function confirmBooking() {
     ? patient.appointments
     : [];
   currentPatient = patient;
-  localStorage.setItem(PATIENTS_STORAGE_KEY, JSON.stringify(patients));
   const appointment = {
     id: `appt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
     patientId,
@@ -2310,7 +2321,6 @@ function syncAppointmentToPatient(appointment) {
     return { ...patient, appointments: updatedAppointments };
   });
   patients = updatedPatients;
-  localStorage.setItem(PATIENTS_STORAGE_KEY, JSON.stringify(patients));
 }
 function handleDocumentClick(event) {
   const serviceWrapper = document.getElementById("serviceSelectWrapper");
@@ -2350,35 +2360,35 @@ function openAppointmentDetail(appointmentId) {
   if (subtitle)
     subtitle.textContent = `${formatShortDate(date)} · ${formatTime(time)}`;
   body.innerHTML = `
-<div class="detail-grid">
-<div class="detail-card full">
-<span>Service</span>
-<strong>${escapeHtml(service)}</strong>
-</div>
-<div class="detail-card">
-<span>Date</span>
-<strong>${escapeHtml(formatDate(date))}</strong>
-</div>
-<div class="detail-card">
-<span>Time</span>
-<strong>${escapeHtml(formatTime(time))}</strong>
-</div>
-<div class="detail-card">
-<span>Dentist</span>
-<strong>${escapeHtml(dentist)}</strong>
-</div>
-<div class="detail-card">
-<span>Duration</span>
-<strong>${duration ? `${duration} minutes` : "Not specified"}</strong>
-</div>
-<div class="detail-card full">
-<span>Status</span>
-<strong>
-<span class="detail-status ${getStatusClass(status)}">${escapeHtml(getPatientStatusLabel(status, date))}</span>
-</strong>
-</div>
-</div>
-`;
+  <div class="detail-grid">
+  <div class="detail-card full">
+  <span>Service</span>
+  <strong>${escapeHtml(service)}</strong>
+  </div>
+  <div class="detail-card">
+  <span>Date</span>
+  <strong>${escapeHtml(formatDate(date))}</strong>
+  </div>
+  <div class="detail-card">
+  <span>Time</span>
+  <strong>${escapeHtml(formatTime(time))}</strong>
+  </div>
+  <div class="detail-card">
+  <span>Dentist</span>
+  <strong>${escapeHtml(dentist)}</strong>
+  </div>
+  <div class="detail-card">
+  <span>Duration</span>
+  <strong>${duration ? `${duration} minutes` : "Not specified"}</strong>
+  </div>
+  <div class="detail-card full">
+  <span>Status</span>
+  <strong>
+  <span class="detail-status ${getStatusClass(status)}">${escapeHtml(getPatientStatusLabel(status, date))}</span>
+  </strong>
+  </div>
+  </div>
+  `;
   const requestButton = document.getElementById("requestRescheduleBtn");
   const cancelButton = document.getElementById("cancelAppointmentBtn");
   const deleteButton = document.getElementById("deleteAppointmentBtn");
@@ -2497,7 +2507,6 @@ function confirmCancelAppointment() {
         ? currentPatient
         : patient;
     });
-    localStorage.setItem(PATIENTS_STORAGE_KEY, JSON.stringify(patients));
   }
   const requests = loadRescheduleRequests();
   const remainingRequests = requests.filter(
@@ -2505,10 +2514,7 @@ function confirmCancelAppointment() {
       String(request?.appointment_id || request?.appointmentId || "") !==
       appointmentId,
   );
-  localStorage.setItem(
-    RESCHEDULE_REQUESTS_STORAGE_KEY,
-    JSON.stringify(remainingRequests),
-  );
+
   detailAppointmentId = null;
   closeCancelAppointmentConfirmation();
   closeAppointmentDetail();
@@ -2555,7 +2561,6 @@ function deleteAppointment() {
         ? currentPatient
         : patient;
     });
-    localStorage.setItem(PATIENTS_STORAGE_KEY, JSON.stringify(patients));
   }
 
   const remainingRequests = loadRescheduleRequests().filter(
@@ -2563,10 +2568,7 @@ function deleteAppointment() {
       String(request?.appointment_id || request?.appointmentId || "") !==
       appointmentId,
   );
-  localStorage.setItem(
-    RESCHEDULE_REQUESTS_STORAGE_KEY,
-    JSON.stringify(remainingRequests),
-  );
+
   detailAppointmentId = null;
   closeAppointmentDetail();
   renderAll();
@@ -2600,9 +2602,9 @@ function openRescheduleRequestModal() {
   const requestDate = document.getElementById("requestDate");
   if (!modal || !current) return;
   current.innerHTML = `
-<strong>${escapeHtml(getAppointmentService(appointment))}</strong>
-<span>${escapeHtml(formatDate(getAppointmentDate(appointment)))} · ${escapeHtml(formatTime(getAppointmentTime(appointment)))} · ${escapeHtml(getDentistName(appointment))}</span>
-`;
+  <strong>${escapeHtml(getAppointmentService(appointment))}</strong>
+  <span>${escapeHtml(formatDate(getAppointmentDate(appointment)))} · ${escapeHtml(formatTime(getAppointmentTime(appointment)))} · ${escapeHtml(getDentistName(appointment))}</span>
+  `;
   if (requestDate) {
     requestDate.min = dateToKey(new Date());
     requestDate.value = "";
@@ -2755,6 +2757,7 @@ async function sendRescheduleRequest() {
   const history = Array.isArray(refreshedAppointment.rescheduleHistory)
     ? refreshedAppointment.rescheduleHistory
     : [];
+
   history.push({
     oldDate: getAppointmentDate(refreshedAppointment),
     oldTime: getAppointmentTime(refreshedAppointment),
@@ -2763,6 +2766,7 @@ async function sendRescheduleRequest() {
     requestedBy: "patient",
     changedAt: now,
   });
+
   refreshedAppointment.date = preferredDate;
   refreshedAppointment.appointment_date = preferredDate;
   refreshedAppointment.appointmentDate = preferredDate;
@@ -2776,7 +2780,9 @@ async function sendRescheduleRequest() {
   refreshedAppointment.approvedRescheduleCount = nextCount;
   refreshedAppointment.rescheduleHistory = history;
   refreshedAppointment.reschedule_history = history;
+
   let savedAppointments;
+
   try {
     savedAppointments =
       await window.DentaNuevaAppointmentDatabase.reschedule(
@@ -2787,15 +2793,15 @@ async function sendRescheduleRequest() {
     showToast("Unable to reschedule the appointment. Please try again.");
     return;
   }
+
   if (Array.isArray(savedAppointments)) {
     appointments = savedAppointments;
-    localStorage.setItem(
-      APPOINTMENTS_STORAGE_KEY,
-      JSON.stringify(savedAppointments),
-    );
   }
+
   await hydrateAppointmentsFromDatabase();
+
   const persistedAppointment = findAppointmentById(requestAppointmentId);
+
   if (
     !persistedAppointment ||
     getAppointmentDate(persistedAppointment) !== preferredDate ||
@@ -2805,12 +2811,14 @@ async function sendRescheduleRequest() {
     showToast("The new schedule was not confirmed by the database.");
     return;
   }
+
   closeRescheduleRequestModal();
+
   selectedDate = keyToDate(preferredDate);
   calendarDate = new Date(selectedDate);
   calendarDate.setDate(1);
+
   renderAll();
-  showToast("Appointment rescheduled successfully.");
 }
 function openStaffRescheduleModal(request) {
   staffRequestTargetId = request?.id || request?.request_id || null;
@@ -2837,9 +2845,9 @@ function openStaffRescheduleModal(request) {
     request?.currentTime ||
     (appointment ? getAppointmentTime(appointment) : "");
   current.innerHTML = `
-<strong>${escapeHtml(serviceName)}</strong>
-<span>${escapeHtml(formatDate(currentDate))} · ${escapeHtml(formatTime(currentTime))} · ${escapeHtml(dentistName)}</span>
-`;
+  <strong>${escapeHtml(serviceName)}</strong>
+  <span>${escapeHtml(formatDate(currentDate))} · ${escapeHtml(formatTime(currentTime))} · ${escapeHtml(dentistName)}</span>
+  `;
   if (reasonInput)
     reasonInput.value = request?.reasonLabel || request?.reason || "";
   if (messageInput) messageInput.value = request?.message || "";
@@ -3100,10 +3108,6 @@ async function confirmStaffRescheduleResponse() {
   }
   if (Array.isArray(savedAppointments)) {
     appointments = savedAppointments;
-    localStorage.setItem(
-      APPOINTMENTS_STORAGE_KEY,
-      JSON.stringify(savedAppointments),
-    );
   }
   syncAppointmentToPatient(appointment);
   closeStaffRescheduleModal();
@@ -3115,44 +3119,40 @@ async function confirmStaffRescheduleResponse() {
   }, 50);
 }
 function loadRescheduleRequests() {
-  const stored = localStorage.getItem(RESCHEDULE_REQUESTS_STORAGE_KEY);
-  if (!stored) {
-    return [];
-  }
-  try {
-    const parsed = JSON.parse(stored);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
+  return Array.isArray(rescheduleRequests) ? rescheduleRequests : [];
 }
 async function saveRescheduleRequests(requests) {
-  localStorage.setItem(
-    RESCHEDULE_REQUESTS_STORAGE_KEY,
-    JSON.stringify(requests),
-  );
   try {
-    await window.DentaNuevaAppointmentDatabase?.saveRescheduleRequests(
-      requests,
-    );
+    if (!window.DentaNuevaAppointmentDatabase) {
+      throw new Error("Appointment database module is unavailable.");
+    }
+    const savedRequests =
+      await window.DentaNuevaAppointmentDatabase.saveRescheduleRequests(
+        Array.isArray(requests) ? requests : [],
+      );
+    rescheduleRequests = Array.isArray(savedRequests)
+      ? savedRequests
+      : Array.isArray(requests)
+        ? requests
+        : [];
     return true;
   } catch (error) {
-    console.error("Unable to sync reschedule requests:", error);
+    console.error("Unable to save reschedule requests:", error);
     return false;
   }
 }
 async function hydrateRescheduleRequestsFromDatabase() {
   try {
+    if (!window.DentaNuevaAppointmentDatabase) {
+      throw new Error("Appointment database module is unavailable.");
+    }
     const requests =
-      await window.DentaNuevaAppointmentDatabase?.loadRescheduleRequests();
-    if (!Array.isArray(requests)) return;
-    localStorage.setItem(
-      RESCHEDULE_REQUESTS_STORAGE_KEY,
-      JSON.stringify(requests),
-    );
+      await window.DentaNuevaAppointmentDatabase.loadRescheduleRequests();
+    rescheduleRequests = Array.isArray(requests) ? requests : [];
     renderAll();
   } catch (error) {
-    console.warn("Database reschedule requests unavailable.", error);
+    console.error("Unable to load reschedule requests from database.", error);
+    rescheduleRequests = [];
   }
 }
 function renderRescheduleAlert() {
@@ -3359,37 +3359,37 @@ function handleRescheduleAlert() {
   statusElement.className = `reschedule-details-status ${status}`;
   statusElement.textContent = statusLabel;
   content.innerHTML = `
-    <div class="reschedule-detail-item">
-      <span>Reason</span>
-      <strong>${escapeHtml(latest?.reasonLabel || latest?.reason || "Reschedule Request")}</strong>
-    </div>
-    <div class="reschedule-detail-item">
-      <span>Service</span>
-      <strong>${escapeHtml(service)}</strong>
-    </div>
-    <div class="reschedule-detail-item full">
-      <span>Current Appointment</span>
-      <strong>${escapeHtml(formatDate(currentDate))} · ${escapeHtml(formatTime(currentTime))} · ${escapeHtml(dentist)}</strong>
-    </div>
-    <div class="reschedule-detail-item full">
-      <span>Requested New Schedule</span>
-      <strong>${preferredDate && preferredTime ? `${escapeHtml(formatDate(preferredDate))} · ${escapeHtml(formatTime(preferredTime))}` : "No preferred schedule provided"}</strong>
-    </div>
-    ${
-      status === "approved" && approvedDate && approvedTime
-        ? `
-    <div class="reschedule-detail-item full">
-      <span>Approved Schedule</span>
-      <strong>${escapeHtml(formatDate(approvedDate))} · ${escapeHtml(formatTime(approvedTime))}</strong>
-    </div>
-    `
-        : ""
-    }
-    <div class="reschedule-detail-item full">
-      <span>Message to Clinic</span>
-      <p>${escapeHtml(latest?.message || "No message provided.")}</p>
-    </div>
-  `;
+      <div class="reschedule-detail-item">
+        <span>Reason</span>
+        <strong>${escapeHtml(latest?.reasonLabel || latest?.reason || "Reschedule Request")}</strong>
+      </div>
+      <div class="reschedule-detail-item">
+        <span>Service</span>
+        <strong>${escapeHtml(service)}</strong>
+      </div>
+      <div class="reschedule-detail-item full">
+        <span>Current Appointment</span>
+        <strong>${escapeHtml(formatDate(currentDate))} · ${escapeHtml(formatTime(currentTime))} · ${escapeHtml(dentist)}</strong>
+      </div>
+      <div class="reschedule-detail-item full">
+        <span>Requested New Schedule</span>
+        <strong>${preferredDate && preferredTime ? `${escapeHtml(formatDate(preferredDate))} · ${escapeHtml(formatTime(preferredTime))}` : "No preferred schedule provided"}</strong>
+      </div>
+      ${
+        status === "approved" && approvedDate && approvedTime
+          ? `
+      <div class="reschedule-detail-item full">
+        <span>Approved Schedule</span>
+        <strong>${escapeHtml(formatDate(approvedDate))} · ${escapeHtml(formatTime(approvedTime))}</strong>
+      </div>
+      `
+          : ""
+      }
+      <div class="reschedule-detail-item full">
+        <span>Message to Clinic</span>
+        <p>${escapeHtml(latest?.message || "No message provided.")}</p>
+      </div>
+    `;
   rescheduleDetailsRequestId = latest?.id || latest?.request_id || null;
   const confirmButton = document.getElementById("confirmRescheduleDetails");
   if (confirmButton) {
@@ -3419,23 +3419,6 @@ async function confirmRescheduleDetails() {
     closeRescheduleDetailsModal();
     renderRescheduleAlert();
     return;
-  }
-  const approvedDate = request?.approved_date || request?.approvedDate || "";
-  const approvedTime = request?.approved_time || request?.approvedTime || "";
-  const appointment = findAppointmentById(
-    request?.appointment_id || request?.appointmentId,
-  );
-  if (appointment && approvedDate && approvedTime) {
-    appointment.date = approvedDate;
-    appointment.appointment_date = approvedDate;
-    appointment.appointmentDate = approvedDate;
-    appointment.start = approvedTime;
-    appointment.time = approvedTime;
-    appointment.appointment_time = approvedTime;
-    appointment.appointmentTime = approvedTime;
-    appointment.status = "Scheduled";
-    saveAppointments();
-    syncAppointmentToPatient(appointment);
   }
   requests[index] = {
     ...request,
@@ -3468,53 +3451,6 @@ function closeRescheduleDetailsModal() {
     confirmButton.style.display = "none";
   }
   document.body.style.overflow = "";
-}
-function syncApprovedReschedulesToAppointments() {
-  const requests = loadRescheduleRequests();
-  let changed = false;
-  requests.forEach((request) => {
-    if (normalizeStatus(request?.status || "") !== "approved") return;
-    const approvedDate = request?.approved_date || request?.approvedDate || "";
-    const approvedTime = request?.approved_time || request?.approvedTime || "";
-    const appointmentId =
-      request?.appointment_id || request?.appointmentId || "";
-    if (!approvedDate || !approvedTime || !appointmentId) return;
-    const appointment = findAppointmentById(appointmentId);
-    if (!appointment) return;
-    const approvedCount = requests.filter((item) => {
-      const itemStatus = String(item?.status || "")
-        .trim()
-        .toLowerCase();
-      const itemAppointmentId =
-        item?.appointment_id || item?.appointmentId || "";
-      return (
-        itemStatus === "approved" &&
-        String(itemAppointmentId) === String(appointmentId)
-      );
-    }).length;
-    appointment.approvedRescheduleCount = approvedCount;
-    appointment.rescheduleCount = approvedCount;
-    appointment.reschedule_count = approvedCount;
-    if (
-      appointment.date !== approvedDate ||
-      appointment.appointment_date !== approvedDate ||
-      appointment.appointmentDate !== approvedDate ||
-      appointment.start !== approvedTime ||
-      appointment.time !== approvedTime ||
-      appointment.appointment_time !== approvedTime ||
-      appointment.appointmentTime !== approvedTime
-    ) {
-      appointment.date = approvedDate;
-      appointment.appointment_date = approvedDate;
-      appointment.appointmentDate = approvedDate;
-      appointment.start = approvedTime;
-      appointment.time = approvedTime;
-      appointment.appointment_time = approvedTime;
-      appointment.appointmentTime = approvedTime;
-      changed = true;
-    }
-  });
-  if (changed) saveAppointments();
 }
 function findAppointmentById(id) {
   if (!id) return null;

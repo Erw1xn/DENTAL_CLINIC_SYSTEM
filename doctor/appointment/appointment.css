@@ -303,7 +303,7 @@ select:focus-visible {
 .day.muted {
   color: #c6cfca;
 }
-.day.past:not(.selected) {
+.day.past-date {
   color: #aab4ae;
 }
 .day.today {
@@ -315,6 +315,11 @@ select:focus-visible {
   color: #fff !important;
   font-weight: 700;
   box-shadow: 0 3px 8px rgba(23, 107, 56, 0.16);
+}
+.day.selected.past-date {
+  background: #e8ece9 !important;
+  color: #9fa8a3 !important;
+  box-shadow: none;
 }
 .day.has-appt::after {
   content: "";
