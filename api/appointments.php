@@ -6,7 +6,6 @@ header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 
 require_once __DIR__ . '/../php/db_connect.php';
-require_once __DIR__ . '/../php/mailer.php';
 
 function appointmentResponse(bool $success, string $message = '', $data = null, int $status = 200): void
 {
@@ -57,78 +56,6 @@ function appointmentDoctorUserId(mysqli $conn, string $value): ?int
     $row = $stmt->get_result()->fetch_assoc();
     $stmt->close();
     return $row ? (int) $row['user_id'] : null;
-}
-
-function queueAppointmentEmail(mysqli $conn, int $appointmentId, string $patientId, string $date, string $time, string $service, string $status): int
-{
-    $patientStmt = $conn->prepare('SELECT first_name, last_name, email FROM tbl_patients WHERE patient_id = ? LIMIT 1');
-    $patientStmt->bind_param('s', $patientId);
-    $patientStmt->execute();
-    $patient = $patientStmt->get_result()->fetch_assoc();
-    $patientStmt->close();
-    if (!$patient) {
-        return 0;
-    }
-
-    $externalId = 'appointment-' . $appointmentId . '-confirmation';
-    $recipient = trim((string) ($patient['email'] ?? ''));
-    $patientName = trim(($patient['first_name'] ?? '') . ' ' . ($patient['last_name'] ?? ''));
-    $subject = 'Appointment Confirmation - DentaNueva Dental Clinic';
-    $message = "Hello {$patientName},\n\nYour dental appointment has been booked successfully.\n\nService: {$service}\nDate: {$date}\nTime: {$time}\nStatus: {$status}\n\nThank you,\nDentaNueva Dental Clinic";
-    $notificationType = 'Appointment Confirmation';
-    $source = 'appointment';
-    $notificationStatus = 'Pending';
-    $stmt = $conn->prepare("INSERT INTO tbl_notifications (external_id, patient_id, appointment_id, notification_type, channel, recipient, subject, message, appointment_date, appointment_time, source, status) VALUES (?, ?, ?, ?, 'Email', ?, ?, ?, NULLIF(?, ''), NULLIF(?, ''), ?, ?) ON DUPLICATE KEY UPDATE recipient = VALUES(recipient), subject = VALUES(subject), message = VALUES(message), appointment_date = VALUES(appointment_date), appointment_time = VALUES(appointment_time), status = IF(status = 'Sent', status, 'Pending'), failed_at = IF(status = 'Sent', failed_at, NULL), failure_reason = IF(status = 'Sent', failure_reason, NULL)");
-    if (!$stmt) {
-        throw new RuntimeException('Notification query could not be prepared: ' . $conn->error);
-    }
-    $stmt->bind_param('ssissssssss', $externalId, $patientId, $appointmentId, $notificationType, $recipient, $subject, $message, $date, $time, $source, $notificationStatus);
-    if (!$stmt->execute()) {
-        $error = $stmt->error;
-        $stmt->close();
-        throw new RuntimeException('Appointment notification could not be saved: ' . $error);
-    }
-    $stmt->close();
-
-    $lookup = $conn->prepare('SELECT notification_id FROM tbl_notifications WHERE external_id = ? LIMIT 1');
-    $lookup->bind_param('s', $externalId);
-    $lookup->execute();
-    $row = $lookup->get_result()->fetch_assoc();
-    $lookup->close();
-    return $row ? (int) $row['notification_id'] : 0;
-}
-
-function deliverAppointmentEmail(mysqli $conn, int $notificationId): bool
-{
-    $stmt = $conn->prepare('SELECT recipient, subject, message FROM tbl_notifications WHERE notification_id = ? LIMIT 1');
-    $stmt->bind_param('i', $notificationId);
-    $stmt->execute();
-    $notification = $stmt->get_result()->fetch_assoc();
-    $stmt->close();
-    if (!$notification) {
-        return false;
-    }
-
-    try {
-        if (trim((string) $notification['recipient']) === '') {
-            throw new RuntimeException('No email is available for this patient.');
-        }
-        sendAppointmentEmail((string) $notification['recipient'], (string) $notification['subject'], (string) $notification['message']);
-        $status = 'Sent';
-        $update = $conn->prepare("UPDATE tbl_notifications SET status = ?, sent_at = NOW(), failed_at = NULL, failure_reason = NULL WHERE notification_id = ?");
-        $update->bind_param('si', $status, $notificationId);
-        $update->execute();
-        $update->close();
-        return true;
-    } catch (Throwable $exception) {
-        $status = 'Failed';
-        $reason = $exception->getMessage();
-        $update = $conn->prepare("UPDATE tbl_notifications SET status = ?, failed_at = NOW(), failure_reason = ? WHERE notification_id = ?");
-        $update->bind_param('ssi', $status, $reason, $notificationId);
-        $update->execute();
-        $update->close();
-        return false;
-    }
 }
 
 function appointmentPayload(array $row): array
@@ -376,7 +303,6 @@ if (!is_array($records) || isset($records['id']) || isset($records['appointmentI
 }
 
 $conn->begin_transaction();
-$queuedNotificationIds = [];
 try {
     foreach ($records as $appointment) {
         if (!is_array($appointment)) {
@@ -417,31 +343,11 @@ try {
             throw new RuntimeException('Appointment could not be saved: ' . $error);
         }
         $stmt->close();
-
-        $databaseAppointmentId = 0;
-        $lookup = $conn->prepare('SELECT appointment_id FROM tbl_patient_appointments WHERE appointment_uid = ? LIMIT 1');
-        $lookup->bind_param('s', $appointmentId);
-        $lookup->execute();
-        $savedAppointment = $lookup->get_result()->fetch_assoc();
-        $lookup->close();
-        if ($savedAppointment) {
-            $databaseAppointmentId = (int) $savedAppointment['appointment_id'];
-        }
-        if ($databaseAppointmentId > 0) {
-            $notificationId = queueAppointmentEmail($conn, $databaseAppointmentId, $patientId, $date, $time, $service, $status);
-            if ($notificationId > 0) {
-                $queuedNotificationIds[] = $notificationId;
-            }
-        }
     }
     $conn->commit();
 } catch (Throwable $exception) {
     $conn->rollback();
     appointmentResponse(false, $exception->getMessage(), null, 500);
-}
-
-foreach (array_unique($queuedNotificationIds) as $notificationId) {
-    deliverAppointmentEmail($conn, (int) $notificationId);
 }
 
 $savedPatientId = '';
