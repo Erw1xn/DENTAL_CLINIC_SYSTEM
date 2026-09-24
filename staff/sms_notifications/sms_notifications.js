@@ -293,9 +293,10 @@ function getAppointmentStatus(appointment) {
 }
 function getAppointmentId(appointment) {
   return (
+    appointment?.databaseAppointmentId ||
+    appointment?.appointment_id ||
     appointment?.id ||
     appointment?.appointmentId ||
-    appointment?.appointment_id ||
     appointment?.referenceId ||
     ""
   );
