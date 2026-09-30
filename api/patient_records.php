@@ -77,6 +77,25 @@ function decodeJsonValue(?string $value): array
     $decoded = json_decode((string) $value, true);
     return is_array($decoded) ? $decoded : [];
 }
+function normalizePhilippinePhone(string $phone): string
+{
+    $phone = trim($phone);
+    if ($phone === '') {
+        return '';
+    }
+    $phone = preg_replace('/[\s\-\(\)]/', '', $phone);
+    if (str_starts_with($phone, '+63')) {
+        return '+63' . substr(preg_replace('/\D/', '', substr($phone, 3)), 0);
+    }
+    $digits = preg_replace('/\D/', '', $phone);
+    if (str_starts_with($digits, '09') && strlen($digits) === 11) {
+        return '+63' . substr($digits, 1);
+    }
+    if (str_starts_with($digits, '63') && strlen($digits) === 12) {
+        return '+' . $digits;
+    }
+    return $phone;
+}
 
 function patientPayload(mysqli $conn, string $patientId): ?array
 {
@@ -283,11 +302,11 @@ try {
         $lastName = trim((string) ($patient['lastName'] ?? $patient['lastname'] ?? ''));
         $dateOfBirth = (string) ($patient['dateOfBirth'] ?? '');
         $gender = (string) ($patient['gender'] ?? $patient['patientGender'] ?? '');
-        $phone = (string) ($patient['phone'] ?? '');
+        $phone = normalizePhilippinePhone((string) ($patient['phone'] ?? ''));
         $email = (string) ($patient['email'] ?? '');
         $address = (string) ($patient['address'] ?? '');
         $emergencyName = (string) ($patient['emergencyName'] ?? '');
-        $emergencyContact = (string) ($patient['emergencyContact'] ?? '');
+        $emergencyContact = normalizePhilippinePhone((string) ($patient['emergencyContact'] ?? ''));
         $patientType = $role === 'user' ? 'registered' : 'walk_in';
         $stmt = $conn->prepare('INSERT IGNORE INTO tbl_patients (patient_id, first_name, last_name, date_of_birth, gender, phone, email, address, emergency_name, emergency_contact, patient_type, created_by) VALUES (?, ?, ?, NULLIF(?, ""), ?, ?, ?, ?, ?, ?, ?, ?)');
         $stmt->bind_param('sssssssssssi', $patientId, $firstName, $lastName, $dateOfBirth, $gender, $phone, $email, $address, $emergencyName, $emergencyContact, $patientType, $userId);

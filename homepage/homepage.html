@@ -7,29 +7,32 @@
       name="description"
       content="DentaNueva Dental Clinic - Quality dental care, online appointment scheduling, patient records, payments, and notifications."
     />
+    <meta name="theme-color" content="#073b2c" />
     <title>DentaNueva - Dental Clinic</title>
-
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='24' fill='%23073b2c'/%3E%3Ctext x='50' y='68' font-size='56' text-anchor='middle'%3E%F0%9F%A6%B7%3C/text%3E%3C/svg%3E"
+    />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-
     <link
       href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
     />
-
     <link rel="stylesheet" href="homepage.css" />
+    <script>
+      document.documentElement.classList.add("js");
+    </script>
   </head>
-
   <body>
     <a href="#main-content" class="skip-link">Skip to main content</a>
-
     <div class="nav-overlay" id="navOverlay"></div>
 
+    <!-- NAVBAR -->
     <header class="home-navbar" id="homeNavbar">
       <a
         href="#home"
@@ -37,12 +40,14 @@
         id="navBrand"
         aria-label="DentaNueva Dental Clinic home"
       >
-        <div class="brand-text-col">
+        <span class="brand-logo"
+          ><i class="fa-solid fa-tooth" aria-hidden="true"></i
+        ></span>
+        <span class="brand-text-col">
           <span class="brand-name">DentaNueva</span>
           <small class="brand-sub">Dental Clinic</small>
-        </div>
+        </span>
       </a>
-
       <div class="nav-menu-wrapper" id="navMenuWrapper">
         <nav class="nav-links" aria-label="Primary">
           <a href="#home" class="nav-link active">Home</a>
@@ -50,14 +55,12 @@
           <a href="#about" class="nav-link">About us</a>
           <a href="#location" class="nav-link">Contact</a>
         </nav>
-
         <div class="nav-action-btn-box">
           <a href="../login/login.html" id="openLoginBtn" class="btn-signin">
             Log In
           </a>
         </div>
       </div>
-
       <button
         class="nav-toggle-btn"
         id="navToggleBtn"
@@ -72,840 +75,581 @@
 
     <div class="page-blur-wrapper" id="pageBlurWrapper">
       <main id="main-content">
+        <!-- HERO -->
         <section id="home" class="hero-section">
-          <div class="hero-text-content">
-            <span class="hero-eyebrow">
-              <i class="fa-solid fa-tooth" aria-hidden="true"></i>
-              YOUR SMILE, OUR PRIORITY
-            </span>
-
-            <h1 class="hero-title">
-              YOUR HEALTHY SMILE
-              <span>IS OUR PRIORITY!</span>
-            </h1>
-
-            <p class="hero-desc">
-              We are committed to providing quality dental care in a comfortable
-              and friendly environment. Book your appointment, receive updates,
-              and keep track of your dental care with DentaNueva.
-            </p>
-
-            <div class="hero-actions">
-              <a
-                href="../login/login.html"
-                id="openAppointmentBtn"
-                class="hero-primary-btn"
+          <div class="hero-panel">
+            <div class="hero-text-content">
+              <span class="hero-eyebrow"
+                ><i class="fa-solid fa-tooth" aria-hidden="true"></i> YOUR
+                SMILE, OUR PRIORITY</span
               >
-                Book an Appointment
-                <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
-              </a>
-
-              <a href="#services" class="hero-secondary-btn"> View Services </a>
+              <h1 class="hero-title">
+                Healthy smiles, <span>made simple.</span>
+              </h1>
+              <p class="hero-desc">
+                Quality dental care in a comfortable and friendly environment.
+                Book your appointment, receive updates, and keep track of your
+                dental care with DentaNueva.
+              </p>
+              <div class="hero-actions">
+                <a
+                  href="../login/login.html"
+                  id="openAppointmentBtn"
+                  class="hero-primary-btn"
+                >
+                  Book an Appointment
+                </a>
+                <a href="#services" class="hero-secondary-btn">View Services</a>
+              </div>
+              <div class="hero-mini-features">
+                <span
+                  ><i class="fa-solid fa-circle-check" aria-hidden="true"></i
+                  >Patient-Centered Care</span
+                >
+                <span
+                  ><i class="fa-solid fa-circle-check" aria-hidden="true"></i
+                  >Modern Equipment</span
+                >
+                <span
+                  ><i class="fa-solid fa-circle-check" aria-hidden="true"></i
+                  >Easy Booking</span
+                >
+              </div>
             </div>
-
-            <div class="hero-mini-features">
-              <span>
-                <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
-                Patient-Centered Care
-              </span>
-
-              <span>
-                <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
-                Modern Equipment
-              </span>
-
-              <span>
-                <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
-                Easy Appointment Booking
-              </span>
+            <div class="hero-image-content">
+              <div class="hero-slider" id="heroSlider">
+                <div class="hero-slide active">
+                  <img
+                    src="https://images.unsplash.com/photo-1609840114035-3c981b782dfe?auto=format&fit=crop&w=1200&q=85"
+                    alt="Dental checkup"
+                    class="hero-img"
+                  />
+                </div>
+                <div class="hero-slide">
+                  <img
+                    src="https://images.unsplash.com/photo-1606811971618-4486d14f3f99?auto=format&fit=crop&w=1200&q=85"
+                    alt="Dentist treating a patient"
+                    class="hero-img"
+                  />
+                </div>
+                <div class="hero-slide">
+                  <img
+                    src="https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?auto=format&fit=crop&w=1200&q=85"
+                    alt="Dental care and treatment"
+                    class="hero-img"
+                  />
+                </div>
+                <div class="hero-slide">
+                  <img
+                    src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTBRmF_e76KNqnODbVf9tHn1GUS5q9qk-rxkqvz3ZzM9Q&s=10"
+                    alt="Modern dental clinic"
+                    class="hero-img"
+                  />
+                </div>
+                <div
+                  class="hero-slider-dots"
+                  id="heroSliderDots"
+                  aria-label="Choose hero image"
+                ></div>
+              </div>
             </div>
           </div>
 
-          <div class="hero-image-content">
-            <div class="hero-slider" id="heroSlider">
-              <div class="hero-slide active">
-                <img
-                  src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTBRmF_e76KNqnODbVf9tHn1GUS5q9qk-rxkqvz3ZzM9Q&s=10"
-                  alt="Dental checkup"
-                  class="hero-img"
-                />
+          <div class="container info-bar reveal">
+            <div class="info-item">
+              <span class="info-icon"
+                ><i class="fa-regular fa-clock" aria-hidden="true"></i
+              ></span>
+              <div>
+                <small>Clinic Hours</small><strong>Mon-Sun, 10AM-6PM</strong>
               </div>
-
-              <div class="hero-slide">
-                <img
-                  src="https://images.unsplash.com/photo-1606811971618-4486d14f3f99?auto=format&fit=crop&w=1200&q=85"
-                  alt="Dentist treating a patient"
-                  class="hero-img"
-                />
-              </div>
-
-              <div class="hero-slide">
-                <img
-                  src="https://images.unsplash.com/photo-1609840114035-3c981b782dfe?auto=format&fit=crop&w=1200&q=85"
-                  alt="Dental care and treatment"
-                  class="hero-img"
-                />
-              </div>
-
-              <div class="hero-slide">
-                <img
-                  src="https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?auto=format&fit=crop&w=1200&q=85"
-                  alt="Modern dental clinic"
-                  class="hero-img"
-                />
-              </div>
-
-              <div
-                class="hero-slider-dots"
-                id="heroSliderDots"
-                aria-label="Choose hero image"
-              ></div>
             </div>
-
-            <div class="hero-trust-line">
-              <span>
-                <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
-                Trusted Dental Care
-              </span>
-
-              <span>
-                <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
-                Patient-Focused Service
-              </span>
+            <div class="info-item">
+              <span class="info-icon"
+                ><i class="fa-solid fa-phone" aria-hidden="true"></i
+              ></span>
+              <div><small>Call Us</small><strong>0960 604 9914</strong></div>
+            </div>
+            <div class="info-item">
+              <span class="info-icon"
+                ><i class="fa-solid fa-location-dot" aria-hidden="true"></i
+              ></span>
+              <div>
+                <small>Location</small><strong>Caloocan, Metro Manila</strong>
+              </div>
+            </div>
+            <div class="info-item">
+              <span class="info-icon"
+                ><i class="fa-solid fa-hospital" aria-hidden="true"></i
+              ></span>
+              <div>
+                <small>Established</small><strong>March 15, 2025</strong>
+              </div>
             </div>
           </div>
         </section>
 
-        <section class="appointment-section" id="appointment">
-          <div class="appointment-content">
-            <div class="appointment-icon">
-              <i class="fa-solid fa-calendar-check" aria-hidden="true"></i>
-            </div>
-
-            <div class="appointment-text">
-              <span>READY FOR A HEALTHIER SMILE?</span>
-
-              <h2>Schedule Your Dental Visit</h2>
-
-              <p>
-                Book your appointment with DentaNueva and take the next step
-                toward a healthier and more confident smile.
+        <!-- SERVICES -->
+        <section id="services" class="section services-section">
+          <div class="container">
+            <div class="section-head reveal">
+              <div>
+                <div class="section-tag-top">
+                  <i class="fa-solid fa-tooth" aria-hidden="true"></i>OUR
+                  SERVICES
+                </div>
+                <h2>Dental care for every stage of your smile</h2>
+              </div>
+              <p class="section-subtitle">
+                Personalized dental services designed to keep your teeth
+                healthy, comfortable, and confident.
               </p>
             </div>
-
-            <a
-              href="../login/login.html"
-              id="openAppointmentSectionBtn"
-              class="appointment-btn"
-            >
-              Book an Appointment
-              <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
-            </a>
-          </div>
-        </section>
-
-        <section id="services" class="services-section">
-          <div class="section-heading">
-            <div class="section-tag-top">
-              <i class="fa-solid fa-tooth" aria-hidden="true"></i>
-              OUR SERVICES
-            </div>
-
-            <h2>Dental care for every stage of your smile</h2>
-
-            <p class="section-subtitle">
-              Personalized dental services designed to keep your teeth healthy,
-              comfortable, and confident.
-            </p>
-          </div>
-
-          <div class="services-grid">
-            <article class="service-card">
-              <div class="service-card-top">
+            <div class="services-list">
+              <article class="service-row reveal">
                 <div class="service-icon-wrapper">
                   <i class="fa-solid fa-tooth" aria-hidden="true"></i>
                 </div>
-
-                <span class="service-number">01</span>
-              </div>
-
-              <h3>General Dentistry</h3>
-
-              <p>
-                Essential dental care for maintaining oral health and addressing
-                common dental concerns.
-              </p>
-
-              <ul class="service-checklist">
-                <li>
-                  <i class="fa-solid fa-check" aria-hidden="true"></i>
-                  Consultation
-                </li>
-
-                <li>
-                  <i class="fa-solid fa-check" aria-hidden="true"></i>
-                  Dental Cleaning
-                </li>
-
-                <li>
-                  <i class="fa-solid fa-check" aria-hidden="true"></i>
-                  Tooth Filling
-                </li>
-
-                <li>
-                  <i class="fa-solid fa-check" aria-hidden="true"></i>
-                  Tooth Extraction
-                </li>
-
-                <li>
-                  <i class="fa-solid fa-check" aria-hidden="true"></i>
-                  Root Canal
-                </li>
-              </ul>
-            </article>
-
-            <article class="service-card">
-              <div class="service-card-top">
+                <div class="service-info">
+                  <h3>General Dentistry</h3>
+                  <p>
+                    Essential dental care for maintaining oral health and
+                    addressing common dental concerns.
+                  </p>
+                </div>
+                <ul class="service-tags">
+                  <li>Consultation</li>
+                  <li>Dental Cleaning</li>
+                  <li>Tooth Filling / Pasta</li>
+                  <li>Tooth Extraction</li>
+                  <li>Root Canal</li>
+                </ul>
+              </article>
+              <article class="service-row reveal">
                 <div class="service-icon-wrapper">
                   <i
                     class="fa-solid fa-wand-magic-sparkles"
                     aria-hidden="true"
                   ></i>
                 </div>
-
-                <span class="service-number">02</span>
-              </div>
-
-              <h3>Cosmetic Dentistry</h3>
-
-              <p>
-                Treatments focused on improving the appearance of your smile
-                while supporting your dental care goals.
-              </p>
-
-              <ul class="service-checklist">
-                <li>
-                  <i class="fa-solid fa-check" aria-hidden="true"></i>
-                  Teeth Whitening
-                </li>
-
-                <li>
-                  <i class="fa-solid fa-check" aria-hidden="true"></i>
-                  Veneers
-                </li>
-
-                <li>
-                  <i class="fa-solid fa-check" aria-hidden="true"></i>
-                  Dental Bonding
-                </li>
-
-                <li>
-                  <i class="fa-solid fa-check" aria-hidden="true"></i>
-                  Smile Enhancement
-                </li>
-              </ul>
-            </article>
-
-            <article class="service-card">
-              <div class="service-card-top">
+                <div class="service-info">
+                  <h3>Cosmetic &amp; Restorative Dentistry</h3>
+                  <p>
+                    Smile-enhancing and restorative treatments tailored to your
+                    oral health needs.
+                  </p>
+                </div>
+                <ul class="service-tags">
+                  <li>Teeth Whitening</li>
+                  <li>Denture Fitting</li>
+                  <li>Dental Implant Consultation</li>
+                </ul>
+              </article>
+              <article class="service-row reveal">
                 <div class="service-icon-wrapper">
                   <i class="fa-solid fa-teeth" aria-hidden="true"></i>
                 </div>
-
-                <span class="service-number">03</span>
-              </div>
-
-              <h3>Orthodontics</h3>
-
-              <p>
-                Orthodontic care focused on improving tooth alignment and
-                supporting a healthier bite.
-              </p>
-
-              <ul class="service-checklist">
-                <li>
-                  <i class="fa-solid fa-check" aria-hidden="true"></i>
-                  Braces Adjustment
-                </li>
-
-                <li>
-                  <i class="fa-solid fa-check" aria-hidden="true"></i>
-                  Orthodontic Consultation
-                </li>
-
-                <li>
-                  <i class="fa-solid fa-check" aria-hidden="true"></i>
-                  Retainers
-                </li>
-
-                <li>
-                  <i class="fa-solid fa-check" aria-hidden="true"></i>
-                  Braces Care
-                </li>
-              </ul>
-            </article>
+                <div class="service-info">
+                  <h3>Orthodontics</h3>
+                  <p>
+                    Orthodontic care focused on improving tooth alignment and
+                    supporting a healthier bite.
+                  </p>
+                </div>
+                <ul class="service-tags">
+                  <li>Braces Adjustment</li>
+                  <li>Consultation</li>
+                  <li>Retainer Fitting</li>
+                </ul>
+              </article>
+            </div>
           </div>
         </section>
 
-        <section class="how-it-works-section" id="how-it-works">
-          <div class="section-heading">
-            <div class="section-tag-top">
-              <i class="fa-solid fa-list-check" aria-hidden="true"></i>
-              HOW IT WORKS
-            </div>
-
-            <h2>Your dental care, made simple</h2>
-
-            <p class="section-subtitle">
-              DentaNueva helps patients manage important parts of their dental
-              care through one connected system.
-            </p>
-          </div>
-
-          <div class="workflow-grid">
-            <article class="workflow-card">
-              <span class="workflow-number">01</span>
-
-              <div class="workflow-icon">
-                <i class="fa-solid fa-user-plus" aria-hidden="true"></i>
+        <!-- HOW IT WORKS -->
+        <section class="section how-it-works-section" id="how-it-works">
+          <div class="container">
+            <div class="section-head reveal">
+              <div>
+                <div class="section-tag-top">
+                  <i class="fa-solid fa-list-check" aria-hidden="true"></i>HOW
+                  IT WORKS
+                </div>
+                <h2>Your dental care, made simple</h2>
               </div>
-
-              <h3>Create Your Account</h3>
-
-              <p>
-                Register your patient account and provide the information needed
-                for your dental care.
+              <p class="section-subtitle">
+                DentaNueva helps patients manage important parts of their dental
+                care through one connected system.
               </p>
-            </article>
-
-            <div class="workflow-connector">
-              <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
             </div>
-
-            <article class="workflow-card">
-              <span class="workflow-number">02</span>
-
-              <div class="workflow-icon">
-                <i class="fa-solid fa-calendar-days" aria-hidden="true"></i>
-              </div>
-
-              <h3>Book an Appointment</h3>
-
-              <p>
-                Choose your preferred appointment schedule, dentist, and dental
-                service.
-              </p>
-            </article>
-
-            <div class="workflow-connector">
-              <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
+            <div class="workflow-grid">
+              <article class="workflow-card reveal">
+                <div class="workflow-icon">
+                  <i class="fa-solid fa-user-plus" aria-hidden="true"></i
+                  ><span class="workflow-number">1</span>
+                </div>
+                <h3>Create Your Account</h3>
+                <p>
+                  Register your patient account and provide the information
+                  needed for your dental care.
+                </p>
+              </article>
+              <article class="workflow-card reveal">
+                <div class="workflow-icon">
+                  <i class="fa-solid fa-calendar-days" aria-hidden="true"></i
+                  ><span class="workflow-number">2</span>
+                </div>
+                <h3>Book an Appointment</h3>
+                <p>
+                  Choose your preferred schedule, dentist, and dental service.
+                </p>
+              </article>
+              <article class="workflow-card reveal">
+                <div class="workflow-icon">
+                  <i class="fa-solid fa-bell" aria-hidden="true"></i
+                  ><span class="workflow-number">3</span>
+                </div>
+                <h3>Receive Updates</h3>
+                <p>
+                  Stay informed about your appointment through notifications and
+                  updates.
+                </p>
+              </article>
+              <article class="workflow-card reveal">
+                <div class="workflow-icon">
+                  <i class="fa-solid fa-tooth" aria-hidden="true"></i
+                  ><span class="workflow-number">4</span>
+                </div>
+                <h3>Receive Treatment</h3>
+                <p>
+                  Visit the clinic and receive the treatment recorded by your
+                  dental care team.
+                </p>
+              </article>
+              <article class="workflow-card reveal">
+                <div class="workflow-icon">
+                  <i class="fa-solid fa-wallet" aria-hidden="true"></i
+                  ><span class="workflow-number">5</span>
+                </div>
+                <h3>Manage Your Payments</h3>
+                <p>
+                  View your payment records and monitor your remaining balance.
+                </p>
+              </article>
             </div>
-
-            <article class="workflow-card">
-              <span class="workflow-number">03</span>
-
-              <div class="workflow-icon">
-                <i class="fa-solid fa-bell" aria-hidden="true"></i>
-              </div>
-
-              <h3>Receive Updates</h3>
-
-              <p>
-                Stay informed about your appointment through notifications and
-                appointment updates.
-              </p>
-            </article>
-
-            <div class="workflow-connector">
-              <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
-            </div>
-
-            <article class="workflow-card">
-              <span class="workflow-number">04</span>
-
-              <div class="workflow-icon">
-                <i class="fa-solid fa-tooth" aria-hidden="true"></i>
-              </div>
-
-              <h3>Receive Treatment</h3>
-
-              <p>
-                Visit the clinic and receive the dental treatment recorded by
-                your dental care team.
-              </p>
-            </article>
-
-            <div class="workflow-connector">
-              <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
-            </div>
-
-            <article class="workflow-card">
-              <span class="workflow-number">05</span>
-
-              <div class="workflow-icon">
-                <i class="fa-solid fa-wallet" aria-hidden="true"></i>
-              </div>
-
-              <h3>Manage Your Payments</h3>
-
-              <p>
-                View your payment records and monitor your remaining balance
-                through the patient system.
-              </p>
-            </article>
           </div>
         </section>
 
-        <section class="dentists-section" id="dentists">
-          <div class="section-heading">
-            <div class="section-tag-top">
-              <i class="fa-solid fa-user-doctor" aria-hidden="true"></i>
-              OUR TEAM
+        <!-- TEAM -->
+        <section class="section dentists-section" id="dentists">
+          <div class="container">
+            <div class="section-head reveal">
+              <div>
+                <div class="section-tag-top">
+                  <i class="fa-solid fa-user-doctor" aria-hidden="true"></i>OUR
+                  TEAM
+                </div>
+                <h2>Meet our dental care team</h2>
+              </div>
+              <p class="section-subtitle">
+                Meet the professionals and staff who support the DentaNueva
+                patient experience.
+              </p>
             </div>
-
-            <h2>Meet our dental care team</h2>
-
-            <p class="section-subtitle">
-              Meet the professionals and staff who support the DentaNueva
-              patient experience.
-            </p>
-          </div>
-
-          <div class="dentists-grid">
-            <article class="dentist-card">
-              <div class="dentist-photo-wrapper">
+            <div class="dentists-grid">
+              <article class="dentist-card reveal">
                 <div class="dentist-photo-placeholder">
                   <i class="fa-solid fa-user-doctor" aria-hidden="true"></i>
                 </div>
-              </div>
-
-              <div class="dentist-info">
-                <span class="dentist-role">DENTIST</span>
-
-                <h3>Dr. Nathalia Villanueva</h3>
-
-                <p>
-                  Provides dental care and supports patients throughout their
-                  treatment journey.
-                </p>
-              </div>
-            </article>
-
-            <article class="dentist-card">
-              <div class="dentist-photo-wrapper">
+                <div class="dentist-info">
+                  <span class="dentist-role">DENTIST</span>
+                  <h3>Dr. Nathalia Villanueva</h3>
+                  <p>
+                    Provides dental care and supports patients throughout their
+                    treatment journey.
+                  </p>
+                </div>
+              </article>
+              <article class="dentist-card reveal">
                 <div class="dentist-photo-placeholder">
                   <i class="fa-solid fa-user-doctor" aria-hidden="true"></i>
                 </div>
-              </div>
-
-              <div class="dentist-info">
-                <span class="dentist-role">DENTIST</span>
-
-                <h3>Dr. Marren Geronimo</h3>
-
-                <p>
-                  Provides dental care and supports patients throughout their
-                  treatment journey.
-                </p>
-              </div>
-            </article>
-
-            <article class="dentist-card staff-card">
-              <div class="dentist-photo-wrapper">
-                <div class="staff-photo-placeholder">
+                <div class="dentist-info">
+                  <span class="dentist-role">DENTIST</span>
+                  <h3>Dr. Marren Geronimo</h3>
+                  <p>
+                    Provides dental care and supports patients throughout their
+                    treatment journey.
+                  </p>
+                </div>
+              </article>
+              <article class="dentist-card reveal">
+                <div class="dentist-photo-placeholder">
                   <i class="fa-solid fa-user-nurse" aria-hidden="true"></i>
                 </div>
-              </div>
-
-              <div class="dentist-info">
-                <span class="dentist-role">STAFF</span>
-
-                <h3>Nancy Fe</h3>
-
-                <p>
-                  Supports clinic operations and assists with the patient
-                  experience and appointment process.
-                </p>
-              </div>
-            </article>
+                <div class="dentist-info">
+                  <span class="dentist-role">STAFF</span>
+                  <h3>Nancy Fe</h3>
+                  <p>
+                    Supports clinic operations and assists with the patient
+                    experience and appointment process.
+                  </p>
+                </div>
+              </article>
+            </div>
           </div>
         </section>
 
-        <section id="about" class="about-section">
-          <div class="about-top-header">
-            <div class="about-tag">
-              <i class="fa-solid fa-tooth" aria-hidden="true"></i>
-              ABOUT DENTANUEVA
-            </div>
-
-            <h2>Care that puts your comfort first</h2>
-
-            <p class="section-subtitle">
-              Meet a clinic committed to thoughtful treatment and dependable
-              support for every patient.
-            </p>
-          </div>
-
-          <div class="about-content-row">
-            <div class="about-text-block">
-              <div class="about-intro">
-                <span class="about-mini-label">OUR APPROACH</span>
-
-                <h3>Quality dental care in a comfortable environment.</h3>
+        <!-- ABOUT -->
+        <section id="about" class="section about-section">
+          <div class="container about-content-row">
+            <div class="clinic-sign-card reveal">
+              <img
+                src="../img/dentanueva.png"
+                alt="DentaNueva Dental Clinic sign"
+              />
+              <span class="about-badge"
+                ><i class="fa-solid fa-tooth" aria-hidden="true"></i>Since
+                2025</span
+              >
+              <div class="clinic-image-label">
+                <i class="fa-solid fa-location-dot" aria-hidden="true"></i>
+                <span>DentaNueva Dental Clinic</span>
               </div>
-
+            </div>
+            <div class="about-text-block reveal">
+              <div class="section-tag-top">
+                <i class="fa-solid fa-tooth" aria-hidden="true"></i>ABOUT
+                DENTANUEVA
+              </div>
+              <h2>Care that puts your comfort first</h2>
               <p>
                 Founded on March 15, 2025, DentaNueva has been providing dental
                 care to our community. Our mission is to deliver personalized,
                 high-quality dental services in a comfortable and welcoming
                 environment.
               </p>
-
               <p>
-                Our dental care team is committed to providing a patient-focused
+                Our dental care team is committed to a patient-focused
                 experience supported by appropriate dental technology and
                 organized clinic services.
               </p>
-
+            </div>
+            <div class="about-features-row">
               <ul class="about-features-list">
                 <li>
-                  <span class="check-icon-box">
-                    <i class="fa-solid fa-check" aria-hidden="true"></i>
-                  </span>
-
+                  <span class="check-icon-box"
+                    ><i class="fa-solid fa-check" aria-hidden="true"></i
+                  ></span>
                   <div>
-                    <strong>Modern Equipment</strong>
-
-                    <span>
-                      Technology-supported dental care for precise and
-                      comfortable treatment.
-                    </span>
+                    <strong>Modern Equipment</strong
+                    ><span
+                      >Technology-supported dental care for precise and
+                      comfortable treatment.</span
+                    >
                   </div>
                 </li>
-
                 <li>
-                  <span class="check-icon-box">
-                    <i class="fa-solid fa-check" aria-hidden="true"></i>
-                  </span>
-
+                  <span class="check-icon-box"
+                    ><i class="fa-solid fa-check" aria-hidden="true"></i
+                  ></span>
                   <div>
-                    <strong>Patient-Centered Care</strong>
-
-                    <span>
-                      A comfortable and organized experience for every patient.
-                    </span>
+                    <strong>Patient-Centered Care</strong
+                    ><span
+                      >A comfortable and organized experience for every
+                      patient.</span
+                    >
                   </div>
                 </li>
-
                 <li>
-                  <span class="check-icon-box">
-                    <i class="fa-solid fa-check" aria-hidden="true"></i>
-                  </span>
-
+                  <span class="check-icon-box"
+                    ><i class="fa-solid fa-check" aria-hidden="true"></i
+                  ></span>
                   <div>
-                    <strong>Connected Clinic Services</strong>
-
-                    <span>
-                      Appointments, records, payments, and notifications are
-                      supported by the clinic management system.
-                    </span>
+                    <strong>Connected Clinic Services</strong
+                    ><span
+                      >Appointments, records, payments, and notifications are
+                      supported by the clinic management system.</span
+                    >
                   </div>
                 </li>
               </ul>
             </div>
-
-            <div class="about-image-block">
-              <div class="clinic-sign-card">
-                <img
-                  src="../img/dentanueva.png"
-                  alt="DentaNueva Dental Clinic sign"
-                />
-
-                <div class="clinic-image-label">
-                  <i class="fa-solid fa-location-dot" aria-hidden="true"></i>
-                  <span>DentaNueva Dental Clinic</span>
-                </div>
-              </div>
-
-              <div class="team-preview-box">
-                <div class="team-heading">
-                  <div>
-                    <span>OUR TEAM</span>
-                  </div>
-
-                  <i class="fa-solid fa-user-group" aria-hidden="true"></i>
-                </div>
-
-                <div class="team-avatars-row">
-                  <div class="team-member">
-                    <div class="team-member-icon">
-                      <i class="fa-solid fa-user-doctor" aria-hidden="true"></i>
-                    </div>
-
-                    <span>Dr. Nathalia Villanueva</span>
-                    <small>Dentist</small>
-                  </div>
-
-                  <div class="team-member">
-                    <div class="team-member-icon">
-                      <i class="fa-solid fa-user-doctor" aria-hidden="true"></i>
-                    </div>
-
-                    <span>Dr. Marren Geronimo</span>
-                    <small>Dentist</small>
-                  </div>
-
-                  <div class="team-member">
-                    <div class="team-member-icon staff">
-                      <i class="fa-solid fa-user-nurse" aria-hidden="true"></i>
-                    </div>
-
-                    <span>Nancy Fe</span>
-                    <small>Staff</small>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         </section>
 
-        <section class="why-choose-section">
-          <div class="section-heading">
-            <div class="section-tag-top">WHY CHOOSE OUR CLINIC?</div>
-
-            <h2>A calmer, more confident dental visit</h2>
-
-            <p class="section-subtitle">
-              From your first consultation to follow-up care, our team keeps
-              your experience clear and comfortable.
-            </p>
-          </div>
-
-          <div class="why-grid">
-            <article class="why-card">
-              <div class="why-icon-circle green-theme">
-                <i class="fa-solid fa-user-doctor" aria-hidden="true"></i>
+        <!-- LOCATION -->
+        <section class="section location-section" id="location">
+          <div class="container">
+            <div class="section-head reveal">
+              <div>
+                <div class="section-tag-top">
+                  <i class="fa-solid fa-location-dot" aria-hidden="true"></i
+                  >FIND US
+                </div>
+                <h2>Visit DentaNueva</h2>
               </div>
-
-              <span class="why-number">01</span>
-
-              <h3>Dedicated Dental Team</h3>
-
-              <p>
-                Meet a dental care team focused on supporting patients
-                throughout their clinic experience.
+              <p class="section-subtitle">
+                Contact us to ask a question or find the best time for your
+                visit.
               </p>
-            </article>
-
-            <article class="why-card">
-              <div class="why-icon-circle green-theme">
-                <i class="fa-regular fa-clock" aria-hidden="true"></i>
-              </div>
-
-              <span class="why-number">02</span>
-
-              <h3>Organized Appointments</h3>
-
-              <p>
-                Appointment scheduling helps patients and clinic staff keep
-                dental visits organized.
-              </p>
-            </article>
-
-            <article class="why-card">
-              <div class="why-icon-circle green-theme">
-                <i class="fa-solid fa-shield-halved" aria-hidden="true"></i>
-              </div>
-
-              <span class="why-number">03</span>
-
-              <h3>Connected Clinic System</h3>
-
-              <p>
-                Patient appointments, records, payments, and notifications are
-                supported through one connected system.
-              </p>
-            </article>
-          </div>
-        </section>
-
-        <section class="location-section" id="location">
-          <div class="section-heading">
-            <div class="section-tag-top">FIND US</div>
-
-            <h2>Visit DentaNueva</h2>
-
-            <p class="section-subtitle">
-              Contact us to ask a question or find the best time for your visit.
-            </p>
-          </div>
-
-          <div class="location-grid">
-            <div class="map-container">
-              <iframe
-                title="DentaNueva Dental Clinic map location"
-                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3860.2075727768565!2d120.9842!3d14.6507!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMTTCsDM5JzAyLjUiTiAxMjDCsDU5JzAzLjIiRQ!5e0!3m2!1sen!2sph!4v1600000000000!5m2!1sen!2sph"
-                width="100%"
-                height="100%"
-                style="border: 0"
-                allowfullscreen
-                loading="lazy"
-              ></iframe>
             </div>
-
-            <div class="location-details">
-              <div class="location-card-header">
-                <span>CONTACT INFORMATION</span>
-
-                <h3>We're here to help.</h3>
+            <div class="location-grid reveal">
+              <div class="map-container">
+                <iframe
+                  title="DentaNueva Dental Clinic map location"
+                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3860.2075727768565!2d120.9842!3d14.6507!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMTTCsDM5JzAyLjUiTiAxMjDCsDU5JzAzLjIiRQ!5e0!3m2!1sen!2sph!4v1600000000000!5m2!1sen!2sph"
+                  width="100%"
+                  height="100%"
+                  style="border: 0"
+                  allowfullscreen
+                  loading="lazy"
+                ></iframe>
               </div>
-
-              <ul class="contact-info-list">
-                <li>
-                  <i class="fa-solid fa-location-dot" aria-hidden="true"></i>
-
-                  <div>
-                    <strong>Clinic Address</strong>
-
-                    <span>
-                      Blk36 Lot3, Ph3, F1 Langaray Ext, Dagat-Dagatan, Caloocan,
-                      Metro Manila
-                    </span>
-                  </div>
-                </li>
-
-                <li>
-                  <i class="fa-solid fa-phone" aria-hidden="true"></i>
-
-                  <div>
-                    <strong>Phone Number</strong>
-
-                    <a href="tel:+639606049914"> 0960 604 9914 </a>
-                  </div>
-                </li>
-
-                <li>
-                  <i class="fa-solid fa-envelope" aria-hidden="true"></i>
-
-                  <div>
-                    <strong>Clinic Email</strong>
-
-                    <a href="mailto:Nathalia.Villanueva@gmail.com">
-                      Nathalia.Villanueva@gmail.com
-                    </a>
-                  </div>
-                </li>
-
-                <li>
-                  <i class="fa-regular fa-clock" aria-hidden="true"></i>
-
-                  <div>
-                    <strong>Clinic Hours</strong>
-
-                    <span>Mon-Sun, 10:00 AM-6:00 PM</span>
-                  </div>
-                </li>
-              </ul>
+              <div class="location-details">
+                <div class="location-card-header">
+                  <span>CONTACT INFORMATION</span>
+                  <h3>We're here to help.</h3>
+                </div>
+                <ul class="contact-info-list">
+                  <li>
+                    <i class="fa-solid fa-location-dot" aria-hidden="true"></i>
+                    <div>
+                      <strong>Clinic Address</strong
+                      ><span
+                        >Blk36 Lot3, Ph3, F1 Langaray Ext, Dagat-Dagatan,
+                        Caloocan, Metro Manila</span
+                      >
+                    </div>
+                  </li>
+                  <li>
+                    <i class="fa-solid fa-phone" aria-hidden="true"></i>
+                    <div>
+                      <strong>Phone Number</strong
+                      ><a href="tel:+639606049914">0960 604 9914</a>
+                    </div>
+                  </li>
+                  <li>
+                    <i class="fa-solid fa-envelope" aria-hidden="true"></i>
+                    <div>
+                      <strong>Clinic Email</strong
+                      ><a href="mailto:Nathalia.Villanueva@gmail.com"
+                        >Nathalia.Villanueva@gmail.com</a
+                      >
+                    </div>
+                  </li>
+                  <li>
+                    <i class="fa-regular fa-clock" aria-hidden="true"></i>
+                    <div>
+                      <strong>Clinic Hours</strong
+                      ><span>Mon-Sun, 10:00 AM-6:00 PM</span>
+                    </div>
+                  </li>
+                </ul>
+                <div class="location-actions">
+                  <a
+                    href="https://www.google.com/maps/search/?api=1&query=Blk36+Lot3+Ph3+F1+Langaray+Ext+Dagat-Dagatan+Caloocan"
+                    target="_blank"
+                    rel="noopener"
+                    class="location-btn location-btn-primary"
+                  >
+                    <i
+                      class="fa-solid fa-diamond-turn-right"
+                      aria-hidden="true"
+                    ></i>
+                    Get Directions
+                  </a>
+                  <a
+                    href="tel:+639606049914"
+                    class="location-btn location-btn-outline"
+                  >
+                    <i class="fa-solid fa-phone" aria-hidden="true"></i> Call
+                    Clinic
+                  </a>
+                </div>
+              </div>
             </div>
           </div>
         </section>
       </main>
 
+      <!-- FOOTER -->
       <footer class="home-footer">
         <div class="footer-grid">
           <div class="footer-brand-section">
             <div class="footer-brand">
-              <span>DentaNueva</span>
-              <small>Dental Clinic</small>
+              <span class="brand-logo"
+                ><i class="fa-solid fa-tooth" aria-hidden="true"></i
+              ></span>
+              <div><span>DentaNueva</span><small>Dental Clinic</small></div>
             </div>
-
             <p>
               Your smile, our priority. Quality dental care supported by a
               connected clinic management system.
             </p>
-
             <div class="footer-social">
-              <a href="#" aria-label="DentaNueva on Facebook">
-                <i class="fa-brands fa-facebook-f" aria-hidden="true"></i>
-              </a>
+              <a href="#" aria-label="DentaNueva on Facebook"
+                ><i class="fa-brands fa-facebook-f" aria-hidden="true"></i
+              ></a>
             </div>
           </div>
-
           <div class="footer-col">
             <h3>Quick Links</h3>
-
             <ul class="footer-links">
-              <li>
-                <a href="#home">Home</a>
-              </li>
-
-              <li>
-                <a href="#services">Services</a>
-              </li>
-
-              <li>
-                <a href="#about">About Us</a>
-              </li>
-
-              <li>
-                <a href="#dentists">Our Team</a>
-              </li>
-
-              <li>
-                <a href="#location">Contact</a>
-              </li>
+              <li><a href="#home">Home</a></li>
+              <li><a href="#services">Services</a></li>
+              <li><a href="#about">About Us</a></li>
+              <li><a href="#dentists">Our Team</a></li>
+              <li><a href="#location">Contact</a></li>
             </ul>
           </div>
-
           <div class="footer-col">
             <h3>Patient</h3>
-
             <ul class="footer-links">
-              <li>
-                <a href="../login/login.html">Log In</a>
-              </li>
-
-              <li>
-                <a href="#how-it-works">How It Works</a>
-              </li>
+              <li><a href="../login/login.html">Log In</a></li>
+              <li><a href="#how-it-works">How It Works</a></li>
             </ul>
           </div>
-
           <div class="footer-col">
             <h3>Contact</h3>
-
             <ul class="footer-contact-list">
               <li>
-                <i class="fa-solid fa-phone" aria-hidden="true"></i>
-                <a href="tel:+639606049914">0960 604 9914</a>
+                <i class="fa-solid fa-phone" aria-hidden="true"></i
+                ><a href="tel:+639606049914">0960 604 9914</a>
               </li>
-
               <li>
-                <i class="fa-solid fa-envelope" aria-hidden="true"></i>
-                <a href="mailto:Nathalia.Villanueva@gmail.com">
-                  Nathalia.Villanueva@gmail.com
-                </a>
+                <i class="fa-solid fa-envelope" aria-hidden="true"></i
+                ><a href="mailto:Nathalia.Villanueva@gmail.com"
+                  >Nathalia.Villanueva@gmail.com</a
+                >
               </li>
-
               <li>
-                <i class="fa-solid fa-location-dot" aria-hidden="true"></i>
-                <span>Caloocan, Metro Manila</span>
+                <i class="fa-solid fa-location-dot" aria-hidden="true"></i
+                ><span>Caloocan, Metro Manila</span>
               </li>
-
               <li>
-                <i class="fa-regular fa-clock" aria-hidden="true"></i>
-                <span>Mon-Sun, 10:00 AM-6:00 PM</span>
+                <i class="fa-regular fa-clock" aria-hidden="true"></i
+                ><span>Mon-Sun, 10:00 AM-6:00 PM</span>
               </li>
             </ul>
           </div>
         </div>
-
         <div class="footer-bottom">
           <p>&copy; 2026 DentaNueva Dental Clinic. All rights reserved.</p>
         </div>
       </footer>
     </div>
 
+    <button
+      class="back-to-top"
+      id="backToTop"
+      type="button"
+      aria-label="Back to top"
+    >
+      <i class="fa-solid fa-arrow-up" aria-hidden="true"></i>
+    </button>
+
+    <!-- LOGIN MODAL -->
     <div
       class="login-modal-overlay"
       id="loginModalOverlay"
@@ -918,7 +662,6 @@
         <h2 id="loginModalTitle" class="visually-hidden">
           Log in to DentaNueva
         </h2>
-
         <button
           class="modal-close-btn"
           id="modalCloseBtn"
@@ -927,7 +670,6 @@
         >
           <i class="fa-solid fa-xmark" aria-hidden="true"></i>
         </button>
-
         <iframe
           src="../login/login.html"
           class="login-iframe"

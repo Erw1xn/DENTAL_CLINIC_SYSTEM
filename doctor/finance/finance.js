@@ -1,7 +1,7 @@
 "use strict";
-const TRANSACTIONS_KEY = "dentaNuevaFinanceTransactions";
-const APPOINTMENTS_KEY = "appointments";
+const TRANSACTIONS_API = "../../api/finance/transactions.php";
 const PATIENTS_KEY = "dentanueva_patients";
+const PATIENT_API = "../../api/patient_records.php";
 let transactions = [];
 let patients = [];
 let collectionPeriod = "today";
@@ -23,40 +23,28 @@ const sampleExpenseCategoryData = [
   { name: "Equipment Maintenance", amount: 7600, color: "#9b51e0" },
   { name: "Marketing", amount: 4800, color: "#27ae60" },
 ];
-document.addEventListener("DOMContentLoaded", () => {
-  loadPatients();
-  loadTransactions();
+document.addEventListener("DOMContentLoaded", async () => {
+  await loadPatients();
   setupEvents();
-  renderFinance();
+  await loadTransactions();
 });
 function setupEvents() {
   setupPatientSelector();
-  const search = document.getElementById("transactionSearch");
-  if (search) {
-    search.addEventListener("input", renderTransactions);
-  }
-  const methodFilter = document.getElementById("paymentMethodFilter");
-  if (methodFilter) {
-    methodFilter.addEventListener("change", renderTransactions);
-  }
-  const dateFilter = document.getElementById("transactionDateFilter");
-  if (dateFilter) {
-    dateFilter.addEventListener("change", renderTransactions);
-  }
-  const revenueSwitch = document.getElementById("revenueSwitch");
-  if (revenueSwitch) {
-    revenueSwitch.addEventListener("click", toggleRevenueMode);
-  }
-  const monthlyRevenueSwitch = document.getElementById("monthlyRevenueSwitch");
-  if (monthlyRevenueSwitch) {
-    monthlyRevenueSwitch.addEventListener("click", () => {
-      revenueMode = revenueMode === "today" ? "month" : "today";
-      renderRevenueCard();
-    });
-  }
+  document
+    .getElementById("transactionSearch")
+    ?.addEventListener("input", renderTransactions);
+  document
+    .getElementById("paymentMethodFilter")
+    ?.addEventListener("change", renderTransactions);
+  document
+    .getElementById("transactionDateFilter")
+    ?.addEventListener("change", renderTransactions);
+  document
+    .getElementById("revenueSwitch")
+    ?.addEventListener("click", toggleRevenueMode);
   document.querySelectorAll(".collection-tab").forEach((button) => {
     button.addEventListener("click", () => {
-      collectionPeriod = button.dataset.period;
+      collectionPeriod = button.dataset.period || "today";
       document.querySelectorAll(".collection-tab").forEach((item) => {
         item.classList.remove("active");
       });
@@ -64,31 +52,25 @@ function setupEvents() {
       renderCollection();
     });
   });
-  const recordButton = document.getElementById("recordPaymentButton");
-  if (recordButton) {
-    recordButton.addEventListener("click", openPaymentModal);
-  }
-  const closeButton = document.getElementById("closePaymentModal");
-  if (closeButton) {
-    closeButton.addEventListener("click", closePaymentModal);
-  }
-  const cancelButton = document.getElementById("cancelPaymentButton");
-  if (cancelButton) {
-    cancelButton.addEventListener("click", closePaymentModal);
-  }
-  const saveButton = document.getElementById("savePaymentButton");
-  if (saveButton) {
-    saveButton.addEventListener("click", savePayment);
-  }
-  const modal = document.getElementById("paymentModal");
-  if (modal) {
-    modal.addEventListener("click", (event) => {
-      if (event.target === modal) {
+  document
+    .getElementById("recordPaymentButton")
+    ?.addEventListener("click", openPaymentModal);
+  document
+    .getElementById("closePaymentModal")
+    ?.addEventListener("click", closePaymentModal);
+  document
+    .getElementById("cancelPaymentButton")
+    ?.addEventListener("click", closePaymentModal);
+  document
+    .getElementById("savePaymentButton")
+    ?.addEventListener("click", savePayment);
+  document
+    .getElementById("paymentModal")
+    ?.addEventListener("click", (event) => {
+      if (event.target === document.getElementById("paymentModal")) {
         closePaymentModal();
       }
     });
-  }
-  const detailsModal = document.getElementById("detailsModal");
   document
     .getElementById("closeDetailsBtn")
     ?.addEventListener("click", closeDetailsModal);
@@ -98,52 +80,166 @@ function setupEvents() {
   document
     .getElementById("printReceiptBtn")
     ?.addEventListener("click", printReceipt);
-  detailsModal?.addEventListener("click", (event) => {
-    if (event.target === detailsModal) {
-      closeDetailsModal();
-    }
-  });
-}
-window.addEventListener("storage", (event) => {
-  if (event.key === PATIENTS_KEY) {
-    loadPatients();
-    setupPatientSelector();
-    transactions = transactions.map(normalizeTransaction);
-    saveTransactions();
-    renderFinance();
-  }
-  if (event.key === TRANSACTIONS_KEY) {
-    loadTransactions();
-    renderFinance();
-  }
-});
-function loadTransactions() {
-  const stored = localStorage.getItem(TRANSACTIONS_KEY);
-  if (stored) {
-    try {
-      const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed)) {
-        transactions = parsed.map(normalizeTransaction);
-        return;
+  document
+    .getElementById("detailsModal")
+    ?.addEventListener("click", (event) => {
+      if (event.target === document.getElementById("detailsModal")) {
+        closeDetailsModal();
       }
-    } catch (error) {
-      console.error("Unable to load finance transactions:", error);
-    }
-  }
-  transactions = [];
+    });
 }
-function loadPatients() {
+async function loadTransactions() {
   try {
-    const stored = localStorage.getItem(PATIENTS_KEY);
-    if (!stored) {
-      patients = [];
-      return;
+    const response = await fetch(TRANSACTIONS_API, {
+      method: "GET",
+      credentials: "include",
+      headers: {
+        Accept: "application/json",
+      },
+    });
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || "Unable to load finance transactions.");
     }
-    const parsed = JSON.parse(stored);
-    patients = Array.isArray(parsed) ? parsed : [];
+    transactions = (Array.isArray(result.data) ? result.data : []).map(
+      normalizeDatabaseTransaction,
+    );
+    renderFinance();
+  } catch (error) {
+    console.error("Unable to load finance transactions:", error);
+    transactions = [];
+    renderFinance();
+  }
+}
+function normalizePaymentMethod(method) {
+  const value = String(method || "")
+    .trim()
+    .toLowerCase()
+    .replace(/-/g, "_");
+  if (value === "cash") {
+    return "Cash";
+  }
+  if (value === "gcash") {
+    return "GCash";
+  }
+  if (value === "bank_transfer" || value === "bank transfer") {
+    return "Bank Transfer";
+  }
+  return "";
+}
+function normalizeDatabaseTransaction(item) {
+  const total = Number(item.total_amount) || 0;
+  const discount = Number(item.discount_amount) || 0;
+  const paid = Math.max(Number(item.paid_amount) || 0, 0);
+  const databaseBalance = Number(item.balance_amount);
+  const finalBalance = Number.isFinite(databaseBalance)
+    ? Math.max(databaseBalance, 0)
+    : Math.max(total - discount - paid, 0);
+  const patientName =
+    String(item.patient_name || "").trim() ||
+    String(item.patient_id || "Unknown Patient");
+  const paymentHistory = Array.isArray(item.paymentHistory)
+    ? item.paymentHistory.map((payment) => ({
+        id: payment.payment_uid || payment.payment_id || "",
+        paymentId: Number(payment.payment_id) || 0,
+        paymentUid: payment.payment_uid || "",
+        transactionId: Number(payment.transaction_id) || 0,
+        patientId: payment.patient_id || item.patient_id || "",
+        amount: Number(payment.amount) || 0,
+        paymentMethod: normalizePaymentMethod(
+          payment.payment_method || payment.paymentMethod,
+        ),
+        paymentSource: String(payment.payment_source || "")
+          .trim()
+          .toLowerCase(),
+        status: String(payment.status || "")
+          .trim()
+          .toLowerCase(),
+        paidAt: payment.paid_at || payment.created_at || "",
+        createdAt: payment.created_at || "",
+        date: payment.paid_at
+          ? String(payment.paid_at).slice(0, 10)
+          : payment.created_at
+            ? String(payment.created_at).slice(0, 10)
+            : item.created_at
+              ? String(item.created_at).slice(0, 10)
+              : getTodayKey(),
+        time: payment.paid_at
+          ? String(payment.paid_at).slice(11, 16)
+          : payment.created_at
+            ? String(payment.created_at).slice(11, 16)
+            : "",
+      }))
+    : [];
+  const paidPayments = paymentHistory.filter(
+    (payment) => payment.status === "paid" && payment.amount > 0,
+  );
+  const methods = [
+    ...new Set(
+      paidPayments.map((payment) => payment.paymentMethod).filter(Boolean),
+    ),
+  ];
+  return {
+    id: item.transaction_uid || String(item.transaction_id || ""),
+    transactionId: Number(item.transaction_id) || 0,
+    transactionUid: item.transaction_uid || "",
+    invoice: item.transaction_uid || String(item.transaction_id || ""),
+    patientId: item.patient_id || "",
+    patient: patientName,
+    patientName,
+    service: item.service_name || "Consultation",
+    date: item.created_at
+      ? String(item.created_at).slice(0, 10)
+      : getTodayKey(),
+    time: item.created_at ? String(item.created_at).slice(11, 16) : "00:00",
+    total,
+    discount,
+    paid,
+    balance: finalBalance,
+    method: methods[0] || "",
+    paymentMethod: methods.join(" + "),
+    status:
+      item.status === "paid"
+        ? "Paid"
+        : item.status === "partial"
+          ? "Partial"
+          : "Unpaid",
+    paymentHistory,
+    createdAt: item.created_at || "",
+    updatedAt: item.updated_at || "",
+  };
+}
+async function loadPatients() {
+  try {
+    const response = await fetch(PATIENT_API, {
+      method: "GET",
+      credentials: "include",
+      headers: {
+        Accept: "application/json",
+      },
+    });
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || "Unable to load patients.");
+    }
+    const records = Array.isArray(result.data)
+      ? result.data
+      : Array.isArray(result.records)
+        ? result.records
+        : [];
+    patients = records;
+    localStorage.setItem(PATIENTS_KEY, JSON.stringify(patients));
+    setupPatientSelector();
   } catch (error) {
     console.error("Unable to load DentaNueva patients:", error);
-    patients = [];
+    try {
+      const stored = localStorage.getItem(PATIENTS_KEY);
+      const parsed = stored ? JSON.parse(stored) : [];
+      patients = Array.isArray(parsed) ? parsed : [];
+    } catch (storageError) {
+      patients = [];
+    }
+    setupPatientSelector();
   }
 }
 function getPatientFullName(patient) {
@@ -190,8 +286,9 @@ function setupPatientSelector() {
     .sort((a, b) => getPatientFullName(a).localeCompare(getPatientFullName(b)))
     .forEach((patient) => {
       const option = document.createElement("option");
-      option.value = getPatientFullName(patient);
-      option.label = `${getPatientFullName(patient)} · ${patient.patientId || patient.id || ""}`;
+      const name = getPatientFullName(patient);
+      option.value = name;
+      option.label = `${name} · ${patient.patientId || patient.id || ""}`;
       datalist.appendChild(option);
     });
   patientInput.setAttribute("list", "paymentPatientList");
@@ -226,116 +323,6 @@ function getPaymentPatient() {
   }
   return patient;
 }
-function normalizePaymentHistory(item, patientId, patientName) {
-  if (Array.isArray(item.paymentHistory) && item.paymentHistory.length) {
-    return item.paymentHistory.map((payment, index) => ({
-      id: payment.id || `${item.id || "TXN"}-PAY-${index + 1}`,
-      amount: Number(payment.amount) || 0,
-      paymentMethod:
-        payment.paymentMethod ||
-        payment.method ||
-        item.paymentMethod ||
-        item.method ||
-        "Cash",
-      reference:
-        payment.reference ||
-        payment.referenceNumber ||
-        payment.gcashReference ||
-        payment.bankReference ||
-        payment.cardReference ||
-        "",
-      referenceNumber: payment.referenceNumber || payment.reference || "",
-      cashReceived: Number(payment.cashReceived) || 0,
-      change: Number(payment.change) || Number(payment.changeAmount) || 0,
-      changeAmount: Number(payment.changeAmount) || Number(payment.change) || 0,
-      gcashReference: payment.gcashReference || "",
-      bankReference: payment.bankReference || "",
-      cardReference: payment.cardReference || "",
-      date: payment.date || item.date || getTodayKey(),
-      notes: payment.notes || item.notes || "",
-      createdTime: payment.createdTime || item.createdTime || item.time || "",
-      createdAt:
-        payment.createdAt || item.createdAt || new Date().toISOString(),
-    }));
-  }
-  const paid = Number(item.paid) || 0;
-  if (paid <= 0) {
-    return [];
-  }
-  return [
-    {
-      id: `${item.id || "TXN"}-PAY-1`,
-      amount: paid,
-      paymentMethod: item.paymentMethod || item.method || "Cash",
-      reference: item.reference || item.referenceNumber || "",
-      referenceNumber: item.referenceNumber || item.reference || "",
-      cashReceived: Number(item.cashReceived) || 0,
-      change: Number(item.change) || Number(item.changeAmount) || 0,
-      changeAmount: Number(item.changeAmount) || Number(item.change) || 0,
-      gcashReference: item.gcashReference || "",
-      bankReference: item.bankReference || "",
-      cardReference: item.cardReference || "",
-      date: item.date || getTodayKey(),
-      notes: item.notes || "",
-      createdTime: item.createdTime || item.time || "",
-      createdAt: item.createdAt || new Date().toISOString(),
-    },
-  ];
-}
-function normalizeTransaction(item) {
-  const total = Number(item.total) || 0;
-  const discount = Number(item.discount) || 0;
-  const paid = Number(item.paid) || 0;
-  const storedPatientId =
-    item.patientId ||
-    item.patientID ||
-    item.patient_id ||
-    item.patientReferenceId ||
-    "";
-  const linkedPatient =
-    findPatientById(storedPatientId) ||
-    findPatientByName(item.patient || item.patientName || "");
-  const patientId =
-    linkedPatient?.patientId || linkedPatient?.id || storedPatientId || "";
-  const patientName = linkedPatient
-    ? getPatientFullName(linkedPatient)
-    : item.patientName || item.patient || "Unknown Patient";
-  const paymentHistory = normalizePaymentHistory(item, patientId, patientName);
-  const normalizedPaid = paymentHistory.length
-    ? paymentHistory.reduce(
-        (sum, payment) => sum + (Number(payment.amount) || 0),
-        0,
-      )
-    : paid;
-  const balance = Math.max(
-    0,
-    total - discount - Math.min(normalizedPaid, Math.max(total - discount, 0)),
-  );
-  const status =
-    balance <= 0 ? "Paid" : normalizedPaid > 0 ? "Partial" : "Unpaid";
-  return {
-    ...item,
-    id: item.id || `TXN-${Date.now()}`,
-    invoice: item.invoice || item.invoiceNumber || `INV-${Date.now()}`,
-    patientId,
-    patient: patientName,
-    patientName,
-    service: item.service || item.type || "Consultation",
-    date: item.date || getTodayKey(),
-    time: item.time || item.start || "10:00",
-    total,
-    discount,
-    paid: normalizedPaid,
-    balance,
-    method: item.method || item.paymentMethod || "Cash",
-    paymentMethod: item.paymentMethod || item.method || "Cash",
-    status,
-    paymentHistory,
-  };
-}
-function saveTransactions() {
-  localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(transactions));
-}
 function renderFinance() {
   renderRevenueCard();
   renderSummaryCards();
@@ -357,16 +344,21 @@ function renderRevenueCard() {
   const switchText = document.getElementById("revenueSwitchText");
   const todayRevenue = getTodayRevenue();
   const monthRevenue = getMonthlyRevenue();
-  if (revenueMode === "today") {
-    title.textContent = "Today's Revenue";
-    amount.textContent = formatMoney(todayRevenue);
-    subtitle.textContent = "Today's collection";
-    switchText.textContent = "Today";
-  } else {
-    title.textContent = "Monthly Revenue";
-    amount.textContent = formatMoney(monthRevenue);
-    subtitle.textContent = getCurrentMonthLabel();
-    switchText.textContent = "This Month";
+  if (title) {
+    title.textContent =
+      revenueMode === "today" ? "Today's Revenue" : "Monthly Revenue";
+  }
+  if (amount) {
+    amount.textContent = formatMoney(
+      revenueMode === "today" ? todayRevenue : monthRevenue,
+    );
+  }
+  if (subtitle) {
+    subtitle.textContent =
+      revenueMode === "today" ? "Today's collection" : getCurrentMonthLabel();
+  }
+  if (switchText) {
+    switchText.textContent = revenueMode === "today" ? "Today" : "This Month";
   }
   const monthlyRevenue = document.getElementById("monthlyRevenueAmount");
   if (monthlyRevenue) {
@@ -398,16 +390,14 @@ function renderSummaryCards() {
   if (expenseChange) {
     expenseChange.textContent = "0% vs last month";
   }
-  const monthLabel = document.getElementById("currentMonthLabel");
-  if (monthLabel) {
-    monthLabel.textContent = getCurrentMonthLabel();
-  }
 }
 function getFilteredTransactions() {
   const search = (document.getElementById("transactionSearch")?.value || "")
     .trim()
     .toLowerCase();
-  const method = document.getElementById("paymentMethodFilter")?.value || "all";
+  const selectedMethod = normalizePaymentMethod(
+    document.getElementById("paymentMethodFilter")?.value || "",
+  );
   const dateFilter =
     document.getElementById("transactionDateFilter")?.value || "all";
   return transactions
@@ -422,23 +412,25 @@ function getFilteredTransactions() {
       );
     })
     .filter((transaction) => {
-      if (method === "all") {
+      if (!selectedMethod) {
         return true;
       }
-      return transaction.method === method;
+      return getPaymentHistory(transaction).some(
+        (payment) => payment.paymentMethod === selectedMethod,
+      );
     })
     .filter((transaction) => {
       if (dateFilter === "all") {
         return true;
+      }
+      if (dateFilter === "today") {
+        return transaction.date === getTodayKey();
       }
       const date = new Date(
         `${transaction.date}T${transaction.time || "00:00"}`,
       );
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      if (dateFilter === "today") {
-        return transaction.date === getTodayKey();
-      }
       if (dateFilter === "month") {
         return (
           date.getFullYear() === today.getFullYear() &&
@@ -463,16 +455,43 @@ function renderTransactions() {
   const filtered = getFilteredTransactions();
   const count = document.getElementById("transactionCount");
   if (count) {
-    count.textContent = `${filtered.length} transaction${filtered.length === 1 ? "" : "s"}`;
+    count.textContent = `${filtered.length} transaction${
+      filtered.length === 1 ? "" : "s"
+    }`;
   }
   if (!filtered.length) {
-    body.innerHTML = `<tr><td colspan="9" class="empty-table">No transactions found.</td></tr>`;
+    body.innerHTML =
+      '<tr><td colspan="9" class="empty-table">No transactions found.</td></tr>';
     return;
   }
   filtered.forEach((transaction) => {
     const row = document.createElement("tr");
     const status = getPaymentStatus(transaction);
-    row.innerHTML = `<td><div class="patient-cell"><div class="patient-avatar">${getInitials(transaction.patient)}</div><div><span class="patient-name">${escapeHtml(transaction.patient)}</span><span class="invoice-number">${escapeHtml(transaction.id)}</span></div></div></td><td>${escapeHtml(transaction.service)}</td><td><span class="date-main">${formatShortDate(transaction.date)}</span><span class="date-time">${formatTime(transaction.time)}</span></td><td class="money">${formatMoney(transaction.total)}</td><td class="discount-money">${formatMoney(transaction.discount)}</td><td class="money">${formatMoney(transaction.paid)}</td><td class="balance-money">${formatMoney(getBalance(transaction))}</td><td><span class="status-badge ${getStatusClass(status)}">${status}</span></td><td><div class="action-buttons"><button type="button" class="table-action" title="View" onclick="viewTransaction('${transaction.id}')"><i class="fa-regular fa-eye"></i></button><button type="button" class="table-action" title="Edit" onclick="editTransaction('${transaction.id}')"><i class="fa-solid fa-pen"></i></button><button type="button" class="table-action" title="Delete" onclick="deleteTransaction('${transaction.id}')"><i class="fa-regular fa-trash-can"></i></button></div></td>`;
+    row.innerHTML = `<td><div class="patient-cell"><div class="patient-avatar">${getInitials(
+      transaction.patient,
+    )}</div><div><span class="patient-name">${escapeHtml(
+      transaction.patient,
+    )}</span><span class="invoice-number">${escapeHtml(
+      transaction.id,
+    )}</span></div></div></td><td>${escapeHtml(
+      transaction.service,
+    )}</td><td><span class="date-main">${formatShortDate(
+      transaction.date,
+    )}</span><span class="date-time">${formatTime(
+      transaction.time,
+    )}</span></td><td class="money">${formatMoney(
+      transaction.total,
+    )}</td><td class="discount-money">${formatMoney(
+      transaction.discount,
+    )}</td><td class="money">${formatMoney(
+      transaction.paid,
+    )}</td><td class="balance-money">${formatMoney(
+      getBalance(transaction),
+    )}</td><td><span class="status-badge ${getStatusClass(
+      status,
+    )}">${status}</span></td><td><div class="action-buttons"><button type="button" class="table-action" title="View" onclick="viewTransaction('${escapeJs(
+      transaction.id,
+    )}')"><i class="fa-regular fa-eye"></i></button></div></td>`;
     body.appendChild(row);
   });
 }
@@ -484,7 +503,6 @@ function renderProcedureChart() {
   container.innerHTML = "";
   let data = sampleProcedureData.map((item) => [item.name, item.amount]);
   if (!data.length) {
-    container.innerHTML = "";
     return;
   }
   data.sort((a, b) => b[1] - a[1]);
@@ -494,7 +512,11 @@ function renderProcedureChart() {
     const row = document.createElement("div");
     row.className = "procedure-row";
     const percentage = (value / max) * 100;
-    row.innerHTML = `<span class="procedure-name">${escapeHtml(shortenService(name))}</span><div class="procedure-bar-bg"><div class="procedure-bar" style="width:${percentage}%"></div></div><span class="procedure-value">${formatMoney(value)}</span>`;
+    row.innerHTML = `<span class="procedure-name">${escapeHtml(
+      shortenService(name),
+    )}</span><div class="procedure-bar-bg"><div class="procedure-bar" style="width:${percentage}%"></div></div><span class="procedure-value">${formatMoney(
+      value,
+    )}</span>`;
     container.appendChild(row);
   });
 }
@@ -522,37 +544,29 @@ function renderRevenueExpenseChart() {
   const chartWidth = width - left - right;
   const chartHeight = height - top - bottom;
   const xStep = chartWidth / (months.length - 1);
+  const svgNamespace = "http://www.w3.org/2000/svg";
   function yPosition(value) {
     return top + chartHeight - (value / maxValue) * chartHeight;
   }
-  const gridCount = 5;
-  for (let i = 0; i <= gridCount; i++) {
-    const y = top + (chartHeight / gridCount) * i;
-    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  for (let i = 0; i <= 5; i++) {
+    const y = top + (chartHeight / 5) * i;
+    const line = document.createElementNS(svgNamespace, "line");
     line.setAttribute("x1", left);
     line.setAttribute("x2", width - right);
     line.setAttribute("y1", y);
     line.setAttribute("y2", y);
     line.setAttribute("class", "chart-grid-line");
     svg.appendChild(line);
-    const label = document.createElementNS(
-      "http://www.w3.org/2000/svg",
-      "text",
-    );
+    const label = document.createElementNS(svgNamespace, "text");
     label.setAttribute("x", 4);
     label.setAttribute("y", y + 4);
     label.setAttribute("class", "chart-axis-label");
-    label.textContent = formatCompactMoney(
-      maxValue - (maxValue / gridCount) * i,
-    );
+    label.textContent = formatCompactMoney(maxValue - (maxValue / 5) * i);
     svg.appendChild(label);
   }
   months.forEach((month, index) => {
     const x = left + xStep * index;
-    const label = document.createElementNS(
-      "http://www.w3.org/2000/svg",
-      "text",
-    );
+    const label = document.createElementNS(svgNamespace, "text");
     label.setAttribute("x", x);
     label.setAttribute("y", height - 13);
     label.setAttribute("text-anchor", "middle");
@@ -573,25 +587,16 @@ function renderRevenueExpenseChart() {
   }
   const revenuePoints = makePoints(revenue);
   const expensePoints = makePoints(expenses);
-  const revenuePath = document.createElementNS(
-    "http://www.w3.org/2000/svg",
-    "path",
-  );
+  const revenuePath = document.createElementNS(svgNamespace, "path");
   revenuePath.setAttribute("d", makePath(revenuePoints));
   revenuePath.setAttribute("class", "revenue-line");
   svg.appendChild(revenuePath);
-  const expensePath = document.createElementNS(
-    "http://www.w3.org/2000/svg",
-    "path",
-  );
+  const expensePath = document.createElementNS(svgNamespace, "path");
   expensePath.setAttribute("d", makePath(expensePoints));
   expensePath.setAttribute("class", "expense-line");
   svg.appendChild(expensePath);
   revenuePoints.forEach((point) => {
-    const circle = document.createElementNS(
-      "http://www.w3.org/2000/svg",
-      "circle",
-    );
+    const circle = document.createElementNS(svgNamespace, "circle");
     circle.setAttribute("cx", point.x);
     circle.setAttribute("cy", point.y);
     circle.setAttribute("r", 4);
@@ -599,10 +604,7 @@ function renderRevenueExpenseChart() {
     svg.appendChild(circle);
   });
   expensePoints.forEach((point) => {
-    const circle = document.createElementNS(
-      "http://www.w3.org/2000/svg",
-      "circle",
-    );
+    const circle = document.createElementNS(svgNamespace, "circle");
     circle.setAttribute("cx", point.x);
     circle.setAttribute("cy", point.y);
     circle.setAttribute("r", 4);
@@ -634,7 +636,9 @@ function renderExpenseChart() {
     currentPercent = end;
     const itemElement = document.createElement("div");
     itemElement.className = "expense-category";
-    itemElement.innerHTML = `<span class="expense-color" style="background:${item.color}"></span><span>${escapeHtml(item.name)}: ${formatMoney(item.amount)} (${percentage.toFixed(1)}%)</span>`;
+    itemElement.innerHTML = `<span class="expense-color" style="background:${item.color}"></span><span>${escapeHtml(
+      item.name,
+    )}: ${formatMoney(item.amount)} (${percentage.toFixed(1)}%)</span>`;
     list.appendChild(itemElement);
   });
   pie.style.background = `conic-gradient(${gradients.join(",")})`;
@@ -648,30 +652,62 @@ function renderCollection() {
   }
   list.innerHTML = "";
   const methods = [
-    { name: "Cash", icon: "fa-money-bill-wave", className: "cash" },
-    { name: "GCash", icon: "fa-mobile-screen-button", className: "gcash" },
-    { name: "Bank Transfer", icon: "fa-building-columns", className: "bank" },
-    { name: "Card", icon: "fa-credit-card", className: "card" },
+    {
+      value: "Cash",
+      name: "Cash",
+      icon: "fa-money-bill-wave",
+      className: "cash",
+    },
+    {
+      value: "GCash",
+      name: "GCash",
+      icon: "fa-mobile-screen-button",
+      className: "gcash",
+    },
+    {
+      value: "Bank Transfer",
+      name: "Bank Transfer",
+      icon: "fa-building-columns",
+      className: "bank",
+    },
   ];
   let grandTotal = 0;
   methods.forEach((method) => {
-    const methodTransactions = transactions.filter((transaction) => {
-      if (transaction.method !== method.name) {
-        return false;
-      }
-      if (collectionPeriod === "today") {
-        return transaction.date === getTodayKey();
-      }
-      return isCurrentMonth(transaction.date);
-    });
-    const amount = methodTransactions.reduce(
-      (sum, transaction) => sum + transaction.paid,
+    const methodPayments = transactions
+      .flatMap((transaction) =>
+        getPaymentHistory(transaction).filter(
+          (payment) =>
+            payment.paymentMethod === method.value &&
+            payment.status === "paid" &&
+            payment.amount > 0,
+        ),
+      )
+      .filter((payment) => {
+        if (collectionPeriod === "today") {
+          return payment.date === getTodayKey();
+        }
+        return isCurrentMonth(payment.date);
+      });
+    const amount = methodPayments.reduce(
+      (sum, payment) => sum + payment.amount,
       0,
     );
     grandTotal += amount;
     const item = document.createElement("div");
     item.className = "collection-item";
-    item.innerHTML = `<div class="collection-icon ${method.className}"><i class="fa-solid ${method.icon}"></i></div><div class="collection-details"><span class="collection-name">${method.name}</span><span class="collection-transactions">${methodTransactions.length} transaction${methodTransactions.length === 1 ? "" : "s"}</span></div><span class="collection-amount">${formatMoney(amount)}</span>`;
+    item.innerHTML = `<div class="collection-icon ${
+      method.className
+    }"><i class="fa-solid ${
+      method.icon
+    }"></i></div><div class="collection-details"><span class="collection-name">${
+      method.name
+    }</span><span class="collection-transactions">${
+      methodPayments.length
+    } transaction${
+      methodPayments.length === 1 ? "" : "s"
+    }</span></div><span class="collection-amount">${formatMoney(
+      amount,
+    )}</span>`;
     list.appendChild(item);
   });
   if (totalElement) {
@@ -690,11 +726,21 @@ function renderAuditTrail() {
     return;
   }
   if (!transactions.length) {
-    container.innerHTML = `<div class="audit-content">No financial activity recorded yet.</div>`;
+    container.innerHTML =
+      '<div class="audit-content">No financial activity recorded yet.</div>';
     return;
   }
   const latest = transactions[0];
-  container.innerHTML = `<div class="audit-content"><strong>Latest payment record:</strong><br>Patient: ${escapeHtml(latest.patient)}<br>Invoice: ${escapeHtml(latest.invoice)}<br>Amount: ${formatMoney(latest.paid)}<br>Date: ${formatLongDate(latest.date)}<br>Payment Method: ${escapeHtml(latest.method)}</div>`;
+  const latestPayment = getPaymentHistory(latest)[0];
+  container.innerHTML = `<div class="audit-content"><strong>Latest payment record:</strong><br>Patient: ${escapeHtml(
+    latest.patient,
+  )}<br>Invoice: ${escapeHtml(latest.invoice)}<br>Amount: ${formatMoney(
+    latestPayment?.amount || latest.paid,
+  )}<br>Date: ${formatLongDate(
+    latestPayment?.date || latest.date,
+  )}<br>Payment Method: ${escapeHtml(
+    latestPayment?.paymentMethod || latest.method || "-",
+  )}</div>`;
 }
 function openPaymentModal() {
   const modal = document.getElementById("paymentModal");
@@ -702,30 +748,24 @@ function openPaymentModal() {
     return;
   }
   document.getElementById("paymentPatient").value = "";
+  document.getElementById("paymentPatientId").value = "";
   document.getElementById("paymentService").value = "";
   document.getElementById("paymentTotal").value = "";
   document.getElementById("paymentDiscount").value = "0";
-  document.getElementById("paymentPaid").value = "";
   modal.classList.add("show");
 }
 function closePaymentModal() {
-  const modal = document.getElementById("paymentModal");
-  if (modal) {
-    modal.classList.remove("show");
-  }
+  document.getElementById("paymentModal")?.classList.remove("show");
 }
-function savePayment() {
+async function savePayment() {
   const patientRecord = getPaymentPatient();
-  const patient = patientRecord ? getPatientFullName(patientRecord) : "";
   const patientId = patientRecord
     ? patientRecord.patientId || patientRecord.id || ""
     : "";
-  const service = document.getElementById("paymentService").value.trim();
-  const total = Number(document.getElementById("paymentTotal").value) || 0;
+  const service = document.getElementById("paymentService")?.value.trim() || "";
+  const total = Number(document.getElementById("paymentTotal")?.value) || 0;
   const discount =
-    Number(document.getElementById("paymentDiscount").value) || 0;
-  const paid = Number(document.getElementById("paymentPaid").value) || 0;
-  const method = document.getElementById("paymentMethod").value;
+    Number(document.getElementById("paymentDiscount")?.value) || 0;
   if (!patientRecord || !patientId) {
     alert("Please select a valid patient from the patient list.");
     return;
@@ -735,93 +775,86 @@ function savePayment() {
     return;
   }
   if (total <= 0) {
-    alert("Please enter a valid total.");
+    alert("Please enter a valid treatment price.");
     return;
   }
-  const transactionId = `TXN-${Date.now()}`;
-  const transactionDate = getTodayKey();
-  const transactionTime = getCurrentTime();
-  const transaction = {
-    id: transactionId,
-    invoice: `INV-${new Date().getFullYear()}-${String(transactions.length + 850).padStart(4, "0")}`,
-    patientId,
-    patient,
-    patientName: patient,
-    service,
-    date: transactionDate,
-    time: transactionTime,
-    total,
-    discount,
-    paid,
-    balance: getBalance({ total, discount, paid }),
-    method,
-    paymentMethod: method,
-    status: getPaymentStatus({ total, discount, paid }),
-    paymentHistory:
-      paid > 0
-        ? [
-            {
-              id: `${transactionId}-PAY-1`,
-              amount: paid,
-              paymentMethod: method,
-              reference: "",
-              referenceNumber: "",
-              cashReceived: method === "Cash" ? paid : 0,
-              change: 0,
-              changeAmount: 0,
-              gcashReference: "",
-              bankReference: "",
-              cardReference: "",
-              date: transactionDate,
-              notes: "",
-              createdTime: transactionTime,
-              createdAt: new Date().toISOString(),
-            },
-          ]
-        : [],
-    createdAt: new Date().toISOString(),
-  };
-  transactions.unshift(transaction);
-  saveTransactions();
-  closePaymentModal();
-  renderFinance();
+  if (discount < 0) {
+    alert("Discount cannot be negative.");
+    return;
+  }
+  if (discount > total) {
+    alert("Discount cannot be greater than the treatment price.");
+    return;
+  }
+  const saveButton = document.getElementById("savePaymentButton");
+  const originalText = saveButton?.textContent || "Create Charge";
+  try {
+    if (saveButton) {
+      saveButton.disabled = true;
+      saveButton.textContent = "Creating...";
+    }
+    const response = await fetch(TRANSACTIONS_API, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        patientId,
+        service,
+        total,
+        discount,
+      }),
+    });
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || "Failed to create treatment charge.");
+    }
+    await loadTransactions();
+    closePaymentModal();
+  } catch (error) {
+    console.error("Unable to create treatment charge:", error);
+    alert(error.message || "Unable to create treatment charge.");
+  } finally {
+    if (saveButton) {
+      saveButton.disabled = false;
+      saveButton.textContent = originalText;
+    }
+  }
 }
 function viewTransaction(id) {
   const transaction = transactions.find((item) => item.id === id);
-  if (!transaction) {
-    return;
+  if (transaction) {
+    showTransactionDetails(transaction);
   }
-  showTransactionDetails(transaction);
 }
 function getPaymentHistory(transaction) {
   const history = Array.isArray(transaction.paymentHistory)
     ? transaction.paymentHistory
     : [];
-  if (history.length) {
-    return history
-      .map((payment, index) => ({
-        id: payment.id || `${transaction.id}-${index + 1}`,
-        amount: Number(payment.amount) || 0,
-        paymentMethod: payment.paymentMethod || transaction.method || "Cash",
-        date: payment.date || transaction.date,
-        time: payment.createdTime || transaction.time || "",
-      }))
-      .filter((payment) => payment.amount > 0)
-      .sort((a, b) =>
-        `${b.date} ${b.time}`.localeCompare(`${a.date} ${a.time}`),
-      );
-  }
-  return transaction.paid > 0
-    ? [
-        {
-          id: `${transaction.id}-1`,
-          amount: transaction.paid,
-          paymentMethod: transaction.method || "Cash",
-          date: transaction.date,
-          time: transaction.time || "",
-        },
-      ]
-    : [];
+  return history
+    .filter(
+      (payment) =>
+        String(payment.status || "").toLowerCase() === "paid" &&
+        Number(payment.amount) > 0,
+    )
+    .map((payment, index) => ({
+      id:
+        payment.paymentUid ||
+        payment.paymentId ||
+        `${transaction.id}-${index + 1}`,
+      amount: Number(payment.amount) || 0,
+      paymentMethod: normalizePaymentMethod(payment.paymentMethod),
+      date: payment.paidAt
+        ? String(payment.paidAt).slice(0, 10)
+        : payment.date || transaction.date,
+      time: payment.paidAt
+        ? String(payment.paidAt).slice(11, 16)
+        : payment.time || transaction.time || "",
+      status: "paid",
+    }))
+    .sort((a, b) => `${b.date} ${b.time}`.localeCompare(`${a.date} ${a.time}`));
 }
 function showTransactionDetails(transaction) {
   currentDetailsTransaction = transaction;
@@ -842,12 +875,13 @@ function showTransactionDetails(transaction) {
     transaction.paid,
   );
   document.getElementById("detailBalance").textContent = formatMoney(balance);
+  const history = getPaymentHistory(transaction);
+  const methods = [
+    ...new Set(history.map((payment) => payment.paymentMethod).filter(Boolean)),
+  ];
   document.getElementById("detailMethod").textContent =
-    [
-      ...new Set(
-        getPaymentHistory(transaction).map((payment) => payment.paymentMethod),
-      ),
-    ].join(" + ") ||
+    methods.join(" + ") ||
+    transaction.paymentMethod ||
     transaction.method ||
     "-";
   document.getElementById("detailDate").textContent = formatLongDate(
@@ -857,8 +891,6 @@ function showTransactionDetails(transaction) {
   const detailStatus = document.getElementById("detailStatus");
   detailStatus.textContent = status;
   detailStatus.className = `status-badge ${getStatusClass(status)}`;
-  document.getElementById("detailNotes").textContent =
-    transaction.notes || "No notes.";
   renderPaymentHistory(transaction);
   document.getElementById("detailsModal").classList.add("show");
 }
@@ -869,19 +901,28 @@ function renderPaymentHistory(transaction) {
   if (!list || !count) {
     return;
   }
-  count.textContent = `${history.length} payment${history.length === 1 ? "" : "s"}`;
+  count.textContent = `${history.length} payment${
+    history.length === 1 ? "" : "s"
+  }`;
   list.innerHTML = history.length
     ? history
         .map((payment, index) => {
+          const method = payment.paymentMethod;
           const icon =
-            payment.paymentMethod === "GCash"
+            method === "GCash"
               ? "fa-mobile-screen-button"
-              : payment.paymentMethod === "Bank Transfer"
+              : method === "Bank Transfer"
                 ? "fa-building-columns"
-                : payment.paymentMethod === "Card"
-                  ? "fa-credit-card"
-                  : "fa-money-bill-wave";
-          return `<div class="payment-history-item"><div class="payment-history-item-left"><div class="payment-history-method-icon"><i class="fa-solid ${icon}"></i></div><div class="payment-history-item-info"><strong>${escapeHtml(payment.paymentMethod)}</strong><span>${escapeHtml(formatLongDate(payment.date))}${payment.time ? ` · ${escapeHtml(formatTime(payment.time))}` : ""}</span></div></div><div class="payment-history-item-right"><strong>${escapeHtml(formatMoney(payment.amount))}</strong><span>Payment ${history.length - index}</span></div></div>`;
+                : "fa-money-bill-wave";
+          return `<div class="payment-history-item"><div class="payment-history-item-left"><div class="payment-history-method-icon"><i class="fa-solid ${icon}"></i></div><div class="payment-history-item-info"><strong>${escapeHtml(
+            method || "-",
+          )}</strong><span>${escapeHtml(formatLongDate(payment.date))}${
+            payment.time ? ` · ${escapeHtml(formatTime(payment.time))}` : ""
+          }</span></div></div><div class="payment-history-item-right"><strong>${escapeHtml(
+            formatMoney(payment.amount),
+          )}</strong><span>Payment ${
+            history.length - index
+          }</span></div></div>`;
         })
         .join("")
     : `<div class="payment-history-empty"><div class="payment-history-empty-icon"><i class="fa-solid fa-clock-rotate-left"></i></div><strong>No payment history</strong><p>Additional payments will appear here.</p></div>`;
@@ -896,111 +937,57 @@ function printReceipt() {
     return;
   }
   const payment = getPaymentHistory(transaction)[0];
-  const receiptWindow = window.open("", "_blank", "width=440,height=700");
+  const receiptWindow = window.open("", "_blank", "width=480,height=760");
   if (!receiptWindow) {
     alert("Please allow pop-ups to view the receipt.");
     return;
   }
-  const totalCharge = Math.max(transaction.total - transaction.discount, 0);
-  const fields = [
-    ["Transaction ID", transaction.id],
-    ["Payment ID", payment?.id || `${transaction.id}-1`],
-    ["Patient", transaction.patient],
-    ["Service", transaction.service],
-    ["Date", formatLongDate(transaction.date)],
-    ["Payment Method", payment?.paymentMethod || transaction.method],
-    ["Status", getPaymentStatus(transaction)],
-    ["Total Charge", formatMoney(totalCharge)],
-  ];
-  const receiptHtml = `<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Payment Receipt - ${escapeHtml(transaction.id)}</title><style>*{box-sizing:border-box}body{font-family:Poppins,Arial,sans-serif;color:#17211b;padding:18px;margin:0;background:#fff}.receipt-page{width:100%;max-width:380px;margin:0 auto;padding:20px;border:1px solid #dfe7e2}.receipt-header{text-align:center}.clinic-name{margin:0;font-size:17px;line-height:1.25}.receipt-subtitle{margin:3px 0;color:#7c8881;font-size:8px}.receipt-divider{margin:12px 0 14px;border-top:1px dashed #d4ddd7}.receipt-title{text-align:center;font-size:11px;margin:0}.receipt-details{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:15px}.receipt-detail-box{min-height:43px;padding:7px 8px;border:1px solid #e0e7e3}.receipt-detail-label{display:block;margin-bottom:3px;color:#7b8780;font-size:6.5px;text-transform:uppercase}.receipt-detail-value{display:block;font-size:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.receipt-total-box,.receipt-balance-box{display:flex;align-items:center;justify-content:space-between;margin-top:11px;padding:9px 10px;font-size:9px}.receipt-total-box{background:#eaf7ef}.receipt-balance-box{margin-top:6px;background:#fff8e9}.receipt-amount-paid,.receipt-remaining-balance{font-size:11px!important;font-weight:700!important}.receipt-footer{text-align:center;margin-top:14px;padding-top:12px;border-top:1px dashed #d4ddd7;color:#7e8983;font-size:6.5px;line-height:1.4}.receipt-actions{text-align:center;margin-top:14px}.receipt-print-button{padding:8px 14px;border:0;border-radius:6px;background:#16803d;color:#fff;font-size:9px;cursor:pointer}@media print{body{padding:0}.receipt-page{max-width:380px}.receipt-actions{display:none}}</style></head><body><div class="receipt-page"><header class="receipt-header"><h1 class="clinic-name">DentaNueva Dental Clinic</h1><p class="receipt-subtitle">Official Payment Receipt</p></header><div class="receipt-divider"></div><h2 class="receipt-title">PAYMENT RECEIPT</h2><section class="receipt-details">${fields.map(([label, value]) => `<div class="receipt-detail-box"><span class="receipt-detail-label">${label}</span><strong class="receipt-detail-value">${escapeHtml(value || "-")}</strong></div>`).join("")}</section><div class="receipt-total-box"><span>AMOUNT PAID</span><strong class="receipt-amount-paid">${formatMoney(payment?.amount || transaction.paid)}</strong></div><div class="receipt-balance-box"><span>Remaining Balance</span><strong class="receipt-remaining-balance">${formatMoney(getBalance(transaction))}</strong></div><footer class="receipt-footer">Thank you for your payment.<br>This receipt represents the selected payment transaction.</footer><div class="receipt-actions"><button class="receipt-print-button" onclick="window.focus();window.print()">Print Receipt</button></div></div></body></html>`;
+  const totalCharge = Number(transaction.total || 0);
+  const netAmount = Math.max(
+    totalCharge - Number(transaction.discount || 0),
+    0,
+  );
+  const amountPaid = Number(payment?.amount || transaction.paid || 0);
+  const remainingBalance = getBalance(transaction);
+  const paymentMethod = payment?.paymentMethod || transaction.method || "-";
+  const paymentStatus = getPaymentStatus(transaction);
+  const receiptHtml = `<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Payment Receipt - ${escapeHtml(
+    transaction.id,
+  )}</title><style>*{box-sizing:border-box}body{margin:0;padding:28px;background:#f3f5f4;font-family:Arial,Helvetica,sans-serif;color:#1d2822}.receipt-page{width:100%;max-width:420px;margin:0 auto;background:#fff;padding:32px 34px;border:1px solid #e2e7e4;box-shadow:0 8px 24px rgba(0,0,0,.06)}.receipt-header{text-align:center}.clinic-name{margin:0;font-size:20px;font-weight:700;letter-spacing:.2px;color:#17211b}.clinic-subtitle{margin:4px 0 0;font-size:11px;color:#78837d}.receipt-type{margin:18px 0 0;text-align:center;font-size:12px;font-weight:700;letter-spacing:1.2px;color:#4c5952}.divider{border:0;border-top:1px solid #dfe5e1;margin:20px 0}.receipt-info{width:100%;border-collapse:collapse}.receipt-info td{padding:7px 0;vertical-align:top;font-size:10px}.receipt-info .label{width:42%;color:#7a857f;font-size:9px;text-transform:uppercase;letter-spacing:.4px}.receipt-info .value{width:58%;text-align:right;font-weight:600;color:#202b25;word-break:break-word}.section-title{margin:20px 0 8px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#78837d}.amounts{width:100%;border-collapse:collapse}.amounts td{padding:7px 0;font-size:10px}.amounts .label{color:#68746d}.amounts .value{text-align:right;font-weight:600}.amounts .total-row td{padding-top:11px;font-size:11px;font-weight:700;border-top:1px solid #dfe5e1}.amounts .paid-row td{padding-top:12px;font-size:12px;font-weight:700;border-top:1px dashed #cfd8d3}.amounts .balance-row td{padding-top:8px;font-size:11px;font-weight:700}.amounts .balance-row .value{font-size:12px}.status{display:inline-block;margin-top:3px;padding:4px 9px;border:1px solid #d8e1db;border-radius:20px;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.4px}.receipt-footer{text-align:center;margin-top:24px;padding-top:16px;border-top:1px dashed #d4dcd7;color:#7b867f;font-size:8px;line-height:1.6}.receipt-actions{text-align:center;margin-top:20px}.receipt-print-button{border:0;border-radius:6px;padding:9px 18px;background:#16803d;color:#fff;font-size:9px;font-weight:600;cursor:pointer}@media print{body{padding:0;background:#fff}.receipt-page{max-width:420px;border:0;box-shadow:none;padding:24px}.receipt-actions{display:none}}</style></head><body><div class="receipt-page"><header class="receipt-header"><h1 class="clinic-name">DentaNueva Dental Clinic</h1><p class="clinic-subtitle">Official Payment Receipt</p><p class="receipt-type">PAYMENT RECEIPT</p></header><hr class="divider"><table class="receipt-info"><tr><td class="label">Transaction ID</td><td class="value">${escapeHtml(
+    transaction.id || "-",
+  )}</td></tr><tr><td class="label">Payment ID</td><td class="value">${escapeHtml(
+    payment?.id || `${transaction.id}-1`,
+  )}</td></tr><tr><td class="label">Patient</td><td class="value">${escapeHtml(
+    transaction.patient || "-",
+  )}</td></tr><tr><td class="label">Service</td><td class="value">${escapeHtml(
+    transaction.service || "-",
+  )}</td></tr><tr><td class="label">Date</td><td class="value">${escapeHtml(
+    formatLongDate(transaction.date),
+  )}</td></tr><tr><td class="label">Payment Method</td><td class="value">${escapeHtml(
+    paymentMethod,
+  )}</td></tr><tr><td class="label">Status</td><td class="value"><span class="status">${escapeHtml(
+    paymentStatus,
+  )}</span></td></tr></table><div class="section-title">Payment Summary</div><table class="amounts"><tr><td class="label">Total Charge</td><td class="value">${formatMoney(
+    totalCharge,
+  )}</td></tr><tr><td class="label">Discount</td><td class="value">${formatMoney(
+    transaction.discount || 0,
+  )}</td></tr><tr class="total-row"><td class="label">Net Amount</td><td class="value">${formatMoney(
+    netAmount,
+  )}</td></tr><tr class="paid-row"><td class="label">Amount Paid</td><td class="value">${formatMoney(
+    amountPaid,
+  )}</td></tr><tr class="balance-row"><td class="label">Remaining Balance</td><td class="value">${formatMoney(
+    remainingBalance,
+  )}</td></tr></table><footer class="receipt-footer">Thank you for your payment.<br>This receipt represents the selected payment transaction.</footer><div class="receipt-actions"><button class="receipt-print-button" onclick="window.focus();window.print()">Print Receipt</button></div></div></body></html>`;
   receiptWindow.document.open();
   receiptWindow.document.write(receiptHtml);
   receiptWindow.document.close();
 }
-function editTransaction(id) {
-  const transaction = transactions.find((item) => item.id === id);
-  if (!transaction) {
-    return;
-  }
-  document.getElementById("paymentPatient").value = transaction.patient;
-  document.getElementById("paymentPatientId").value =
-    transaction.patientId || "";
-  document.getElementById("paymentService").value = transaction.service;
-  document.getElementById("paymentTotal").value = transaction.total;
-  document.getElementById("paymentDiscount").value = transaction.discount;
-  document.getElementById("paymentPaid").value = transaction.paid;
-  document.getElementById("paymentMethod").value = transaction.method;
-  const modal = document.getElementById("paymentModal");
-  modal.classList.add("show");
-  const saveButton = document.getElementById("savePaymentButton");
-  saveButton.onclick = function editSave() {
-    const patientRecord = getPaymentPatient();
-    if (!patientRecord) {
-      alert("Please select a valid patient from the patient list.");
-      return;
-    }
-    transaction.patientId = patientRecord.patientId || patientRecord.id || "";
-    transaction.patient = getPatientFullName(patientRecord);
-    transaction.patientName = transaction.patient;
-    transaction.service = document
-      .getElementById("paymentService")
-      .value.trim();
-    transaction.total =
-      Number(document.getElementById("paymentTotal").value) || 0;
-    transaction.discount =
-      Number(document.getElementById("paymentDiscount").value) || 0;
-    transaction.paid =
-      Number(document.getElementById("paymentPaid").value) || 0;
-    transaction.method = document.getElementById("paymentMethod").value;
-    transaction.paymentMethod = transaction.method;
-    transaction.balance = getBalance(transaction);
-    transaction.status = getPaymentStatus(transaction);
-    if (
-      !Array.isArray(transaction.paymentHistory) ||
-      !transaction.paymentHistory.length
-    ) {
-      transaction.paymentHistory = normalizePaymentHistory(
-        transaction,
-        transaction.patientId,
-        transaction.patient,
-      );
-    }
-    saveTransactions();
-    closePaymentModal();
-    saveButton.onclick = savePayment;
-    renderFinance();
-  };
-}
-function deleteTransaction(id) {
-  const transaction = transactions.find((item) => item.id === id);
-  if (!transaction) {
-    return;
-  }
-  const confirmed = confirm(`Delete transaction for ${transaction.patient}?`);
-  if (!confirmed) {
-    return;
-  }
-  transactions = transactions.filter((item) => item.id !== id);
-  saveTransactions();
-  renderFinance();
-}
 function getTodayKey() {
   const date = new Date();
-  return (
-    date.getFullYear() +
-    "-" +
-    String(date.getMonth() + 1).padStart(2, "0") +
-    "-" +
-    String(date.getDate()).padStart(2, "0")
-  );
-}
-function getCurrentTime() {
-  const date = new Date();
-  return (
-    String(date.getHours()).padStart(2, "0") +
-    ":" +
-    String(date.getMinutes()).padStart(2, "0")
-  );
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
+    2,
+    "0",
+  )}-${String(date.getDate()).padStart(2, "0")}`;
 }
 function isCurrentMonth(dateString) {
   const date = new Date(`${dateString}T00:00:00`);
@@ -1021,7 +1008,7 @@ function getMonthlyRevenue() {
     .reduce((sum, transaction) => sum + transaction.paid, 0);
 }
 function getMonthlyExpenses() {
-  return expenseData.reduce((sum, item) => sum + item.amount, 0);
+  return expenseData.reduce((sum, item) => sum + Number(item.amount || 0), 0);
 }
 function getRevenueForMonth(monthIndex) {
   const currentYear = new Date().getFullYear();
@@ -1035,15 +1022,19 @@ function getRevenueForMonth(monthIndex) {
     .reduce((sum, transaction) => sum + transaction.paid, 0);
 }
 function getBalance(transaction) {
+  const databaseBalance = Number(transaction.balance);
+  if (Number.isFinite(databaseBalance)) {
+    return Math.max(databaseBalance, 0);
+  }
   const totalAfterDiscount = Math.max(
-    0,
     transaction.total - transaction.discount,
+    0,
   );
-  return Math.max(0, totalAfterDiscount - transaction.paid);
+  return Math.max(totalAfterDiscount - transaction.paid, 0);
 }
 function getPaymentStatus(transaction) {
   const balance = getBalance(transaction);
-  const total = Math.max(0, transaction.total - transaction.discount);
+  const total = Math.max(transaction.total - transaction.discount, 0);
   if (balance <= 0) {
     return "Paid";
   }
@@ -1062,26 +1053,26 @@ function getStatusClass(status) {
   return "status-unpaid";
 }
 function formatMoney(amount) {
-  return (
-    "₱" +
-    Number(amount || 0).toLocaleString("en-PH", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })
-  );
+  return `₱${Number(amount || 0).toLocaleString("en-PH", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
 }
 function formatCompactMoney(amount) {
   if (amount >= 1000000) {
-    return "₱" + (amount / 1000000).toFixed(1) + "M";
+    return `₱${(amount / 1000000).toFixed(1)}M`;
   }
   if (amount >= 1000) {
-    return "₱" + (amount / 1000).toFixed(0) + "K";
+    return `₱${(amount / 1000).toFixed(0)}K`;
   }
-  return "₱" + Math.round(amount);
+  return `₱${Math.round(amount)}`;
 }
 function formatShortDate(dateString) {
   const date = new Date(`${dateString}T00:00:00`);
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
 }
 function formatLongDate(dateString) {
   const date = new Date(`${dateString}T00:00:00`);
@@ -1095,7 +1086,7 @@ function formatTime(time) {
   if (!time) {
     return "";
   }
-  const parts = time.split(":");
+  const parts = String(time).split(":");
   let hour = Number(parts[0]);
   const minute = parts[1] || "00";
   const suffix = hour >= 12 ? "PM" : "AM";
@@ -1136,4 +1127,7 @@ function escapeHtml(value) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+function escapeJs(value) {
+  return String(value).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 }

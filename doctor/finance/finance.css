@@ -30,6 +30,7 @@ body {
   font-family: "Poppins", sans-serif;
   background: var(--background);
   color: var(--text);
+  overflow-x: hidden;
 }
 button,
 input,
@@ -39,57 +40,79 @@ select {
 .dashboard-wrapper {
   min-height: 100vh;
   display: flex;
+  width: 100%;
 }
 .main-content {
   flex: 1;
   min-width: 0;
-  padding: 22px 34px 42px;
+  width: 100%;
+  padding: 24px 30px 38px;
 }
 .finance-header {
-  min-height: 96px;
+  min-height: 80px;
   background: var(--white);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: 14px;
   box-shadow: var(--shadow);
-  padding: 20px 24px;
+  padding: 16px 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 25px;
-  margin-bottom: 18px;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+.finance-header-main {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+.finance-header-icon {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #d5eadc;
+  border-radius: 12px;
+  background: var(--green-light);
+  color: var(--green);
+  font-size: 17px;
 }
 .finance-header-info {
   min-width: 0;
-  flex: 1;
 }
 .finance-header h1 {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 800;
-  letter-spacing: -0.7px;
+  letter-spacing: 0;
   line-height: 1.15;
-  color: #0c1714;
+  color: #1e2922;
 }
 .finance-header-info p {
-  font-size: 11px;
+  font-size: 9.5px;
   color: var(--muted);
-  margin-top: 5px;
+  margin-top: 4px;
   line-height: 1.5;
+  max-width: 650px;
 }
 .header-actions {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 9px;
+  gap: 8px;
   flex-shrink: 0;
 }
 .header-action-btn {
   border: 1px solid var(--border);
   background: var(--white);
   color: var(--text);
-  padding: 10px 16px;
-  min-height: 44px;
-  border-radius: 12px;
-  font-size: 12px;
+  padding: 8px 13px;
+  min-height: 38px;
+  border-radius: 9px;
+  font-size: 9.5px;
   font-weight: 600;
   cursor: pointer;
   display: flex;
@@ -106,40 +129,45 @@ select {
   color: var(--green);
 }
 .header-actions .transaction-count {
-  display: none;
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid #dcebe2;
+  border-radius: 16px;
 }
 .header-actions .primary-btn {
-  min-height: 40px;
-  padding: 8px 14px;
-  border-radius: 18px;
-  font-size: 11px;
+  min-height: 38px;
+  padding: 8px 13px;
+  border-radius: 9px;
+  font-size: 9.5px;
 }
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
-  margin-bottom: 18px;
+  gap: 14px;
+  margin-bottom: 14px;
 }
 .finance-card {
   background: var(--white);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 20px;
+  border-radius: 14px;
+  padding: 16px;
   display: flex;
   align-items: center;
-  gap: 15px;
-  min-height: 126px;
+  gap: 13px;
+  min-height: 108px;
   box-shadow: var(--shadow);
 }
 .card-icon {
-  width: 50px;
-  height: 50px;
-  border-radius: 14px;
+  width: 48px;
+  height: 48px;
+  border-radius: 13px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  font-size: 19px;
+  font-size: 18px;
 }
 .green-icon {
   background: var(--green-light);
@@ -171,7 +199,7 @@ select {
 }
 .card-information strong {
   display: block;
-  font-size: 23px;
+  font-size: 22px;
   font-weight: 700;
   color: #07110e;
   line-height: 1.25;
@@ -227,7 +255,7 @@ select {
 .content-card {
   background: var(--white);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: 14px;
   box-shadow: var(--shadow);
   overflow: hidden;
 }
@@ -301,14 +329,14 @@ select {
   margin-top: 0;
 }
 .transaction-filters {
-  padding: 14px 24px;
+  padding: 12px 16px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 210px 150px;
-  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) 200px 150px;
+  gap: 8px;
   border-bottom: 1px solid var(--border);
 }
 .search-wrapper {
-  height: 44px;
+  height: 40px;
   border: 1px solid #dfe7e3;
   border-radius: 11px;
   display: flex;
@@ -337,7 +365,7 @@ select {
   color: #98a49f;
 }
 .transaction-filters select {
-  height: 44px;
+  height: 40px;
   border: 1px solid #dfe7e3;
   border-radius: 11px;
   padding: 0 13px;
@@ -365,8 +393,8 @@ select {
   box-sizing: border-box;
 }
 .transaction-table th {
-  height: 44px;
-  padding: 0 16px;
+  height: 42px;
+  padding: 0 14px;
   text-align: left;
   color: #718078;
   font-size: 9px;
@@ -378,8 +406,8 @@ select {
   vertical-align: middle;
 }
 .transaction-table td {
-  height: 76px;
-  padding: 12px 16px;
+  height: 70px;
+  padding: 10px 14px;
   font-size: 11px;
   color: #26352f;
   border-bottom: 1px solid #edf1ef;
@@ -538,10 +566,15 @@ select {
 .action-buttons {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  gap: 5px;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
   white-space: nowrap;
-  transform: translateX(-40px);
+  transform: none;
+}
+.transaction-table th:nth-child(9),
+.transaction-table td:nth-child(9) {
+  text-align: center;
 }
 .table-action {
   width: 34px;
@@ -563,14 +596,14 @@ select {
 .charts-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 18px;
-  margin-top: 18px;
+  gap: 16px;
+  margin-top: 14px;
 }
 .chart-card {
-  min-height: 300px;
+  min-height: 280px;
 }
 .chart-header {
-  padding: 21px 24px 8px;
+  padding: 18px 22px 6px;
 }
 .chart-legend {
   display: flex;
@@ -596,8 +629,8 @@ select {
   background: #ef3e3e;
 }
 .procedure-chart {
-  padding: 20px 24px 25px;
-  min-height: 220px;
+  padding: 16px 22px 22px;
+  min-height: 205px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -607,7 +640,7 @@ select {
   grid-template-columns: 78px minmax(0, 1fr) 65px;
   align-items: center;
   gap: 10px;
-  margin-bottom: 13px;
+  margin-bottom: 11px;
 }
 .procedure-row:last-child {
   margin-bottom: 0;
@@ -634,8 +667,8 @@ select {
   color: #66736d;
 }
 .line-chart-wrapper {
-  height: 220px;
-  padding: 2px 20px 17px;
+  height: 205px;
+  padding: 2px 18px 15px;
 }
 #revenueExpenseChart {
   width: 100%;
@@ -669,26 +702,26 @@ select {
 }
 .lower-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
-  gap: 18px;
-  margin-top: 18px;
+  grid-template-columns: minmax(0, 1.12fr) minmax(0, 0.88fr);
+  gap: 16px;
+  margin-top: 14px;
   align-items: stretch;
 }
 .lower-grid > div {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 16px;
   min-width: 0;
 }
 .expense-card {
-  min-height: 290px;
+  min-height: 280px;
 }
 .expense-chart-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 180px;
+  grid-template-columns: minmax(0, 1fr) 170px;
   align-items: center;
-  gap: 15px;
-  padding: 4px 24px 24px;
+  gap: 14px;
+  padding: 2px 22px 22px;
   min-height: 220px;
 }
 .expense-category-list {
@@ -715,8 +748,8 @@ select {
   justify-content: center;
 }
 .expense-pie-chart {
-  width: 165px;
-  height: 165px;
+  width: 155px;
+  height: 155px;
   border-radius: 50%;
   background: #edf1ef;
   position: relative;
@@ -733,8 +766,8 @@ select {
   transform: translate(-50%, -50%);
 }
 .audit-card {
-  padding: 19px 24px;
-  min-height: 140px;
+  padding: 18px 22px;
+  min-height: 152px;
 }
 .audit-title {
   display: flex;
@@ -763,7 +796,7 @@ select {
   flex-direction: column;
 }
 .collection-header {
-  padding: 21px 24px 15px;
+  padding: 18px 22px 14px;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -784,7 +817,7 @@ select {
 .collection-tabs {
   display: flex;
   gap: 24px;
-  padding: 0 24px;
+  padding: 0 22px;
   border-bottom: 1px solid var(--border);
 }
 .collection-tab {
@@ -811,13 +844,13 @@ select {
   background: var(--green);
 }
 .collection-list {
-  padding: 0 24px;
+  padding: 0 22px;
   flex: 1;
 }
 .collection-item {
   display: flex;
   align-items: center;
-  padding: 14px 0;
+  padding: 13px 0;
   border-bottom: 1px solid #edf1ef;
 }
 .collection-item:last-child {
@@ -844,10 +877,6 @@ select {
   background: #f2eaff;
   color: var(--purple);
 }
-.collection-icon.card {
-  background: #fff4df;
-  color: var(--orange);
-}
 .collection-details {
   flex: 1;
 }
@@ -870,7 +899,7 @@ select {
 }
 .collection-total {
   margin-top: auto;
-  padding: 17px 24px;
+  padding: 16px 22px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -956,6 +985,26 @@ select {
   padding: 0 11px;
   outline: none;
   font-size: 11px;
+}
+.currency-input {
+  position: relative;
+  width: 100%;
+}
+.currency-input .currency-symbol {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #53615b;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  pointer-events: none;
+  z-index: 1;
+}
+.currency-input input {
+  width: 100%;
+  padding-left: 28px;
 }
 .form-group input:focus,
 .form-group select:focus {
@@ -1056,8 +1105,7 @@ select {
   padding: 0 0 10px;
   border-bottom: 1px solid #f0f2f1;
 }
-.details-grid span,
-.details-note > span {
+.details-grid span {
   display: block;
   margin-bottom: 4px;
   color: #89928d;
@@ -1075,18 +1123,6 @@ select {
   display: inline-flex;
   align-items: center;
   width: fit-content;
-}
-.details-note {
-  margin-top: 17px;
-}
-.details-note p {
-  margin: 0;
-  padding: 11px;
-  border-radius: 8px;
-  background: #f8faf9;
-  color: #626c66;
-  font-size: 9.5px;
-  line-height: 1.5;
 }
 .payment-history-section {
   margin-top: 18px;
@@ -1260,7 +1296,7 @@ select {
 }
 @media (max-width: 1350px) {
   .main-content {
-    padding: 22px 28px 40px;
+    padding: 22px 26px 36px;
   }
   .summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1269,7 +1305,7 @@ select {
     grid-template-columns: 1fr;
   }
   .collection-card {
-    min-height: 430px;
+    min-height: 420px;
   }
 }
 @media (max-width: 1100px) {
@@ -1400,5 +1436,163 @@ select {
   }
   .payment-history-item {
     align-items: flex-start;
+  }
+}
+body {
+  overflow-x: hidden;
+}
+.dashboard-wrapper {
+  width: 100%;
+}
+.main-content {
+  width: 100%;
+  padding: 24px 30px 38px;
+}
+.finance-header {
+  min-height: 80px;
+  padding: 16px 20px;
+  margin-bottom: 14px;
+  border-radius: 14px;
+  gap: 16px;
+}
+.finance-header-info p {
+  max-width: 650px;
+}
+.header-actions {
+  gap: 8px;
+}
+.header-action-btn,
+.header-actions .primary-btn {
+  min-height: 38px;
+}
+.summary-grid {
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.finance-card {
+  min-height: 108px;
+  padding: 16px;
+  border-radius: 14px;
+  gap: 13px;
+}
+.card-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 13px;
+}
+.card-information strong {
+  font-size: 22px;
+}
+.content-card {
+  border-radius: 14px;
+}
+.transaction-filters {
+  padding: 12px 16px;
+  gap: 8px;
+}
+.transaction-table th {
+  height: 42px;
+  padding: 0 14px;
+}
+.transaction-table td {
+  height: 70px;
+  padding: 10px 14px;
+}
+.action-buttons {
+  transform: none;
+  justify-content: center;
+}
+.charts-grid {
+  gap: 16px;
+  margin-top: 14px;
+}
+.chart-card {
+  min-height: 280px;
+}
+.chart-header {
+  padding: 18px 22px 6px;
+}
+.procedure-chart {
+  min-height: 205px;
+  padding: 16px 22px 22px;
+}
+.procedure-row {
+  margin-bottom: 11px;
+}
+.line-chart-wrapper {
+  height: 205px;
+  padding: 2px 18px 15px;
+}
+.lower-grid {
+  grid-template-columns: minmax(0, 1.12fr) minmax(0, 0.88fr);
+  gap: 16px;
+  margin-top: 14px;
+}
+.lower-grid > div {
+  gap: 16px;
+}
+.expense-card {
+  min-height: 280px;
+}
+.expense-chart-layout {
+  grid-template-columns: minmax(0, 1fr) 170px;
+  gap: 14px;
+  min-height: 220px;
+  padding: 2px 22px 22px;
+}
+.expense-pie-chart {
+  width: 155px;
+  height: 155px;
+}
+.audit-card {
+  min-height: 152px;
+  padding: 18px 22px;
+}
+.collection-card {
+  min-height: 448px;
+}
+.collection-header {
+  padding: 18px 22px 14px;
+}
+.collection-tabs {
+  padding: 0 22px;
+}
+.collection-list {
+  padding: 0 22px;
+}
+.collection-item {
+  padding: 13px 0;
+}
+.collection-total {
+  padding: 16px 22px;
+}
+@media (max-width: 1350px) {
+  .main-content {
+    padding: 22px 26px 36px;
+  }
+  .summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .lower-grid {
+    grid-template-columns: 1fr;
+  }
+  .collection-card {
+    min-height: 420px;
+  }
+}
+@media (max-width: 1000px) {
+  .charts-grid {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 760px) {
+  .main-content {
+    padding: 18px 18px 30px;
+  }
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+  .finance-header {
+    padding: 18px;
   }
 }

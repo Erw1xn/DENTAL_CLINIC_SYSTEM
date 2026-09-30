@@ -8,17 +8,22 @@ let appointments = [];
 let deleteNotificationId = null;
 let toastTimeout = null;
 let smsProcessingIds = new Set();
+let smsRefreshInProgress = false;
 let smsCurrentPage = 1;
 async function initializeSMSPage() {
   await loadPatients();
   await loadAppointments();
   await loadSMSNotifications();
-  cleanupOrphanedNotifications();
-  syncAppointmentNotifications();
+  const cleanupChanged = cleanupOrphanedNotifications();
+  const notificationsChanged = syncAppointmentNotifications();
+  if (cleanupChanged || notificationsChanged) {
+    await saveSMSNotifications();
+    await loadSMSNotifications();
+  }
   setupSMSPageSorting();
   bindEvents();
   renderPage();
-  processPendingSMSNotifications();
+  await processPendingSMSNotifications();
 }
 async function loadPatients() {
   try {
@@ -65,6 +70,68 @@ function getPatientPhone(patient) {
 function getPatientEmail(patient) {
   return patient?.email || patient?.emailAddress || "";
 }
+function getAppointmentDoctorId(appointment) {
+  return (
+    appointment?.doctorId ||
+    appointment?.doctor_id ||
+    appointment?.dentistId ||
+    appointment?.dentist_id ||
+    ""
+  );
+}
+function getAppointmentDoctorName(appointment) {
+  return (
+    appointment?.doctorName ||
+    appointment?.doctor_name ||
+    appointment?.dentistName ||
+    appointment?.dentist_name ||
+    appointment?.dentist ||
+    appointment?.doctor ||
+    ""
+  );
+}
+function getAppointmentService(appointment) {
+  return (
+    appointment?.service ||
+    appointment?.serviceType ||
+    appointment?.service_type ||
+    ""
+  );
+}
+function getAppointmentDuration(appointment) {
+  const duration = Number(
+    appointment?.duration ||
+      appointment?.durationMinutes ||
+      appointment?.duration_minutes ||
+      0,
+  );
+  return Number.isFinite(duration) && duration > 0 ? duration : 0;
+}
+function getAppointmentEndTime(appointment, appointmentTime) {
+  const duration = getAppointmentDuration(appointment);
+  const normalizedTime = normalizeTimeForInput(appointmentTime);
+  if (!duration || !normalizedTime) return "";
+  const [hour, minute] = normalizedTime.split(":").map(Number);
+  const start = new Date();
+  start.setHours(hour, minute, 0, 0);
+  start.setMinutes(start.getMinutes() + duration);
+  return (
+    String(start.getHours()).padStart(2, "0") +
+    ":" +
+    String(start.getMinutes()).padStart(2, "0")
+  );
+}
+function refreshNotificationPatientContact(notification) {
+  if (!notification) return;
+  const patient = patients.find(
+    (item) =>
+      String(getPatientId(item)) === String(notification.patientId || ""),
+  );
+  if (!patient) return;
+  notification.patientName = getPatientName(patient);
+  notification.email = getPatientEmail(patient);
+  notification.phone = getPatientPhone(patient);
+}
 async function loadAppointments() {
   try {
     const response = await fetch("../../api/appointments.php");
@@ -80,25 +147,34 @@ async function loadSMSNotifications() {
     const response = await fetch("sms_notifications.php?action=fetch");
     const data = await response.json();
     if (data.success) {
-      smsNotifications = data.notifications;
+      smsNotifications = Array.isArray(data.data) ? data.data : [];
+      smsNotifications.forEach((notification) =>
+        refreshNotificationPatientContact(notification),
+      );
       renderPage();
     } else {
       smsNotifications = [];
-      console.error(data.message);
+      console.error(data.message || "Unable to load notifications.");
     }
   } catch (error) {
     console.error("Unable to fetch notifications:", error);
+    smsNotifications = [];
   }
 }
 async function saveSMSNotifications() {
   try {
-    await fetch("sms_notifications.php?action=save", {
+    const response = await fetch("sms_notifications.php?action=save", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ notifications: smsNotifications }),
     });
+    const data = await response.json();
+    if (!data.success)
+      throw new Error(data.message || "Unable to save notifications.");
+    return true;
   } catch (error) {
     console.error("Unable to save notifications:", error);
+    return false;
   }
 }
 function setupSMSPageSorting() {
@@ -114,9 +190,7 @@ function getNotificationDate(notification) {
   const createdAt = notification.createdAt;
   if (createdAt) {
     const createdDate = new Date(createdAt);
-    if (!Number.isNaN(createdDate.getTime())) {
-      return createdDate.getTime();
-    }
+    if (!Number.isNaN(createdDate.getTime())) return createdDate.getTime();
   }
   const appointmentDate = notification.appointmentDate || "";
   const appointmentTime = notification.appointmentTime || "00:00";
@@ -124,13 +198,10 @@ function getNotificationDate(notification) {
     const appointmentDateTime = new Date(
       `${appointmentDate}T${appointmentTime}`,
     );
-    if (!Number.isNaN(appointmentDateTime.getTime())) {
+    if (!Number.isNaN(appointmentDateTime.getTime()))
       return appointmentDateTime.getTime();
-    }
     const fallbackDate = new Date(appointmentDate);
-    if (!Number.isNaN(fallbackDate.getTime())) {
-      return fallbackDate.getTime();
-    }
+    if (!Number.isNaN(fallbackDate.getTime())) return fallbackDate.getTime();
   }
   return 0;
 }
@@ -147,7 +218,8 @@ function syncAppointmentNotifications() {
     if (!patient) return;
     const patientName = getPatientName(patient);
     const email = getPatientEmail(patient);
-    if (!patientName || !email) return;
+    const phone = getPatientPhone(patient);
+    if (!patientName || (!email && !phone)) return;
     const appointmentId = getAppointmentId(appointment);
     if (!appointmentId) return;
     const appointmentDate = normalizeDateForInput(
@@ -197,6 +269,8 @@ function syncAppointmentNotifications() {
           "Appointment Reschedule",
           appointmentDate,
           appointmentTime,
+          null,
+          previousSnapshot,
         );
         if (createdReschedule) changed = true;
         const removedReminder =
@@ -224,6 +298,7 @@ function syncAppointmentNotifications() {
         const reminderDueAt = getReminderDueAt(
           appointmentDate,
           appointmentTime,
+          reminderType,
         );
         if (reminderDueAt) {
           const createdReminder = createAutomaticNotificationIfMissing(
@@ -256,7 +331,8 @@ function syncAppointmentNotifications() {
       appointmentSnapshot,
     );
   });
-  if (changed) saveSMSNotifications();
+  if (changed) return true;
+  return false;
 }
 function getAppointmentStatus(appointment) {
   if (!appointment) return "";
@@ -293,9 +369,9 @@ function getAppointmentStatus(appointment) {
 }
 function getAppointmentId(appointment) {
   return (
-    appointment?.id ||
-    appointment?.appointmentId ||
     appointment?.appointment_id ||
+    appointment?.appointmentId ||
+    appointment?.id ||
     appointment?.referenceId ||
     ""
   );
@@ -308,9 +384,16 @@ function findLatestAppointmentSnapshot(notifications) {
   const sorted = [...notifications].sort(
     (a, b) => getNotificationDate(b) - getNotificationDate(a),
   );
-  const notification = sorted.find((item) => item.appointmentSnapshot);
+  const notification = sorted.find(
+    (item) => item.appointmentSnapshot || item.appointmentDate,
+  );
   if (!notification) return null;
-  return notification.appointmentSnapshot;
+  if (notification.appointmentSnapshot) return notification.appointmentSnapshot;
+  return {
+    date: notification.appointmentDate || "",
+    time: notification.appointmentTime || "",
+    status: "",
+  };
 }
 function hasAppointmentScheduleChanged(
   previousSnapshot,
@@ -350,7 +433,7 @@ function getReminderTypeForAppointment(appointmentDate, appointmentTime) {
   if (difference > 0) return "Appointment Reminder";
   return null;
 }
-function getReminderDueAt(appointmentDate, appointmentTime) {
+function getReminderDueAt(appointmentDate, appointmentTime, reminderType) {
   const normalizedDate = normalizeDateForInput(appointmentDate);
   const normalizedTime = normalizeTimeForInput(appointmentTime);
   if (!normalizedDate || !normalizedTime) return null;
@@ -360,7 +443,11 @@ function getReminderDueAt(appointmentDate, appointmentTime) {
   );
   if (!appointmentDateTime || Number.isNaN(appointmentDateTime.getTime()))
     return null;
-  return new Date(appointmentDateTime.getTime() - 2 * 60 * 60 * 1000);
+  if (reminderType === "Appointment Reminder")
+    return new Date(appointmentDateTime.getTime() - 24 * 60 * 60 * 1000);
+  if (reminderType === "Same-Day Reminder")
+    return new Date(appointmentDateTime.getTime() - 2 * 60 * 60 * 1000);
+  return null;
 }
 function createLocalDateTimeFromDateAndTime(dateString, timeString) {
   const normalizedDate = normalizeDateForInput(dateString);
@@ -388,59 +475,228 @@ function createAutomaticNotificationIfMissing(
   appointmentDate,
   appointmentTime,
   scheduledFor = null,
+  previousSnapshot = null,
 ) {
   const appointmentId = getAppointmentId(appointment);
   if (!appointmentId) return false;
   const isReminder =
     notificationType === "Appointment Reminder" ||
     notificationType === "Same-Day Reminder";
-  const alreadyExists = smsNotifications.some(
-    (notification) =>
-      notification.source === "appointment" &&
-      String(notification.appointmentId || "") === String(appointmentId) &&
-      String(notification.type || "") === String(notificationType),
-  );
-  if (alreadyExists) return false;
   const patientName = getPatientName(patient);
+  const patientId = getPatientId(patient);
   const phone = getPatientPhone(patient);
   const email = getPatientEmail(patient);
-  const message = generateAutomaticAppointmentMessage(
+  const doctorId = getAppointmentDoctorId(appointment);
+  const doctorName = getAppointmentDoctorName(appointment);
+  const service = getAppointmentService(appointment);
+  const duration = getAppointmentDuration(appointment);
+  const appointmentEndTime = getAppointmentEndTime(
+    appointment,
+    appointmentTime,
+  );
+  const messageContext = {
     patientName,
+    patientId,
     appointmentDate,
     appointmentTime,
+    appointmentEndTime,
+    doctorName,
+    service,
+    duration,
+    previousSnapshot,
+  };
+  const emailMessage = generateAutomaticAppointmentMessage(
+    messageContext,
     notificationType,
   );
-  const notification = {
-    id: createID(),
-    appointmentId,
-    patientId: getPatientId(patient),
-    patientName,
-    phone,
-    email,
-    subject: generateNotificationSubject(notificationType),
-    message,
-    type: notificationType,
-    appointmentType: notificationType,
+  const smsMessage = generateAutomaticAppointmentSMSMessage(
+    messageContext,
+    notificationType,
+  );
+  const appointmentSnapshot = getAppointmentSnapshot(
     appointmentDate,
     appointmentTime,
-    status: "Pending",
-    deliveryStatus: "Pending",
-    createdAt: new Date().toISOString(),
-    sentAt: null,
-    failedAt: null,
-    failureReason: null,
-    source: "appointment",
-    scheduledFor: isReminder && scheduledFor ? scheduledFor : null,
-    isScheduledReminder: isReminder,
-    appointmentSnapshot: getAppointmentSnapshot(
+    getAppointmentStatus(appointment),
+  );
+  let created = false;
+  const createChannelNotification = (channel, contactMessage) => {
+    const contactAvailable = channel === "email" ? email : phone;
+    if (!contactAvailable) return false;
+    const alreadyExists = smsNotifications.some(
+      (notification) =>
+        notification.source === "appointment" &&
+        String(notification.appointmentId || "") === String(appointmentId) &&
+        String(notification.type || "") === String(notificationType) &&
+        String(notification.channel || "email").toLowerCase() === channel,
+    );
+    if (alreadyExists) return false;
+    smsNotifications.unshift({
+      id: createID(),
+      appointmentId,
+      patientId,
+      patientName,
+      phone,
+      email,
+      channel,
+      doctorId,
+      doctorName,
+      service,
+      duration,
+      appointmentEndTime,
+      subject: generateNotificationSubject(notificationType),
+      message: contactMessage,
+      type: notificationType,
+      appointmentType: notificationType,
       appointmentDate,
       appointmentTime,
-      getAppointmentStatus(appointment),
-    ),
+      status: "Pending",
+      deliveryStatus: "Pending",
+      createdAt: new Date().toISOString(),
+      sentAt: null,
+      failedAt: null,
+      failureReason: null,
+      source: "appointment",
+      scheduledFor: isReminder && scheduledFor ? scheduledFor : null,
+      isScheduledReminder: isReminder,
+      appointmentSnapshot,
+    });
+    return true;
   };
-  smsNotifications.unshift(notification);
-  return true;
+  if (email && createChannelNotification("email", emailMessage)) created = true;
+  if (phone && createChannelNotification("sms", smsMessage)) created = true;
+  return created;
 }
+
+/* ------------------------------------------------------------------
+    Message templates
+    Both the email and SMS versions are built from the same context
+    object so every notification always carries the full set of
+    appointment details: patient, date, time range, doctor, service
+    and duration. SMS stays short (single-segment friendly); email
+    spells everything out in full sentences.
+  ------------------------------------------------------------------ */
+function buildScheduleLines(context) {
+  const formattedDate = context.appointmentDate
+    ? formatDate(context.appointmentDate)
+    : "Not specified";
+  const formattedStart = context.appointmentTime
+    ? formatTime(context.appointmentTime)
+    : "Not specified";
+  const formattedEnd = context.appointmentEndTime
+    ? formatTime(context.appointmentEndTime)
+    : "";
+  const timeRange = formattedEnd
+    ? `${formattedStart} - ${formattedEnd}`
+    : formattedStart;
+  const formattedDuration = context.duration
+    ? `${context.duration} minutes`
+    : "Not specified";
+  return {
+    formattedDate,
+    formattedStart,
+    formattedEnd,
+    timeRange,
+    formattedDuration,
+    doctorName: context.doctorName || "Not yet assigned",
+    service: context.service || "General consultation",
+  };
+}
+function generateAutomaticAppointmentMessage(context, notificationType) {
+  const name = context.patientName || "Patient";
+  const s = buildScheduleLines(context);
+  const detailsBlock =
+    `Date: ${s.formattedDate}\n` +
+    `Time: ${s.timeRange}\n` +
+    `Doctor: ${s.doctorName}\n` +
+    `Service: ${s.service}\n` +
+    `Duration: ${s.formattedDuration}`;
+  const closing = "Thank you for choosing DentaNueva Dental Clinic!";
+  switch (notificationType) {
+    case "Appointment Confirmation":
+      return (
+        `Hello ${name},\n\n` +
+        `Your appointment at DentaNueva Dental Clinic has been confirmed. Here are your appointment details:\n\n` +
+        `${detailsBlock}\n\n` +
+        `Please arrive at least 10 minutes before your scheduled time. If you need to reschedule or cancel, please contact us as soon as possible.\n\n` +
+        closing
+      );
+    case "Appointment Reminder":
+      return (
+        `Hello ${name},\n\n` +
+        `This is a friendly reminder about your upcoming appointment tomorrow at DentaNueva Dental Clinic.\n\n` +
+        `${detailsBlock}\n\n` +
+        `Please arrive 10 minutes early. See you!\n\n` +
+        closing
+      );
+    case "Same-Day Reminder":
+      return (
+        `Hello ${name},\n\n` +
+        `This is a reminder that you have an appointment today at DentaNueva Dental Clinic.\n\n` +
+        `${detailsBlock}\n\n` +
+        `Please arrive 10 minutes early. We look forward to seeing you today!\n\n` +
+        closing
+      );
+    case "Appointment Reschedule": {
+      const previous = context.previousSnapshot;
+      const previousLine =
+        previous && previous.date
+          ? `Previous Schedule: ${formatDate(previous.date)}${
+              previous.time ? ` at ${formatTime(previous.time)}` : ""
+            }\n`
+          : "";
+      return (
+        `Hello ${name},\n\n` +
+        `Your appointment at DentaNueva Dental Clinic has been rescheduled. Please see your updated appointment details below:\n\n` +
+        `${previousLine}${detailsBlock}\n\n` +
+        `If this new schedule does not work for you, please contact the clinic to arrange another time. Thank you for your understanding!\n\n` +
+        closing
+      );
+    }
+    case "Appointment Cancellation":
+      return (
+        `Hello ${name},\n\n` +
+        `Your appointment at DentaNueva Dental Clinic has been cancelled. Here were the appointment details:\n\n` +
+        `${detailsBlock}\n\n` +
+        `If you would like to book a new appointment, please contact the clinic or visit us again. We're sorry for any inconvenience.\n\n` +
+        closing
+      );
+    default:
+      return (
+        `Hello ${name},\n\n` +
+        `You have a notification from DentaNueva Dental Clinic.\n\n` +
+        `${detailsBlock}\n\n` +
+        closing
+      );
+  }
+}
+function generateAutomaticAppointmentSMSMessage(context, notificationType) {
+  const limitText = (value, maxLength) => {
+    const text = String(value || "").trim();
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength - 3).trim() + "...";
+  };
+  const name = limitText(context.patientName || "Patient", 18);
+  const s = buildScheduleLines(context);
+  const shortDate = limitText(s.formattedDate, 12);
+  const shortTime = limitText(s.timeRange, 15);
+  const doctor = limitText(s.doctorName, 18);
+  const service = limitText(s.service, 18);
+  switch (notificationType) {
+    case "Appointment Confirmation":
+      return `DentaNueva: Hi ${name}, CONFIRMED ${shortDate} ${shortTime}. Dr ${doctor}. ${service}. Arrive 10 mins early.`;
+    case "Appointment Reminder":
+      return `DentaNueva: Hi ${name}, REMINDER: TOMORROW ${shortDate} ${shortTime}. Dr ${doctor}. ${service}.`;
+    case "Same-Day Reminder":
+      return `DentaNueva: Hi ${name}, REMINDER: TODAY ${shortDate} ${shortTime}. Dr ${doctor}. ${service}.`;
+    case "Appointment Reschedule":
+      return `DentaNueva: Hi ${name}, RESCHEDULED ${shortDate} ${shortTime}. Dr ${doctor}. ${service}.`;
+    case "Appointment Cancellation":
+      return `DentaNueva: Hi ${name}, your ${shortDate} ${shortTime} appointment was CANCELLED. Contact DentaNueva to rebook.`;
+    default:
+      return `DentaNueva: Hi ${name}, clinic notification for ${shortDate} ${shortTime}.`;
+  }
+}
+
 function removeUndeliveredReminderNotifications(appointmentId) {
   let changed = false;
   smsNotifications = smsNotifications.filter((notification) => {
@@ -458,11 +714,11 @@ function removeUndeliveredReminderNotifications(appointmentId) {
     }
     return true;
   });
-  if (changed) saveSMSNotifications();
   return changed;
 }
 function cleanupOrphanedNotifications() {
-  if (!Array.isArray(smsNotifications) || !smsNotifications.length) return;
+  if (!Array.isArray(smsNotifications) || !smsNotifications.length)
+    return false;
   let changed = false;
   smsNotifications = smsNotifications.filter((notification) => {
     if (!notification) {
@@ -506,7 +762,7 @@ function cleanupOrphanedNotifications() {
     }
     return true;
   });
-  if (changed) saveSMSNotifications();
+  return changed;
 }
 function findPatientForAppointment(appointment) {
   if (!appointment) return null;
@@ -539,54 +795,12 @@ function findPatientForAppointment(appointment) {
   }
   return null;
 }
-function generateAutomaticAppointmentMessage(
-  patientName,
-  appointmentDate,
-  appointmentTime,
-  notificationType,
-) {
-  const formattedDate = appointmentDate ? formatDate(appointmentDate) : "";
-  const formattedTime = appointmentTime ? formatTime(appointmentTime) : "";
-  let message = "";
-  switch (notificationType) {
-    case "Appointment Confirmation":
-      message = `Hello ${patientName}, your appointment at DentaNueva Dental Clinic has been confirmed`;
-      if (formattedDate) message += ` for ${formattedDate}`;
-      if (formattedTime) message += ` at ${formattedTime}`;
-      message += ". Thank you!";
-      break;
-    case "Appointment Reminder":
-      message = `Hello ${patientName}, this is a reminder that your appointment at DentaNueva Dental Clinic is scheduled for tomorrow`;
-      if (formattedDate) message += `, ${formattedDate}`;
-      if (formattedTime) message += ` at ${formattedTime}`;
-      message += ". Please arrive 10 minutes early. Thank you!";
-      break;
-    case "Same-Day Reminder":
-      message = `Hello ${patientName}, this is a reminder that your appointment at DentaNueva Dental Clinic is scheduled for today`;
-      if (formattedTime) message += ` at ${formattedTime}`;
-      message += ". Please arrive 10 minutes early. Thank you!";
-      break;
-    case "Appointment Reschedule":
-      message = `Hello ${patientName}, your appointment at DentaNueva Dental Clinic has been rescheduled`;
-      if (formattedDate) message += ` to ${formattedDate}`;
-      if (formattedTime) message += ` at ${formattedTime}`;
-      message +=
-        ". Please take note of your new appointment schedule. Thank you!";
-      break;
-    case "Appointment Cancellation":
-      message = `Hello ${patientName}, your appointment at DentaNueva Dental Clinic scheduled`;
-      if (formattedDate) message += ` for ${formattedDate}`;
-      if (formattedTime) message += ` at ${formattedTime}`;
-      message +=
-        " has been cancelled. Please contact the clinic if you need further assistance. Thank you!";
-      break;
-    default:
-      message = `Hello ${patientName}, you have a notification from DentaNueva Dental Clinic. Thank you!`;
+async function processPendingSMSNotifications() {
+  const remindersChanged = syncDueReminderNotifications();
+  if (remindersChanged) {
+    await saveSMSNotifications();
+    await loadSMSNotifications();
   }
-  return message.substring(0, 320);
-}
-function processPendingSMSNotifications() {
-  syncDueReminderNotifications();
   const currentTime = Date.now();
   const pendingNotifications = smsNotifications.filter((notification) => {
     if (!notification) return false;
@@ -603,13 +817,13 @@ function processPendingSMSNotifications() {
     }
     return true;
   });
-  pendingNotifications.forEach((notification) => {
-    processSMSNotification(notification.id, false);
-  });
+  for (const notification of pendingNotifications) {
+    await processSMSNotification(notification.id, false);
+  }
 }
 function syncDueReminderNotifications() {
-  if (!Array.isArray(appointments) || !appointments.length) return;
-  if (!Array.isArray(patients) || !patients.length) return;
+  if (!Array.isArray(appointments) || !appointments.length) return false;
+  if (!Array.isArray(patients) || !patients.length) return false;
   let changed = false;
   appointments.forEach((appointment) => {
     if (!appointment) return;
@@ -639,34 +853,30 @@ function syncDueReminderNotifications() {
       appointmentTime,
     );
     if (!reminderType) return;
-    const reminderDueAt = getReminderDueAt(appointmentDate, appointmentTime);
-    if (!reminderDueAt) return;
-    const existingReminder = smsNotifications.some(
-      (notification) =>
-        notification.source === "appointment" &&
-        String(notification.appointmentId || "") === String(appointmentId) &&
-        (notification.type === "Appointment Reminder" ||
-          notification.type === "Same-Day Reminder"),
+    const reminderDueAt = getReminderDueAt(
+      appointmentDate,
+      appointmentTime,
+      reminderType,
     );
-    if (!existingReminder) {
-      const created = createAutomaticNotificationIfMissing(
-        appointment,
-        patient,
-        reminderType,
-        appointmentDate,
-        appointmentTime,
-        reminderDueAt.toISOString(),
-      );
-      if (created) changed = true;
-    }
+    if (!reminderDueAt) return;
+    const created = createAutomaticNotificationIfMissing(
+      appointment,
+      patient,
+      reminderType,
+      appointmentDate,
+      appointmentTime,
+      reminderDueAt.toISOString(),
+    );
+    if (created) changed = true;
   });
-  if (changed) saveSMSNotifications();
+  return changed;
 }
-function processSMSNotification(notificationId, isRetry = false) {
+async function processSMSNotification(notificationId, isRetry = false) {
   const notification = smsNotifications.find(
     (item) => String(item.id) === String(notificationId),
   );
   if (!notification) return;
+  refreshNotificationPatientContact(notification);
   if (notification.status !== "Pending" && !isRetry) return;
   if (smsProcessingIds.has(String(notificationId))) return;
   if (
@@ -678,40 +888,89 @@ function processSMSNotification(notificationId, isRetry = false) {
     if (Number.isNaN(scheduledTime) || Date.now() < scheduledTime) return;
   }
   smsProcessingIds.add(String(notificationId));
-  notification.status = "Pending";
-  notification.deliveryStatus = "Pending";
+  notification.status = "Processing";
+  notification.deliveryStatus = "Processing";
   notification.failureReason = null;
-  saveSMSNotifications();
   renderPage();
-  sendSMSNotification(notification)
-    .then(() => {
-      updateSMSDeliveryStatus(notification.id, "Sent");
-      showToast("Email sent successfully.");
-    })
-    .catch((error) => {
-      const reason = error?.message || "Email delivery failed.";
-      updateSMSDeliveryStatus(notification.id, "Failed", reason);
-      showToast("Email failed to send.", "!");
-    })
-    .finally(() => {
-      smsProcessingIds.delete(String(notificationId));
+  const channel =
+    String(notification.channel || "email").toLowerCase() === "sms"
+      ? "sms"
+      : "email";
+  const channelLabel = channel === "sms" ? "SMS" : "Email";
+  try {
+    const data = await sendSMSNotification(notification);
+    if (data?.data?.alreadyProcessed && data?.data?.status === "Processing") {
+      notification.status = "Processing";
+      notification.deliveryStatus = "Processing";
+      notification.failureReason = null;
       renderPage();
-    });
+      showToast(`${channelLabel} is already being sent.`, "i");
+      return;
+    }
+    if (data?.data?.alreadyProcessed && data?.data?.status === "Sent") {
+      notification.status = "Sent";
+      notification.deliveryStatus = "Sent";
+      notification.sentAt = new Date().toISOString();
+      notification.failedAt = null;
+      notification.failureReason = null;
+      renderPage();
+      showToast(`${channelLabel} was already sent.`, "i");
+      return;
+    }
+    notification.status = "Sent";
+    notification.deliveryStatus = "Sent";
+    notification.sentAt = new Date().toISOString();
+    notification.failedAt = null;
+    notification.failureReason = null;
+    renderPage();
+    showToast(`${channelLabel} sent successfully.`);
+  } catch (error) {
+    const reason = error?.message || `${channelLabel} delivery failed.`;
+    notification.status = "Failed";
+    notification.deliveryStatus = "Failed";
+    notification.failedAt = new Date().toISOString();
+    notification.sentAt = null;
+    notification.failureReason = reason;
+    renderPage();
+    showToast(`${channelLabel} failed to send.`, "!");
+  } finally {
+    smsProcessingIds.delete(String(notificationId));
+    await loadSMSNotifications();
+    renderPage();
+  }
 }
 function sendSMSNotification(notification) {
+  const channel =
+    String(notification.channel || "email").toLowerCase() === "sms"
+      ? "sms"
+      : "email";
+  const payload = {
+    id: notification.id,
+    channel,
+    subject: notification.subject,
+    message: notification.message,
+  };
+  if (channel === "sms") {
+    payload.phone = notification.phone;
+  } else {
+    payload.email = notification.email;
+  }
   return fetch("sms_notifications.php?action=send", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ id: notification.id }),
+    body: JSON.stringify(payload),
   })
     .then((res) => res.json())
     .then((data) => {
-      if (!data.success)
-        throw new Error(data.message || "Email delivery failed.");
+      if (!data.success) {
+        const label =
+          channel === "sms" ? "SMS delivery failed." : "Email delivery failed.";
+        throw new Error(data.message || label);
+      }
       return data;
     });
 }
-function retrySMSNotification(notificationId) {
+async function retrySMSNotification(notificationId) {
   const notification = smsNotifications.find(
     (item) => String(item.id) === String(notificationId),
   );
@@ -729,10 +988,11 @@ function retrySMSNotification(notificationId) {
   notification.deliveryStatus = "Pending";
   notification.failedAt = null;
   notification.failureReason = null;
-  saveSMSNotifications();
+  await saveSMSNotifications();
+  await loadSMSNotifications();
   renderPage();
   showToast("Retry started.");
-  processSMSNotification(notification.id, true);
+  await processSMSNotification(notification.id, true);
 }
 function updateSMSDeliveryStatus(notificationId, status, failureReason = null) {
   const notification = smsNotifications.find(
@@ -753,7 +1013,11 @@ function updateSMSDeliveryStatus(notificationId, status, failureReason = null) {
     notification.deliveryStatus = "Failed";
     notification.failedAt = new Date().toISOString();
     notification.sentAt = null;
-    notification.failureReason = failureReason || "Email delivery failed.";
+    notification.failureReason =
+      failureReason ||
+      (String(notification.channel || "email").toLowerCase() === "sms"
+        ? "SMS delivery failed."
+        : "Email delivery failed.");
   } else {
     notification.status = "Pending";
     notification.deliveryStatus = "Pending";
@@ -768,11 +1032,46 @@ function updateSMSDeliveryStatus(notificationId, status, failureReason = null) {
 function renderPage() {
   renderNotifications();
 }
+
+/* Notifications visible in the UI (future scheduled reminders are
+    held back until they're due, same rule the table already used). */
+function getVisibleNotifications() {
+  return smsNotifications.filter(
+    (notification) => !isFutureScheduledReminder(notification),
+  );
+}
+
+/* Updates the four stat chips above the table (Total / Sent /
+    Pending / Failed). These always reflect ALL visible notifications,
+    not just the current search/status/type filter, so the summary
+    stays a stable overview while someone filters the table below it. */
+function updateStatsSummary(visibleNotifications) {
+  const totalEl = document.getElementById("statTotal");
+  const sentEl = document.getElementById("statSent");
+  const pendingEl = document.getElementById("statPending");
+  const failedEl = document.getElementById("statFailed");
+  if (!totalEl && !sentEl && !pendingEl && !failedEl) return;
+  let sent = 0;
+  let pending = 0;
+  let failed = 0;
+  visibleNotifications.forEach((notification) => {
+    const status = String(notification.status || "");
+    if (status === "Sent") sent++;
+    else if (status === "Failed") failed++;
+    else pending++; // covers Pending and Processing
+  });
+  if (totalEl) totalEl.textContent = visibleNotifications.length;
+  if (sentEl) sentEl.textContent = sent;
+  if (pendingEl) pendingEl.textContent = pending;
+  if (failedEl) failedEl.textContent = failed;
+}
+
 function renderNotifications() {
   const tableBody = document.getElementById("notificationTableBody");
   const emptyState = document.getElementById("emptyState");
   const recordCount = document.getElementById("recordCount");
   if (!tableBody) return;
+  updateStatsSummary(getVisibleNotifications());
   const filtered = getFilteredNotifications();
   const sorted = sortSMSNotifications(filtered);
   const totalItems = sorted.length;
@@ -837,12 +1136,21 @@ function createNotificationRow(notification) {
   const preview =
     message.length > 85 ? message.substring(0, 85) + "..." : message;
   const isProcessing = smsProcessingIds.has(String(notification.id));
-  let actions = `<button class="action-btn" type="button" title="View" data-action="view" data-id="${escapeAttribute(notification.id)}"><i class="fa-solid fa-eye"></i></button>`;
+  const channel =
+    String(notification.channel || "email").toLowerCase() === "sms"
+      ? "SMS"
+      : "EMAIL";
+  const contact = channel === "SMS" ? notification.phone : notification.email;
+  const contactHTML = contact
+    ? `<span class="contact-cell"><span class="contact-line" title="${escapeAttribute(contact)}">${escapeHTML(contact)}</span></span>`
+    : "-";
+  let menuItems = `<button class="action-menu-item" type="button" data-action="view" data-id="${escapeAttribute(notification.id)}"><i class="fa-solid fa-eye"></i><span>View</span></button>`;
   if (notification.status === "Failed") {
-    actions += `<button class="action-btn retry" type="button" title="Retry Email" data-action="retry" data-id="${escapeAttribute(notification.id)}"><i class="fa-solid fa-rotate-right"></i></button>`;
+    menuItems += `<button class="action-menu-item retry" type="button" data-action="retry" data-id="${escapeAttribute(notification.id)}"><i class="fa-solid fa-rotate-right"></i><span>Retry</span></button>`;
   }
-  actions += `<button class="action-btn delete" type="button" title="Delete" data-action="delete" data-id="${escapeAttribute(notification.id)}"><i class="fa-solid fa-trash"></i></button>`;
-  return `<td><div class="patient-cell"><div class="patient-avatar">${escapeHTML(initials)}</div><div class="patient-info"><div class="patient-name">${escapeHTML(notification.patientName)}</div><div class="patient-id">${escapeHTML(notification.patientId || "No ID")}</div></div></div></td><td>${escapeHTML(notification.email || notification.phone || "-")}</td><td class="message-cell"><div class="message-preview" title="${escapeAttribute(message)}">${escapeHTML(preview)}</div></td><td><span class="type-badge ${typeClass}">${escapeHTML(notification.type || "-")}</span></td><td><div class="appointment-cell"><strong>${escapeHTML(appointmentDate)}</strong><span>${escapeHTML(appointmentTime)}</span></div></td><td><span class="status-badge ${statusClass}"><span class="status-dot"></span>${escapeHTML(isProcessing ? "Sending..." : notification.status)}</span></td><td><div class="action-buttons">${actions}</div></td>`;
+  menuItems += `<button class="action-menu-item delete" type="button" data-action="delete" data-id="${escapeAttribute(notification.id)}"><i class="fa-solid fa-trash"></i><span>Delete</span></button>`;
+  const actions = `<div class="action-menu"><button class="action-menu-trigger" type="button" aria-label="Notification actions" data-menu-trigger="true"><i class="fa-solid fa-ellipsis-vertical"></i></button><div class="action-menu-dropdown">${menuItems}</div></div>`;
+  return `<td><div class="patient-cell"><div class="patient-avatar">${escapeHTML(initials)}</div><div class="patient-info"><div class="patient-name">${escapeHTML(notification.patientName)}</div><div class="patient-id">${escapeHTML(notification.patientId || "No ID")}</div></div></div></td><td>${contactHTML}</td><td class="message-cell"><div class="message-preview" title="${escapeAttribute(message)}">${escapeHTML(preview)}</div></td><td><span class="type-badge ${typeClass}">${escapeHTML(notification.type || "-")}</span></td><td><div class="appointment-cell"><strong>${escapeHTML(appointmentDate)}</strong><span>${escapeHTML(appointmentTime)}</span></div></td><td><span class="status-badge ${statusClass}"><span class="status-dot"></span>${escapeHTML(isProcessing ? "Sending..." : notification.status)}</span></td><td><div class="action-buttons">${actions}</div></td>`;
 }
 function isFutureScheduledReminder(notification) {
   if (!notification) return false;
@@ -880,10 +1188,23 @@ function getFilteredNotifications() {
   });
 }
 function handleTableAction(event) {
+  const menuTrigger = event.target.closest("[data-menu-trigger]");
+  if (menuTrigger) {
+    event.stopPropagation();
+    const menu = menuTrigger.closest(".action-menu");
+    if (!menu) return;
+    document.querySelectorAll(".action-menu.open").forEach((item) => {
+      if (item !== menu) item.classList.remove("open");
+    });
+    menu.classList.toggle("open");
+    return;
+  }
   const button = event.target.closest("[data-action]");
   if (!button) return;
   const action = button.dataset.action;
   const id = button.dataset.id;
+  const menu = button.closest(".action-menu");
+  if (menu) menu.classList.remove("open");
   if (action === "view") viewNotification(id);
   if (action === "retry") retrySMSNotification(id);
   if (action === "delete") openDeleteModal(id);
@@ -893,29 +1214,42 @@ function viewNotification(id) {
     (item) => String(item.id) === String(id),
   );
   if (!notification) return;
+  refreshNotificationPatientContact(notification);
   const details = document.getElementById("notificationDetails");
   if (!details) return;
-  details.innerHTML = `<div class="detail-row"><div class="detail-label">Patient</div><div class="detail-value">${escapeHTML(notification.patientName)}</div></div><div class="detail-row"><div class="detail-label">Patient ID</div><div class="detail-value">${escapeHTML(notification.patientId || "Not specified")}</div></div><div class="detail-row"><div class="detail-label">Email</div><div class="detail-value">${escapeHTML(notification.email || "Not specified")}</div></div><div class="detail-row"><div class="detail-label">Notification Type</div><div class="detail-value">${escapeHTML(notification.type || "Not specified")}</div></div><div class="detail-row"><div class="detail-label">Appointment</div><div class="detail-value">${notification.appointmentDate ? escapeHTML(formatDate(notification.appointmentDate)) : "Date not specified"}${notification.appointmentTime ? " at " + escapeHTML(formatTime(notification.appointmentTime)) : ""}</div></div><div class="detail-row"><div class="detail-label">Status</div><div class="detail-value">${escapeHTML(notification.status)}</div></div><div class="detail-row"><div class="detail-label">Source</div><div class="detail-value">${notification.source === "appointment" ? "Automatic Appointment Workflow" : "Manual"}</div></div>${notification.scheduledFor ? `<div class="detail-row"><div class="detail-label">Scheduled For</div><div class="detail-value">${formatDateTime(notification.scheduledFor)}</div></div>` : ""}<div class="detail-row"><div class="detail-label">Message</div><div class="detail-value">${escapeHTML(notification.message || "")}</div></div><div class="detail-row"><div class="detail-label">Created</div><div class="detail-value">${formatDateTime(notification.createdAt)}</div></div><div class="detail-row"><div class="detail-label">Sent At</div><div class="detail-value">${notification.sentAt ? formatDateTime(notification.sentAt) : "Not processed"}</div></div>${notification.failedAt ? `<div class="detail-row"><div class="detail-label">Failed At</div><div class="detail-value">${formatDateTime(notification.failedAt)}</div></div>` : ""}${notification.failureReason ? `<div class="detail-row"><div class="detail-label">Failure Reason</div><div class="detail-value">${escapeHTML(notification.failureReason)}</div></div>` : ""}`;
+  const channel =
+    String(notification.channel || "email").toLowerCase() === "sms"
+      ? "SMS"
+      : "Email";
+  details.innerHTML = `<div class="detail-row"><div class="detail-label">Patient</div><div class="detail-value">${escapeHTML(notification.patientName)}</div></div><div class="detail-row"><div class="detail-label">Patient ID</div><div class="detail-value">${escapeHTML(notification.patientId || "Not specified")}</div></div><div class="detail-row"><div class="detail-label">Channel</div><div class="detail-value">${channel}</div></div><div class="detail-row"><div class="detail-label">Email</div><div class="detail-value">${escapeHTML(notification.email || "Not specified")}</div></div><div class="detail-row"><div class="detail-label">Phone</div><div class="detail-value">${escapeHTML(notification.phone || "Not specified")}</div></div><div class="detail-row"><div class="detail-label">Doctor</div><div class="detail-value">${escapeHTML(notification.doctorName || "Not specified")}</div></div><div class="detail-row"><div class="detail-label">Service</div><div class="detail-value">${escapeHTML(notification.service || "Not specified")}</div></div><div class="detail-row"><div class="detail-label">Appointment Date</div><div class="detail-value">${notification.appointmentDate ? escapeHTML(formatDate(notification.appointmentDate)) : "Date not specified"}</div></div><div class="detail-row"><div class="detail-label">Start Time</div><div class="detail-value">${notification.appointmentTime ? escapeHTML(formatTime(notification.appointmentTime)) : "Time not specified"}</div></div><div class="detail-row"><div class="detail-label">End Time</div><div class="detail-value">${notification.appointmentEndTime ? escapeHTML(formatTime(notification.appointmentEndTime)) : "Not specified"}</div></div><div class="detail-row"><div class="detail-label">Duration</div><div class="detail-value">${notification.duration ? escapeHTML(`${notification.duration} minutes`) : "Not specified"}</div></div><div class="detail-row"><div class="detail-label">Notification Type</div><div class="detail-value">${escapeHTML(notification.type || "Not specified")}</div></div><div class="detail-row"><div class="detail-label">Status</div><div class="detail-value">${escapeHTML(notification.status)}</div></div><div class="detail-row"><div class="detail-label">Source</div><div class="detail-value">${notification.source === "appointment" ? "Automatic Appointment Workflow" : "Manual"}</div></div>${notification.scheduledFor ? `<div class="detail-row"><div class="detail-label">Scheduled For</div><div class="detail-value">${formatDateTime(notification.scheduledFor)}</div></div>` : ""}<div class="detail-row"><div class="detail-label">Message</div><div class="detail-value">${escapeHTML(notification.message || "")}</div></div><div class="detail-row"><div class="detail-label">Created</div><div class="detail-value">${formatDateTime(notification.createdAt)}</div></div><div class="detail-row"><div class="detail-label">Sent At</div><div class="detail-value">${notification.sentAt ? formatDateTime(notification.sentAt) : "Not processed"}</div></div>${notification.failedAt ? `<div class="detail-row"><div class="detail-label">Failed At</div><div class="detail-value">${formatDateTime(notification.failedAt)}</div></div>` : ""}${notification.failureReason ? `<div class="detail-row"><div class="detail-label">Failure Reason</div><div class="detail-value">${escapeHTML(notification.failureReason)}</div></div>` : ""}`;
   openModal("viewModal");
 }
 function openDeleteModal(id) {
   deleteNotificationId = id;
   openModal("deleteModal");
 }
-function confirmDelete() {
+async function confirmDelete() {
   if (!deleteNotificationId) return;
-  fetch("sms_notifications.php?action=delete", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ id: deleteNotificationId }),
-  });
-  smsNotifications = smsNotifications.filter(
-    (item) => String(item.id) !== String(deleteNotificationId),
-  );
-  closeModal("deleteModal");
-  deleteNotificationId = null;
-  renderPage();
-  showToast("Notification deleted.");
+  const notificationId = deleteNotificationId;
+  try {
+    const response = await fetch("sms_notifications.php?action=delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: notificationId }),
+    });
+    const data = await response.json();
+    if (!data.success)
+      throw new Error(data.message || "Unable to delete notification.");
+    smsNotifications = smsNotifications.filter(
+      (item) => String(item.id) !== String(notificationId),
+    );
+    closeModal("deleteModal");
+    deleteNotificationId = null;
+    renderPage();
+    showToast("Notification deleted.");
+  } catch (error) {
+    showToast(error.message || "Unable to delete notification.", "!");
+  }
 }
 function openModal(id) {
   const modal = document.getElementById(id);
@@ -974,6 +1308,12 @@ function bindEvents() {
   document
     .getElementById("notificationTableBody")
     ?.addEventListener("click", handleTableAction);
+  document.addEventListener("click", (event) => {
+    if (event.target.closest(".action-menu")) return;
+    document
+      .querySelectorAll(".action-menu.open")
+      .forEach((menu) => menu.classList.remove("open"));
+  });
   document.querySelectorAll(".modal-overlay").forEach((modal) => {
     modal.addEventListener("click", (event) => {
       if (event.target === modal) modal.classList.remove("show");
@@ -1119,11 +1459,21 @@ function showToast(message, icon = "✓") {
   }, 3000);
 }
 setInterval(async () => {
-  await loadAppointments();
-  await loadPatients();
-  await loadSMSNotifications();
-  cleanupOrphanedNotifications();
-  syncAppointmentNotifications();
-  processPendingSMSNotifications();
-  renderPage();
+  if (smsRefreshInProgress) return;
+  smsRefreshInProgress = true;
+  try {
+    await loadAppointments();
+    await loadPatients();
+    await loadSMSNotifications();
+    const cleanupChanged = cleanupOrphanedNotifications();
+    const notificationsChanged = syncAppointmentNotifications();
+    if (cleanupChanged || notificationsChanged) {
+      await saveSMSNotifications();
+      await loadSMSNotifications();
+    }
+    await processPendingSMSNotifications();
+    renderPage();
+  } finally {
+    smsRefreshInProgress = false;
+  }
 }, 60000);
